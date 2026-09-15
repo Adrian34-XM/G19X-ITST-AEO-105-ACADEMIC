@@ -1,0 +1,90 @@
+import Link from "next/link";
+import { redirect, notFound } from "next/navigation";
+import { db, configured } from "@/lib/supabase/server";
+import { authenticate } from "@/lib/auth";
+import { home, mayEnter } from "@/lib/permissions";
+import { snapshot } from "@/modules/workspace/queries";
+import { Workspace } from "@/components/workspace";
+import { AuthForm } from "@/components/auth-form";
+export const dynamic = "force-dynamic";
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ path?: string[] }>;
+}) {
+  const { path = [] } = await params;
+  const pathname = "/" + path.join("/");
+  if (path[0] === "login" || path[0] === "register")
+    return (
+      <AuthForm register={path[0] === "register"} configured={configured()} />
+    );
+  if (!configured())
+    return (
+      <main className="center">
+        <section className="panel setup">
+          <span className="eyebrow">NEXO · CONFIGURACIÓN</span>
+          <h1>Tu plataforma de talento empieza aquí.</h1>
+          <p>
+            Configura Supabase para habilitar las vacantes, las cuentas y los
+            datos del equipo.
+          </p>
+          <ol>
+            <li>
+              Inicia Docker y ejecuta <code>npx supabase start</code>.
+            </li>
+            <li>
+              Copia <code>.env.example</code> a <code>.env.local</code> y
+              configura las claves locales.
+            </li>
+            <li>
+              Ejecuta <code>npx supabase db reset</code> y{" "}
+              <code>npm run seed</code>.
+            </li>
+            <li>
+              Reinicia <code>npm run dev</code>.
+            </li>
+          </ol>
+          <Link className="button" href="/login">
+            Ir al acceso
+          </Link>
+        </section>
+      </main>
+    );
+  if (path[0] === "jobs") {
+    let auth;
+    try {
+      auth = await authenticate();
+    } catch {
+      /* Public visitors may browse published jobs. */
+    }
+    if (auth)
+      return (
+        <Workspace
+          data={await snapshot(auth.client)}
+          path={path}
+          profile={auth.profile}
+        />
+      );
+    const client = await db();
+    const { data, error } = await client
+      .from("vacancies")
+      .select("*")
+      .eq("status", "PUBLISHED");
+    if (error) throw new Error("DATA_UNAVAILABLE");
+    return (
+      <Workspace data={{ vacancies: data ?? [] }} path={path} profile={null} />
+    );
+  }
+  if (!path.length) redirect("/login");
+  if (!["admin", "rh", "manager", "employee", "candidate"].includes(path[0]))
+    notFound();
+  let auth;
+  try {
+    auth = await authenticate();
+  } catch {
+    redirect("/login");
+  }
+  if (!mayEnter(auth.profile.role, pathname)) redirect(home[auth.profile.role]);
+  const data = await snapshot(auth.client);
+  return <Workspace data={data} path={path} profile={auth.profile} />;
+}
