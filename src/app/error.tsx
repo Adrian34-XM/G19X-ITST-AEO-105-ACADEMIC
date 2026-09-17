@@ -1,4 +1,7 @@
 "use client";
+/**
+ * Límite de errores de la interfaz. Permite intentar recuperar la página sin mostrar detalles internos de la excepción.
+ */
 export default function ErrorPage({ reset }: { reset: () => void }) {
   return (
     <main className="center">

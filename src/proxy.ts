@@ -1,3 +1,6 @@
+/**
+ * Renueva las cookies de sesión y controla el acceso a las áreas privadas. Consulta el rol vigente; las rutas API vuelven a validar identidad y permisos.
+ */
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { home, mayEnter, type Role } from "@/lib/permissions";

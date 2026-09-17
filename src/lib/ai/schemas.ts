@@ -1,3 +1,6 @@
+/**
+ * Define los contratos de recomendaciones y verificación de evidencias. El texto de los documentos se trata como datos no confiables; la sanitización limita caracteres, pero no garantiza eliminar toda inyección de instrucciones.
+ */
 import { z } from "zod";
 export const recommendation = z
   .object({

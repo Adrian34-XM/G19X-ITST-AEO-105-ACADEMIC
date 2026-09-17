@@ -1,3 +1,6 @@
+/**
+ * Configura el navegador y servidor utilizados por las pruebas de extremo a extremo.
+ */
 import { defineConfig } from "@playwright/test";
 import { loadEnvConfig } from "@next/env";
 loadEnvConfig(process.cwd());

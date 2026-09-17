@@ -2,9 +2,11 @@
 
 Aplicación Next.js/React/TypeScript con Supabase Auth, PostgreSQL, RLS y Storage privado. El código conecta reclutamiento, contratación, onboarding, cursos, tareas, evidencias, recomendaciones IA y desempeño.
 
-**Estado de entrega:** código compilado y 29 pruebas locales aprobadas. La URL y clave publicable del proyecto remoto están configuradas y Auth responde HTTP 200, pero las tablas comprobadas devuelven PGRST205: falta aplicar las migraciones. No se ha configurado un proveedor IA real ni se ha completado la demostración integral. Docker Desktop tampoco pudo iniciar el motor local. No hay resultados ficticios como sustituto de los servicios.
+**Documentación del código:** consulta [la guía en español](docs/CODIGO.md) para entender los módulos, permisos, base de datos y flujo de IA. Las pruebas locales no garantizan la disponibilidad de servicios externos; comprueba cada entorno antes de utilizarlo.
 
 ## Inicio local
+
+**Actualización de paneles y orquestación:** aplica `supabase/migrations/202609170001_orchestration_audit.sql` en el SQL Editor del proyecto remoto (o con el flujo normal de migraciones local). Es necesaria para las recomendaciones generales, el catálogo formativo y la auditoría exclusiva de SUPERUSER. Consulta `docs/CODIGO.md` para los alcances por rol. Las migraciones previas deben estar instaladas.
 
 Requisitos: Node.js 24, npm, Docker Desktop con motor Linux funcionando. Instalar dependencias con `npm ci`.
 

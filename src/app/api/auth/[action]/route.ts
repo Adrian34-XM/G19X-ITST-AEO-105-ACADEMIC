@@ -1,3 +1,6 @@
+/**
+ * Registro, acceso y cierre de sesión. El registro público crea candidatos; al iniciar sesión se consulta el perfil activo y se devuelve el destino según su rol.
+ */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/supabase/server";

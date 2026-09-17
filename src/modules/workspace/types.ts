@@ -1,3 +1,6 @@
+/**
+ * Contratos compartidos para filas, perfiles y conjuntos de tablas. Los valores de cada fila son desconocidos hasta que el consumidor los comprueba o convierte para mostrarlos.
+ */
 export type Row = { id: string; [key: string]: unknown };
 export type Snapshot = Record<string, Row[]>;
 export type Profile = {

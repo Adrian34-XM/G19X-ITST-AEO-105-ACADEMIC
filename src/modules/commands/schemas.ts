@@ -1,3 +1,6 @@
+/**
+ * Esquemas Zod de las operaciones permitidas. Rechaza campos inesperados y valida identificadores, estados y límites antes de ejecutar la función SQL command.
+ */
 import { z } from "zod";
 import { roles } from "@/lib/permissions";
 const id = z.uuid(),

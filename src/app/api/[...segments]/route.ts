@@ -1,3 +1,6 @@
+/**
+ * Adaptador de rutas REST por recurso. Reutiliza las funciones de archivos, IA y comandos para mantener las mismas validaciones en los distintos puntos de entrada.
+ */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticate, ApiError, requireRole } from "@/lib/auth";
@@ -26,6 +29,7 @@ export async function GET(req: Request, ctx: Ctx) {
   try {
     const { client, user, profile } = await authenticate();
     const { segments: s } = await ctx.params;
+    if (s[0] === "audit") requireRole(profile.role, ["SUPERUSER"]);
     if (s[0] === "candidates" && s[2] === "cv-url") {
       const url = new URL("/api/files", req.url);
       url.searchParams.set("bucket", "cvs");

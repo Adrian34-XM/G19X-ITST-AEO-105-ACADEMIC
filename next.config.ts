@@ -1,8 +1,11 @@
+/**
+ * Configuración de Next.js: salida desplegable, cabeceras de protección y exclusión de PDF.js del empaquetado para resolver su trabajador en tiempo de ejecución.
+ */
 import type { NextConfig } from "next";
 const config: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
-  // PDF.js resolves its worker relative to the package at runtime.
+  // PDF.js resuelve su trabajador respecto del paquete en tiempo de ejecución.
   serverExternalPackages: ["pdfjs-dist"],
   async headers() {
     return [

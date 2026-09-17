@@ -1,3 +1,6 @@
+/**
+ * Configura las pruebas unitarias y de integración, alias de importación y tiempos máximos. Los archivos de pruebas deben terminar en .test.ts.
+ */
 import { defineConfig } from "vitest/config";
 import path from "node:path";
 export default defineConfig({

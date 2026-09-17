@@ -1,3 +1,6 @@
+/**
+ * Pruebas de navegador del acceso y del recorrido candidato, RH y empleado. El flujo con servicios reales depende de las variables de demostración y puede omitirse si faltan.
+ */
 import { test, expect, type Page } from "@playwright/test";
 test("acceso responsive y registro", async ({ page }) => {
   await page.goto("/login");

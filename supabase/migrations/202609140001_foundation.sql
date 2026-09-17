@@ -1,3 +1,4 @@
+-- Esquema inicial: tablas, relaciones, roles, funciones auxiliares, políticas RLS y auditoría. Las políticas controlan las filas visibles y los disparadores registran cambios.
 create type public.app_role as enum ('SUPERUSER','RH_ADMIN','JEFE','EMPLEADO','CANDIDATO');
 create table public.profiles (id uuid primary key references auth.users(id) on delete cascade, full_name text not null check(length(full_name) between 1 and 150), email text not null, role public.app_role not null default 'CANDIDATO', active boolean not null default true, created_at timestamptz not null default now());
 create table public.departments (id uuid primary key default gen_random_uuid(), name text unique not null, created_at timestamptz not null default now());

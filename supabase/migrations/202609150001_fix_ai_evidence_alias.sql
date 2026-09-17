@@ -1,3 +1,4 @@
+-- Corrige el alias SQL que impedía iniciar análisis de evidencias. Detecta la versión esperada antes de reemplazar el fragmento y admite volver a ejecutarse.
 -- Corrige la colision entre la variable PL/pgSQL t y el alias de tasks.
 -- Ejecutar completo en Supabase > SQL Editor. Conserva permisos y datos.
 do $migration$

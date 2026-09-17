@@ -1,3 +1,6 @@
+/**
+ * Pruebas del proveedor IA con respuestas HTTP simuladas. Validan el contrato y manejo de fallos; no consumen la API de Gemini.
+ */
 import { afterEach, it, expect, vi } from "vitest";
 import { GeminiProvider, OllamaProvider, generate } from "@/lib/ai/provider";
 import { recommendation } from "@/lib/ai/schemas";

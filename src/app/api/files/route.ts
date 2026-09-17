@@ -1,3 +1,6 @@
+/**
+ * Gestiona documentos privados. POST valida propietario y archivo, sube a Storage y registra la asociación. GET comprueba acceso y entrega un enlace de descarga de 60 segundos. Storage y SQL son operaciones separadas: un fallo al asociar puede dejar un archivo sin referencia.
+ */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticate, ApiError } from "@/lib/auth";

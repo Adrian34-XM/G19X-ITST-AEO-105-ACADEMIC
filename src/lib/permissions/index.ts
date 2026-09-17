@@ -1,3 +1,6 @@
+/**
+ * Catálogo de roles, páginas iniciales y transiciones visibles de postulaciones. Las reglas definitivas de escritura también se comprueban en PostgreSQL.
+ */
 export const roles = [
   "SUPERUSER",
   "RH_ADMIN",
@@ -14,6 +17,7 @@ export const home: Record<Role, string> = {
   CANDIDATO: "/candidate",
 };
 export function mayEnter(role: Role, path: string) {
+  if (path.split("/")[2] === "audit") return role === "SUPERUSER";
   const prefix = path.split("/")[1];
   const allowed: Record<string, Role[]> = {
     admin: ["SUPERUSER"],

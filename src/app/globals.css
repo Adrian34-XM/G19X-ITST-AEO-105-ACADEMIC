@@ -1,3 +1,4 @@
+/* Estilos globales: identidad visual, navegación, formularios, tarjetas y adaptación a pantallas pequeñas. */
 @import "tailwindcss";
 :root {
   --ink: #202e2b;
@@ -985,3 +986,21 @@ code {
     font-size: 17px;
   }
 }
+/* Alertas, estructura jerárquica y gráficas con etiquetas legibles en móvil. */
+.operations-panel { margin-bottom: 24px; }
+.notification-list { max-height: 380px; overflow: auto; }
+.team-tree { overflow-x: auto; padding: 16px 0; }
+.team-tree ul { list-style: none; border-left: 2px solid #c4d2cb; margin-left: 18px; padding-left: 22px; }
+.team-tree li { padding: 10px 0; min-width: 240px; }
+.team-tree .record { max-width: 480px; }
+.chart-filters { display: flex; flex-wrap: wrap; gap: 16px; }
+.chart-filters label { display: grid; gap: 8px; flex: 1; min-width: 180px; }
+.bar-chart { display: grid; gap: 14px; padding: 16px 0; }
+.chart-row { display: grid; grid-template-columns: 140px minmax(80px,1fr) 100px; gap: 12px; align-items: center; }
+.chart-track { background: #edf2ef; height: 24px; border-radius: 6px; overflow: hidden; }
+.chart-bar { height: 100%; background: #287c61; }
+.audit-json { white-space: pre-wrap; overflow-wrap: anywhere; }
+.donut-chart { width: 200px; height: 200px; border-radius: 50%; display: grid; place-items: center; margin: 20px auto; }
+.donut-chart > span { width: 130px; height: 130px; border-radius: 50%; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 30px; }
+.donut-chart small { font-size: 13px; }
+@media(max-width:600px) { .chart-row { grid-template-columns: 100px minmax(40px,1fr) 80px; font-size: 12px; } }

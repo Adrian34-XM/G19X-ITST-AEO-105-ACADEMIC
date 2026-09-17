@@ -1,3 +1,6 @@
+/**
+ * Verifica la identidad con Supabase Auth y exige un perfil activo. Devuelve el cliente de la sesión para conservar RLS; requireRole restringe cada operación según su caso de uso.
+ */
 import "server-only";
 import { db } from "@/lib/supabase/server";
 import type { Role } from "@/lib/permissions";
@@ -9,6 +12,7 @@ export class ApiError extends Error {
     super(message);
   }
 }
+/** Verifica la sesión con Auth y rechaza usuarios sin perfil activo. */
 export async function authenticate() {
   const client = await db();
   const {
@@ -34,6 +38,7 @@ export async function authenticate() {
     },
   };
 }
+/** Exige pertenencia a la lista de roles permitidos para esta operación. */
 export function requireRole(role: Role, allowed: Role[]) {
   if (!allowed.includes(role))
     throw new ApiError(403, "No tienes permiso para realizar esta acción.");

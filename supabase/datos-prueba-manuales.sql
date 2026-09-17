@@ -1,3 +1,4 @@
+-- Completa roles y escenarios de cinco cuentas creadas previamente en Auth. Conserva registros existentes y evita convertir de nuevo en candidato a una persona contratada.
 -- Ejecutar en Supabase > SQL Editor DESPUES de crear las cinco
 -- cuentas indicadas abajo en Authentication > Users, con correo confirmado.
 -- Requiere las migraciones y supabase/seed.sql ya instalados.

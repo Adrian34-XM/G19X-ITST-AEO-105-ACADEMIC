@@ -1,3 +1,6 @@
+/**
+ * Pruebas de controles HTTP y autenticación con dependencias simuladas. Comprueban origen, mensajes seguros y rechazo de solicitudes no autorizadas.
+ */
 import { it, expect, vi, beforeEach } from "vitest";
 import { checkOrigin, readJson, failure } from "@/lib/api";
 import { ApiError } from "@/lib/auth";

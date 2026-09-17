@@ -1,3 +1,6 @@
+/**
+ * Crea cuentas desde el área de superusuario con el cliente administrativo. Asigna el rol mediante la sesión autorizada e intenta eliminar la cuenta recién creada si esa asignación falla.
+ */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticate, requireRole, ApiError } from "@/lib/auth";

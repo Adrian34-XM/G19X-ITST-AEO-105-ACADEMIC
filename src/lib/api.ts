@@ -1,12 +1,16 @@
+/**
+ * Utilidades HTTP comunes: control de origen, lectura limitada de JSON y traducción de errores. Evita devolver mensajes internos de base de datos o excepciones que podrían contener información sensible.
+ */
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { ApiError } from "@/lib/auth";
+/** Rechaza escrituras desde otro origen; no confía en cabeceras de host reenviado. */
 export function checkOrigin(req: Request) {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return;
   const origin = req.headers.get("origin");
-  // Next.js may reconstruct req.url using its bind hostname (localhost).
-  // Host is the authority actually addressed by the browser. Do not trust
-  // forwarded-host headers supplied by clients.
+  // Next.js puede reconstruir req.url con el host de escucha (localhost).
+  // Host identifica el destino usado por el navegador. No se confía en
+  // cabeceras de host reenviado proporcionadas por clientes.
   const destination = new URL(req.url);
   const host = req.headers.get("host");
   if (host) {
@@ -19,6 +23,7 @@ export function checkOrigin(req: Request) {
   if (req.headers.get("sec-fetch-site") === "cross-site")
     throw new ApiError(403, "Origen no autorizado.");
 }
+/** Convierte códigos de PostgreSQL en mensajes públicos sin revelar detalles internos. */
 export function databaseError(error: { code?: string; message: string }) {
   const messages: Record<string, string> = {
     SCHEDULE_CONFLICT:
@@ -51,6 +56,7 @@ export function databaseError(error: { code?: string; message: string }) {
           : "No se pudo guardar. Verifica los datos."),
   );
 }
+/** Respuesta uniforme para errores conocidos; oculta detalles de fallos inesperados. */
 export function failure(error: unknown) {
   if (error instanceof ZodError)
     return NextResponse.json(

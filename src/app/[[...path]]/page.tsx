@@ -1,3 +1,6 @@
+/**
+ * Entrada de páginas del sistema. Distingue acceso público, autenticación y áreas privadas, carga el conjunto de datos autorizado y entrega la vista al componente Workspace.
+ */
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { db, configured } from "@/lib/supabase/server";
@@ -55,7 +58,7 @@ export default async function Page({
     try {
       auth = await authenticate();
     } catch {
-      /* Public visitors may browse published jobs. */
+      /* Los visitantes pueden consultar vacantes publicadas. */
     }
     if (auth)
       return (

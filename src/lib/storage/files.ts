@@ -1,5 +1,9 @@
+/**
+ * Inspecciona tamaño, extensión, MIME y cabeceras antes de subir. Extrae texto UTF-8 o de PDF con límites de páginas y caracteres. Las cabeceras de imágenes no equivalen a un análisis antivirus.
+ */
 import { ApiError } from "@/lib/auth";
 export const maxFileSize = 5 * 1024 * 1024;
+/** Devuelve bytes para Storage y texto acotado para IA; lanza ApiError si no es válido. */
 export async function inspectFile(file: File, bucket: string) {
   if (!file.size || file.size > maxFileSize)
     throw new ApiError(422, "El archivo debe pesar entre 1 byte y 5 MB.");

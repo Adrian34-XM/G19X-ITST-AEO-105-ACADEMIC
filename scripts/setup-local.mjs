@@ -1,3 +1,6 @@
+/**
+ * Genera .env.local a partir del estado de Supabase local. Conserva un archivo existente y genera una contraseña aleatoria sin mostrar claves.
+ */
 import { execFileSync } from "node:child_process";
 import { existsSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";

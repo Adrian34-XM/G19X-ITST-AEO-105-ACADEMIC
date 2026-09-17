@@ -1,3 +1,6 @@
+/**
+ * Coordina análisis de reclutamiento y evidencias: valida rol y recurso, carga contexto autorizado, reutiliza resultados existentes y registra la solicitud. El proveedor genera el JSON; finish_ai persiste el resultado con permisos administrativos.
+ */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticate, ApiError, requireRole } from "@/lib/auth";

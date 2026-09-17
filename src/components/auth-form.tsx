@@ -1,4 +1,7 @@
 "use client";
+/**
+ * Formulario de acceso y registro. Envía las credenciales al endpoint propio y navega según su respuesta; el rol no se elige desde el registro público.
+ */
 import Link from "next/link";
 import { useState } from "react";
 export function AuthForm({

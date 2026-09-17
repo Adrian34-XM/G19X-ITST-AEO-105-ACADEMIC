@@ -1,3 +1,6 @@
+/**
+ * Estado de espera que Next.js muestra mientras prepara una página.
+ */
 export default function Loading() {
   return (
     <main className="center">

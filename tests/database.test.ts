@@ -1,3 +1,6 @@
+/**
+ * Pruebas sobre PostgreSQL embebido mediante PGlite. Preparan esquemas auxiliares de Auth y Storage, aplican migraciones y comprueban transacciones, RLS y permisos.
+ */
 import { beforeAll, afterAll, describe, it, expect } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import { readFile, readdir } from "node:fs/promises";
@@ -316,29 +319,206 @@ describe("PostgreSQL real: transacciones, RLS y aislamiento", () => {
     });
   });
   it("datos manuales asignan roles y equipo sin duplicar al repetir", async () => {
-    await db.exec("reset role; select set_config('request.jwt.claim.sub','',false)");
-    for (const email of ['admin@nexo.test','rh@nexo.test','jefe@nexo.test','empleado1@nexo.test','candidato1@nexo.test']) {
-      await db.query('insert into auth.users(id,email) values($1,$2)', [crypto.randomUUID(),email]);
+    await db.exec(
+      "reset role; select set_config('request.jwt.claim.sub','',false)",
+    );
+    for (const email of [
+      "admin@nexo.test",
+      "rh@nexo.test",
+      "jefe@nexo.test",
+      "empleado1@nexo.test",
+      "candidato1@nexo.test",
+    ]) {
+      await db.query("insert into auth.users(id,email) values($1,$2)", [
+        crypto.randomUUID(),
+        email,
+      ]);
     }
-    const sql = await readFile('supabase/datos-prueba-manuales.sql','utf8');
+    const sql = await readFile("supabase/datos-prueba-manuales.sql", "utf8");
     await db.exec(sql);
     await db.exec(sql);
-    expect((await db.query("select role from profiles where email='admin@nexo.test'")).rows).toEqual([{role:'SUPERUSER'}]);
-    expect((await db.query("select role from profiles where email='candidato1@nexo.test'")).rows).toEqual([{role:'CANDIDATO'}]);
-    expect((await db.query("select e.id from employees e join profiles p on p.id=e.profile_id join employees boss on boss.id=e.manager_id join profiles b on b.id=boss.profile_id where p.email='empleado1@nexo.test' and b.email='jefe@nexo.test'")).rows).toHaveLength(1);
-    expect((await db.query("select id from tasks where title='Presentación de prueba'")).rows).toHaveLength(1);
-    expect((await db.query("select id from vacancies where title='Desarrollador Full Stack — prueba'")).rows).toHaveLength(1);
+    expect(
+      (
+        await db.query(
+          "select role from profiles where email='admin@nexo.test'",
+        )
+      ).rows,
+    ).toEqual([{ role: "SUPERUSER" }]);
+    expect(
+      (
+        await db.query(
+          "select role from profiles where email='candidato1@nexo.test'",
+        )
+      ).rows,
+    ).toEqual([{ role: "CANDIDATO" }]);
+    expect(
+      (
+        await db.query(
+          "select e.id from employees e join profiles p on p.id=e.profile_id join employees boss on boss.id=e.manager_id join profiles b on b.id=boss.profile_id where p.email='empleado1@nexo.test' and b.email='jefe@nexo.test'",
+        )
+      ).rows,
+    ).toHaveLength(1);
+    expect(
+      (
+        await db.query(
+          "select id from tasks where title='Presentación de prueba'",
+        )
+      ).rows,
+    ).toHaveLength(1);
+    expect(
+      (
+        await db.query(
+          "select id from vacancies where title='Desarrollador Full Stack — prueba'",
+        )
+      ).rows,
+    ).toHaveLength(1);
   });
   it("jefe inicia análisis de evidencia sin ambigüedad de alias SQL", async () => {
-    await db.exec("reset role; select set_config('request.jwt.claim.sub','',false)");
+    await db.exec(
+      "reset role; select set_config('request.jwt.claim.sub','',false)",
+    );
     const taskId = crypto.randomUUID();
     const evidenceId = crypto.randomUUID();
-    await db.query("insert into tasks(id,title,description,employee_id,created_by,due_date,status) values($1,'Prueba IA','Revisar documento',$2,$3,current_date,'SUBMITTED')", [taskId,employee,ids.manager]);
-    await db.query("insert into task_evidence(id,task_id,employee_id,file_path,evidence_text) values($1,$2,$3,'test/document.txt','Documento ficticio')", [evidenceId,taskId,employee]);
-    const requestId = await command(ids.manager,'ai.begin',{id:evidenceId,use_case:'evidence',provider:'gemini'});
+    await db.query(
+      "insert into tasks(id,title,description,employee_id,created_by,due_date,status) values($1,'Prueba IA','Revisar documento',$2,$3,current_date,'SUBMITTED')",
+      [taskId, employee, ids.manager],
+    );
+    await db.query(
+      "insert into task_evidence(id,task_id,employee_id,file_path,evidence_text) values($1,$2,$3,'test/document.txt','Documento ficticio')",
+      [evidenceId, taskId, employee],
+    );
+    const requestId = await command(ids.manager, "ai.begin", {
+      id: evidenceId,
+      use_case: "evidence",
+      provider: "gemini",
+    });
     expect(requestId).toBeTruthy();
-    expect((await as(ids.manager,'select status from ai_requests where id=$1',[requestId])).rows).toEqual([{status:'PENDING'}]);
-    await expect(command(ids.other,'ai.begin',{id:evidenceId,use_case:'evidence',provider:'gemini'})).rejects.toThrow();
+    expect(
+      (
+        await as(ids.manager, "select status from ai_requests where id=$1", [
+          requestId,
+        ])
+      ).rows,
+    ).toEqual([{ status: "PENDING" }]);
+    await expect(
+      command(ids.other, "ai.begin", {
+        id: evidenceId,
+        use_case: "evidence",
+        provider: "gemini",
+      }),
+    ).rejects.toThrow();
+  });
+  it("entrevistas: editar, cancelar, liberar horario y rechazar cambios ajenos", async () => {
+    const candidateId = (await as(ids.other, "select id from candidates"))
+      .rows[0] as { id: string };
+    await db.exec("reset role");
+    const newApp = crypto.randomUUID();
+    await db.query(
+      "insert into applications(id,candidate_id,vacancy_id,status) values($1,$2,$3,'PRESELECCIONADO')",
+      [newApp, candidateId.id, vacancy],
+    );
+    const payload = {
+      application_id: newApp,
+      scheduled_at: "2027-01-05T15:00:00Z",
+      interviewer_id: ids.hr,
+      notes: "Prueba agenda",
+      status: "SCHEDULED",
+    };
+    const interview = await command(ids.hr, "interview.save", payload);
+    await command(ids.hr, "interview.save", {
+      ...payload,
+      id: interview,
+      scheduled_at: "2027-01-05T16:00:00Z",
+    });
+    await expect(
+      command(ids.other, "interview.cancel", { id: interview }),
+    ).rejects.toThrow();
+    await command(ids.hr, "interview.cancel", { id: interview });
+    const replacement = await command(ids.hr, "interview.save", {
+      ...payload,
+      scheduled_at: "2027-01-05T16:00:00Z",
+    });
+    expect(replacement).not.toBe(interview);
+    expect(
+      (
+        await as(ids.other, "select status from interviews where id=$1", [
+          interview,
+        ])
+      ).rows,
+    ).toEqual([{ status: "CANCELLED" }]);
+  });
+  it("onboarding y evidencias: impide operar fuera del equipo", async () => {
+    const item = (await as(ids.hr, "select id from onboarding_items limit 1"))
+      .rows[0] as { id: string };
+    await expect(
+      command(ids.other, "onboarding.complete", { id: item.id }),
+    ).rejects.toThrow();
+    const foreign = (
+      await as(
+        ids.hr,
+        "select e.id from employees e join profiles p on p.id=e.profile_id where p.email='empleado1@nexo.test'",
+      )
+    ).rows[0] as { id: string };
+    expect(
+      (
+        await as(ids.manager, "select id from tasks where employee_id=$1", [
+          foreign.id,
+        ])
+      ).rows,
+    ).toHaveLength(0);
+    expect(
+      (
+        await as(
+          ids.manager,
+          "select id from task_evidence where employee_id=$1",
+          [foreign.id],
+        )
+      ).rows,
+    ).toHaveLength(0);
+    await expect(
+      command(ids.manager, "task.save", {
+        employee_id: foreign.id,
+        title: "No autorizado",
+        description: "Fuera del equipo",
+        priority: "LOW",
+        due_date: "2027-01-01",
+      }),
+    ).rejects.toThrow();
+  });
+  it("auditoría solo superadmin y orquestación privada con bloqueo de concurrencia", async () => {
+    expect((await as(ids.hr, "select id from audit_logs")).rows).toHaveLength(
+      0,
+    );
+    const audit = await as(
+      ids.admin,
+      "select metadata from audit_logs where action='UPDATE' and resource_type='interviews' order by created_at desc limit 1",
+    );
+    expect(
+      (audit.rows[0] as { metadata: { changed_fields: string[] } }).metadata
+        .changed_fields,
+    ).toContain("status");
+    const run = await as(
+      ids.manager,
+      "select public.begin_orchestration('tasks') as id",
+    );
+    const id = (run.rows[0] as { id: string }).id;
+    expect(
+      (await as(ids.hr, "select * from orchestration_runs where id=$1", [id]))
+        .rows,
+    ).toHaveLength(0);
+    await expect(
+      as(ids.manager, "select public.begin_orchestration('tasks')"),
+    ).rejects.toThrow("AI_IN_PROGRESS");
+    await expect(
+      as(ids.other, "select public.begin_orchestration('performance')"),
+    ).rejects.toThrow();
+    await expect(
+      as(
+        ids.manager,
+        "update orchestration_runs set status='COMPLETED' where id=$1",
+        [id],
+      ),
+    ).rejects.toThrow();
   });
   it("desactivación revoca permisos y auditoría es inmutable", async () => {
     await command(ids.admin, "profile.admin", {
@@ -357,7 +537,7 @@ describe("PostgreSQL real: transacciones, RLS y aislamiento", () => {
     expect(
       (
         await as(
-          ids.hr,
+          ids.admin,
           "select * from audit_logs where action='candidate.hired'",
         )
       ).rows,

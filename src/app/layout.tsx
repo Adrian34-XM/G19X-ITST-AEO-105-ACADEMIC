@@ -1,3 +1,6 @@
+/**
+ * Estructura HTML común y estilos globales de todas las páginas.
+ */
 import type { Metadata } from "next";
 import "./globals.css";
 export const metadata: Metadata = {

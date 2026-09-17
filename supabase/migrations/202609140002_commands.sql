@@ -1,4 +1,5 @@
--- All application writes cross this allowlist. Direct table writes are revoked.
+-- Operaciones de negocio ejecutadas en PostgreSQL. command comprueba el usuario y aplica cambios en una transacción; finish_ai queda reservado al servidor administrativo.
+-- Las escrituras de la aplicación pasan por esta lista de operaciones; se revocan las escrituras directas.
 create function public.command(op text, payload jsonb default '{}') returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
 uid uuid := auth.uid(); r public.app_role := public.current_role(); rid uuid; eid uuid; cid uuid; oid uuid;
@@ -49,7 +50,7 @@ when 'interview.save' then
  select * into a from public.applications where id=(payload->>'application_id')::uuid for update;
  if a.id is null or a.status not in ('PRESELECCIONADO','ENTREVISTA') then raise exception 'INVALID_TRANSITION' using errcode='22023'; end if;
  if not exists(select 1 from public.profiles where id=(payload->>'interviewer_id')::uuid and role='RH_ADMIN' and active) then raise exception 'INVALID_INTERVIEWER' using errcode='22023'; end if;
- -- Serialize scheduling per interviewer, then enforce a 60-minute interval.
+ -- Serializa la agenda por entrevistador y exige un intervalo de 60 minutos.
  perform pg_advisory_xact_lock(hashtext(payload->>'interviewer_id'));
  if (payload->>'status')='SCHEDULED' and exists(select 1 from public.interviews where interviewer_id=(payload->>'interviewer_id')::uuid and status='SCHEDULED' and id is distinct from rid and abs(extract(epoch from scheduled_at-(payload->>'scheduled_at')::timestamptz))<3600) then raise exception 'SCHEDULE_CONFLICT' using errcode='23505'; end if;
  if rid is null then insert into public.interviews(application_id,scheduled_at,interviewer_id,notes,status,created_by) values(a.id,(payload->>'scheduled_at')::timestamptz,(payload->>'interviewer_id')::uuid,payload->>'notes',payload->>'status',uid) returning id into rid;
@@ -150,7 +151,7 @@ end $$;
 revoke all on function public.command(text,jsonb) from public,anon;
 grant execute on function public.command(text,jsonb) to authenticated;
 
--- Only the server AI Hub may persist a validated provider result.
+-- Solo el servidor de IA puede guardar un resultado validado del proveedor.
 create function public.finish_ai(request uuid, output jsonb, model_name text, succeeded boolean) returns void language plpgsql security definer set search_path = '' as $$
 declare req public.ai_requests; begin
 select * into req from public.ai_requests where id=request and status='PENDING' for update;

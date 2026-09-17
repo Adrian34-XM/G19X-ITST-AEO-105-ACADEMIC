@@ -1,3 +1,6 @@
+/**
+ * Calcula indicadores deterministas: 60 % de tareas aprobadas y 40 % de cursos completados. Sin registros, cada porcentaje vale cero; el resultado no es una evaluación de IA.
+ */
 export function performance(
   tasks: { status: string }[],
   courses: { status: string }[],

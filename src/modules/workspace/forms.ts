@@ -1,3 +1,6 @@
+/**
+ * Define los campos y opciones de edición para cada recurso. Vincula formularios con operaciones conocidas; no otorga permisos ni escribe directamente en la base de datos.
+ */
 import type { FormSpec, Field } from "@/components/forms";
 import type { Snapshot, Row } from "./types";
 import { value } from "./types";

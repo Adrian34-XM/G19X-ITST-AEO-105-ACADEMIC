@@ -1,4 +1,7 @@
 "use client";
+/**
+ * Formularios reutilizables: convierte campos a tipos de negocio, envía JSON y muestra errores. Las subidas usan FormData; la validación definitiva ocurre en el servidor.
+ */
 import { useState } from "react";
 export type Field = {
   key: string;

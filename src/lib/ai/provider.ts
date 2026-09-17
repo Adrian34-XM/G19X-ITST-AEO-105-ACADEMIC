@@ -1,3 +1,6 @@
+/**
+ * Adaptadores de Gemini y Ollama, ejecutados únicamente en el servidor. Solicitan JSON estructurado, aplican un tiempo máximo y validan la respuesta con Zod. El respaldo local solo se usa si está habilitado.
+ */
 import "server-only";
 import { z } from "zod";
 import { systemPrompt, sanitize } from "./schemas";
@@ -94,6 +97,7 @@ export class OllamaProvider implements AIProvider {
     return { result: schema.parse(JSON.parse(data.message.content)), model };
   }
 }
+/** Selecciona el proveedor y, si se habilitó, intenta Ollama tras un fallo de Gemini. */
 export async function generate(
   context: unknown,
   schema: z.ZodType,

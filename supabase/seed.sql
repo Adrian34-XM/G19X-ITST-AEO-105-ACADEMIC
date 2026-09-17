@@ -1,3 +1,4 @@
+-- Datos base de áreas, puestos y cursos. No crea cuentas de acceso; sus inserciones no están diseñadas para ejecutarse repetidamente sobre la misma base.
 insert into public.departments(id,name) values
 ('10000000-0000-4000-8000-000000000001','Tecnología'),('10000000-0000-4000-8000-000000000002','Personas'),('10000000-0000-4000-8000-000000000003','Operaciones');
 insert into public.positions(id,name,department_id) values

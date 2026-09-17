@@ -1,5 +1,8 @@
-// Integration checks against the running app. Creates explicitly labelled test documents.
-// UPLOAD_EMPLOYEE_PASSWORD and UPLOAD_MANAGER_PASSWORD must be supplied by the caller.
+/**
+ * Prueba de integración que inicia sesiones de demostración, sube documentos ficticios y verifica descargas y rechazos. Crea una tarea y conserva archivos para revisión; requiere contraseñas de prueba en variables de entorno.
+ */
+// Pruebas con la aplicación en ejecución. Crea documentos identificados como pruebas.
+// Quien ejecuta debe configurar UPLOAD_EMPLOYEE_PASSWORD y UPLOAD_MANAGER_PASSWORD.
 const base = "http://127.0.0.1:3000";
 const remote = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;

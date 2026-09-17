@@ -1,4 +1,7 @@
 "use client";
+/**
+ * Compara postulaciones activas de una vacante usando evaluaciones guardadas y validadas. Ordena por afinidad, coloca pendientes al final y solicita análisis individuales; nunca contrata ni rechaza automáticamente.
+ */
 import Link from "next/link";
 import { useState } from "react";
 import { recommendation } from "@/lib/ai/schemas";

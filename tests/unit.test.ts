@@ -1,3 +1,6 @@
+/**
+ * Pruebas de reglas puras, validación de archivos y contratos de datos sin depender del proveedor remoto.
+ */
 import { describe, it, expect } from "vitest";
 import { performance } from "@/modules/performance/service";
 import { roles, mayEnter, applicationTransitions } from "@/lib/permissions";

@@ -1,3 +1,4 @@
+-- Crea depósitos privados y políticas de acceso a objetos. Relaciona rutas de archivos con propietarios y recursos autorizados.
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) values
 ('cvs','cvs',false,5242880,array['application/pdf','text/plain']),
 ('task-evidence','task-evidence',false,5242880,array['application/pdf','text/plain','image/png','image/jpeg']),
@@ -11,4 +12,4 @@ public.current_role() is not null and (
 (bucket_id='cvs' and public.is_hr() and exists(select 1 from public.candidates c where c.cv_path=name)) or
 (bucket_id='task-evidence' and exists(select 1 from public.task_evidence e where e.file_path=name and public.manages_employee(e.employee_id))) or
 (bucket_id='onboarding-documents' and public.is_hr() and exists(select 1 from public.onboarding_documents d where d.file_path=name))));
--- No overwrite/delete policy: previously submitted evidence remains immutable.
+-- Sin políticas de sobrescritura ni eliminación: el usuario no modifica evidencias ya enviadas.

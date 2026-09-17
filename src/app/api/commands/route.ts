@@ -1,3 +1,6 @@
+/**
+ * Puerta de escritura general: valida origen, sesión, operación y datos. Delega la modificación a command para aplicar permisos y transacciones en PostgreSQL.
+ */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticate, ApiError } from "@/lib/auth";

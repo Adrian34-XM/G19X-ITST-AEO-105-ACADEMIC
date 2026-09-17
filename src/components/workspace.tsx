@@ -1,4 +1,7 @@
 "use client";
+/**
+ * Interfaz principal por rol: navegación, listados, formularios y acciones de RRHH. Recibe datos filtrados por RLS; los botones no sustituyen los controles del servidor. Tras escribir, refresca los datos desde Next.js.
+ */
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -20,6 +23,14 @@ import {
 } from "lucide-react";
 import { EditForm, Upload, request, type FormSpec } from "./forms";
 import { RecruitmentRecommendations } from "./recruitment-recommendations";
+import { ApplicationSummary } from "./application-summary";
+import {
+  OperationsPanel,
+  TeamTree,
+  AnalyticsCharts,
+  AuditPanel,
+} from "./operations-panels";
+import { scopeData, overdue } from "@/modules/workspace/insights";
 import { formFor } from "@/modules/workspace/forms";
 import {
   value,
@@ -136,7 +147,7 @@ function AIResult({ result }: { result: unknown }) {
   );
 }
 export function Workspace({
-  data,
+  data: rawData,
   path,
   profile,
 }: {
@@ -144,8 +155,10 @@ export function Workspace({
   path: string[];
   profile: Profile | null;
 }) {
+  const data = profile ? scopeData(rawData, profile) : rawData;
   const router = useRouter();
   const [search, setSearch] = useState(""),
+    [applicationVacancy, setApplicationVacancy] = useState(""),
     [spec, setSpec] = useState<FormSpec | null>(() =>
       path[2] === "new" &&
       path[1] === "vacancies" &&
@@ -232,7 +245,6 @@ export function Workspace({
             "tasks",
             "performance",
             "analytics",
-            "audit",
           ]
         : manager
           ? ["overview", "employees", "tasks", "courses", "performance"]
@@ -306,7 +318,13 @@ export function Workspace({
     (admin && ["users", "positions", "departments"].includes(view));
   const tableView =
     view === "users" ? "profiles" : view === "audit" ? "audit_logs" : view;
-  const tableRows = filtered(tableView);
+  const tableRows = filtered(tableView).filter(
+    (row) =>
+      view !== "applications" ||
+      !hr ||
+      !applicationVacancy ||
+      row.vacancy_id === applicationVacancy,
+  );
   function vacancyCard(v: Row) {
     return (
       <article className="record" key={v.id}>
@@ -608,6 +626,9 @@ export function Workspace({
               </button>
             </div>
           )}
+          {view === "overview" && profile && (
+            <OperationsPanel data={data} profile={profile} area="overview" />
+          )}
           {view === "overview" && (
             <>
               <div className="welcome-banner">
@@ -838,10 +859,24 @@ export function Workspace({
                   analyze={analyze}
                 />
               )}
+              {view === "applications" && hr && (
+                <ApplicationSummary
+                  data={data}
+                  applications={tableRows}
+                  selected={applicationVacancy}
+                  select={setApplicationVacancy}
+                  busy={busy}
+                  openCv={(id) => openFile("cvs", id)}
+                />
+              )}
               {view === "applications" && (
                 <div className="record-grid">
                   {tableRows.map((a) => (
-                    <article className="record" key={a.id}>
+                    <article
+                      className="record"
+                      key={a.id}
+                      id={`postulacion-${a.id}`}
+                    >
                       <div className="section-head">
                         <div>
                           <span className="eyebrow">
@@ -954,6 +989,28 @@ export function Workspace({
                   )}
                 </div>
               )}
+              {profile &&
+                ["courses", "tasks", "performance", "analytics"].includes(
+                  view,
+                ) &&
+                !candidate &&
+                !admin && (
+                  <OperationsPanel
+                    key={view}
+                    data={data}
+                    profile={profile}
+                    area={
+                      view as "courses" | "tasks" | "performance" | "analytics"
+                    }
+                  />
+                )}
+              {view === "employees" && profile && (hr || manager) && (
+                <TeamTree data={data} profile={profile} />
+              )}
+              {view === "analytics" && profile && hr && (
+                <AnalyticsCharts data={data} profile={profile} />
+              )}
+              {view === "audit" && admin && <AuditPanel data={data} />}
               {view === "interviews" && (
                 <div className="record-grid">
                   {tableRows.map((i) => (
@@ -1183,11 +1240,8 @@ export function Workspace({
                       ],
                       [
                         "Tareas vencidas",
-                        scopedTasks.filter(
-                          (t) =>
-                            value(t, "due_date") <
-                              new Date().toISOString().slice(0, 10) &&
-                            t.status !== "APPROVED",
+                        scopedTasks.filter((t) =>
+                          overdue(t, new Date().toISOString().slice(0, 10)),
                         ).length,
                       ],
                     ].map(([label, n]) => (
@@ -1265,7 +1319,6 @@ export function Workspace({
                 "users",
                 "positions",
                 "departments",
-                "audit",
                 "candidates",
               ].includes(view) && (
                 <div className="panel table-wrap">

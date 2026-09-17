@@ -1,3 +1,6 @@
+/**
+ * Comprueba el contenido renderizado de recomendaciones: orden, separación por vacante y exclusión de resultados inválidos o postulaciones descartadas.
+ */
 import { describe, it, expect } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";

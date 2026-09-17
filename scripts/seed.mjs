@@ -1,3 +1,6 @@
+/**
+ * Carga usuarios y escenarios de demostración con acceso administrativo. Requiere configuración explícita para usar un proyecto remoto; no debe ejecutarse sobre datos reales como si fuera una migración.
+ */
 import { createClient } from "@supabase/supabase-js";
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 if (

@@ -1,4 +1,7 @@
-// Read-only readiness checks; never prints API keys or user records.
+/**
+ * Comprobación de disponibilidad sin escrituras: verifica Auth, lectura pública y rechazo de acceso anónimo a tablas privadas. No demuestra que todos los flujos autenticados funcionen.
+ */
+// Comprobaciones sin escrituras; no imprime claves ni registros de usuarios.
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
