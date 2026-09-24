@@ -4,7 +4,7 @@
 
 `src/modules/workspace/insights.ts` calcula alertas sin usar IA y recorta los datos por empleado o equipo directo. Las tareas ya entregadas para revisión no cuentan como atrasos del empleado; se muestran como revisiones pendientes. Las fechas límite se comparan con la fecha UTC del día. Los datos se actualizan al navegar o recargar la página; no son notificaciones por correo ni un servicio de mensajería.
 
-`src/components/operations-panels.tsx` muestra novedades, recomendaciones, jerarquías, gráficas y auditoría. RH ve todas sus áreas; un jefe ve su equipo directo y sus propios registros. El árbol también controla ciclos para no bloquear la pantalla si existen relaciones incorrectas. Las gráficas permiten cambiar proceso, área, periodo y representación en barras o circular.
+`src/components/operations-panels.tsx` muestra novedades, recomendaciones, jerarquías, gráficas y auditoría. RH ve todas sus áreas; un jefe ve su jerarquía subordinada y sus propios registros. El árbol también controla ciclos para no bloquear la pantalla si existen relaciones incorrectas. Las gráficas permiten cambiar proceso, área, periodo y representación en barras o circular.
 
 `/api/ai/orchestrate` coordina las recomendaciones de vista general, capacitación, tareas, desempeño y analíticas. Obtiene datos con la sesión, minimiza los campos enviados y reserva una ejecución en PostgreSQL. Las recomendaciones de cursos relacionan el puesto y área con el catálogo y las asignaciones. El resultado se valida, se eliminan identificadores no autorizados y se guarda en `orchestration_runs`. Solo la cuenta que inició la solicitud puede leerla; no se asignan cursos ni se modifican estados automáticamente. La pantalla muestra la respuesta de la ejecución actual; el histórico permanece en la base.
 
@@ -24,7 +24,7 @@ Los componentes del navegador muestran información y envían peticiones. No tie
 
 `src/lib/permissions/index.ts` contiene los roles y destinos:
 
-- `SUPERUSER`: administración de cuentas, áreas y puestos.
+- `SUPERUSER`: administración de cuentas, áreas, puestos, auditoría y todas las operaciones de RH.
 - `RH_ADMIN`: reclutamiento y gestión de personas.
 - `JEFE`: seguimiento del equipo, tareas y evidencias autorizadas.
 - `EMPLEADO`: tareas, cursos y onboarding propios.
@@ -113,3 +113,51 @@ Estas comprobaciones no consumen Gemini ni demuestran que el servicio remoto est
 `package.json` define dependencias y comandos; `package-lock.json` fija las versiones resueltas. `tsconfig.json`, `next.config.ts`, `eslint.config.mjs`, `postcss.config.mjs`, `vitest.config.ts` y `playwright.config.ts` configuran compilación, estilos y pruebas. Dockerfile y compose.yaml describen los servicios para contenedores.
 
 No modificar manualmente `node_modules`, `.next`, `next-env.d.ts` ni los archivos de bloqueo para añadir explicaciones: son dependencias, salidas o archivos administrados por herramientas. Los nombres de API, tablas y variables permanecen en su forma original para no romper contratos; las explicaciones están en español.
+
+
+## Mejoras de operaciones RH del 21 de septiembre
+
+El superadministrador hereda los permisos de RH a través de isHR, requireRole y public.is_hr(), conservando su rol para auditoría. La migración 202609210001_hr_operations.sql amplía los controles de las funciones SQL existentes y añade el bloqueo de una segunda entrevista pendiente por candidato. El bloqueo usa una transacción y se aplica también entre distintas vacantes.
+
+InterviewCalendar abre el formulario con la fecha local elegida. VacancyAssistant solicita un borrador validado a /api/ai/vacancy; no escribe vacantes automáticamente. VacancyDocuments administra documentos privados mediante /api/vacancy-documents, con políticas de Storage y comprobación de rol en el servidor.
+
+filterWorkspace relaciona áreas, puestos, empleados, tareas y onboarding. Se aplica tras scopeData tanto en la interfaz como en el contexto del servidor. En analíticas también limita proceso y fecha de creación. OperationsPanel envía los filtros y permite generar instrucciones revisables. El servidor vuelve a comprobar identificadores y reduce desempeño y analíticas a campos estructurados antes de invocar al proveedor.
+
+WorkplaceClimate separa edición, vista previa, publicación y respuesta. Las tarjetas se reordenan antes de publicar; después quedan congeladas. Las respuestas anónimas y los recibos de participación se guardan por separado. El resumen solo se permite con encuesta cerrada y cinco respuestas. La jerarquía multinivel se aplica desde la migración 202609170002_climate_hierarchy.sql.
+
+La [guía de activación](ACTIVAR_MEJORAS_RH.md) explica el archivo SQL agrupado y los límites del proveedor remoto.
+
+
+## Asignación múltiple y organigrama
+
+EmployeePicker conserva la selección entre filtros de búsqueda y área; BulkAssignment sirve tanto para cursos como para nuevas tareas. /api/assignments valida un contrato estricto y llama a assign_many, que comprueba todos los destinatarios antes de escribir en una sola transacción. Los cursos existentes se omiten y las tareas se crean individualmente mediante command.
+
+organization construye raíces y conserva ancestros autorizados al filtrar por área. TeamTree representa tarjetas conectadas y ramas plegables; EmployeeProfile utiliza el conjunto ya restringido por scopeData/RLS. El filtro employees se valida también en /api/ai/orchestrate antes de generar recomendaciones.
+
+## Orquestador de la vista general (22 de septiembre)
+
+La vista general solicita automáticamente un resumen por usuario y rol. El servidor reúne estados, fechas, totales, señales de atraso y registros recientes de los módulos visibles: reclutamiento, entrevistas, equipo, incorporación, tareas, evidencias (sin contenido), capacitación y encuestas (solo estado y fecha). La auditoría se incorpora únicamente para superadministración y excluye los registros del propio orquestador.
+
+El resumen y sus recomendaciones aparecen antes de las notificaciones. El botón Actualizar resumen vuelve a consultar datos del servidor. Las sugerencias no ejecutan acciones ni decisiones laborales.
+
+Se guarda una huella del contexto autorizado junto al resultado en orchestration_runs. Si usuario, rol, datos y fecha siguen iguales, se reutiliza el resumen sin llamar al proveedor. No se guarda en localStorage. La respuesta no afirma conocer cambios anteriores: usa el estado actual y registros con fecha reciente (siete días), con límites de 200 filas por módulo y 100 señales. Sin datos de ambiente laboral disponibles, declara esa limitación al modelo.
+
+Requiere la migración existente de orquestación y el proveedor configurado en el servidor. Los fallos se muestran sin impedir consultar las alertas normales. Las pruebas de IA usan proveedor simulado; no certifican la disponibilidad del proveedor remoto.
+
+## Filtros por módulo
+
+- Vista general: tipo de notificación (filtra las tarjetas, no el resumen general del orquestador).
+- Vacantes: estado, puesto, área para RH, búsqueda y fecha de registro.
+- Postulaciones: secciones por estado, vacante, búsqueda, área para RH y fechas de postulación.
+- Entrevistas: estado, área para RH, búsqueda por candidato y rango de fechas de agenda.
+- Equipo: estado, puesto, nombre y área para RH; el organigrama conserva ancestros autorizados como contexto.
+- Onboarding: estado, persona, búsqueda, área para RH y fecha de registro.
+- Tareas: estado, prioridad, atraso, fechas límite y selección de personas. Los aprobados conservan su historial.
+- Capacitación: curso obligatorio/opcional, estado de asignación, persona, área para RH y fecha de registro.
+- Desempeño y analíticas: mantienen los filtros de persona, área autorizada, proceso y periodo existentes.
+- Usuarios: rol, acceso activo/inactivo, búsqueda y fechas.
+- Puestos y áreas: búsqueda; puestos admite área para RH.
+- Auditoría: búsqueda por acción o recurso y rango de fechas; acceso exclusivo de superadministración.
+- Ambiente laboral: búsqueda por título y estado de encuesta.
+
+Los filtros trabajan sobre las filas autorizadas cargadas; no sustituyen RLS ni amplían acceso. Las vistas individuales y el perfil personal no necesitan los filtros de listado. Se reinician al cambiar de ruta; Limpiar filtros restaura el listado del módulo. Las fechas usan los valores guardados por el sistema. El límite existente de carga es 1.000 registros por tabla; no se añadió paginación remota en este cambio.

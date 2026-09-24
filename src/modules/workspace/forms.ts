@@ -1,6 +1,7 @@
 /**
  * Define los campos y opciones de edición para cada recurso. Vincula formularios con operaciones conocidas; no otorga permisos ni escribe directamente en la base de datos.
  */
+import { stateLabel } from "@/modules/workspace/labels";
 import type { FormSpec, Field } from "@/components/forms";
 import type { Snapshot, Row } from "./types";
 import { value } from "./types";
@@ -33,8 +34,17 @@ export function formFor(kind: string, data: Snapshot, row?: Row): FormSpec {
     select(
       key,
       label,
-      list.map((s) => ({ value: s, label: s })),
+      list.map((s) => ({ value: s, label: stateLabel(s) })),
     );
+  const bookedCandidates = new Set(
+    (data.interviews ?? [])
+      .filter((i) => i.status === "SCHEDULED" && i.id !== row?.id)
+      .map(
+        (i) =>
+          (data.applications ?? []).find((a) => a.id === i.application_id)
+            ?.candidate_id,
+      ),
+  );
   const specs: Record<string, Omit<FormSpec, "values">> = {
     departments: {
       title: "Área",
@@ -117,10 +127,13 @@ export function formFor(kind: string, data: Snapshot, row?: Row): FormSpec {
       fields: [
         select(
           "application_id",
-          "Postulación",
+          "Candidato y vacante",
           (data.applications ?? [])
-            .filter((a) =>
-              ["PRESELECCIONADO", "ENTREVISTA"].includes(value(a, "status")),
+            .filter(
+              (a) =>
+                ["PRESELECCIONADO", "ENTREVISTA"].includes(
+                  value(a, "status"),
+                ) && !bookedCandidates.has(a.candidate_id),
             )
             .map((a) => ({
               value: a.id,
@@ -147,7 +160,11 @@ export function formFor(kind: string, data: Snapshot, row?: Row): FormSpec {
           "interviewer_id",
           "Entrevistador",
           (data.profiles ?? [])
-            .filter((p) => p.role === "RH_ADMIN")
+            .filter(
+              (p) =>
+                p.active &&
+                ["RH_ADMIN", "SUPERUSER"].includes(value(p, "role")),
+            )
             .map((p) => ({ value: p.id, label: value(p, "full_name") })),
         ),
         { ...field("notes", "Notas", "textarea"), optional: true },
@@ -163,7 +180,20 @@ export function formFor(kind: string, data: Snapshot, row?: Row): FormSpec {
           ...select(
             "manager_id",
             "Jefe directo",
-            employees.filter((e) => e.value !== row?.id),
+            employees.filter((option) => {
+              const e = (data.employees ?? []).find(
+                (e) => e.id === option.value,
+              );
+              const p = (data.profiles ?? []).find(
+                (p) => p.id === e?.profile_id,
+              );
+              return (
+                option.value !== row?.id &&
+                e?.status === "ACTIVE" &&
+                p?.active &&
+                ["JEFE", "RH_ADMIN"].includes(value(p, "role"))
+              );
+            }),
           ),
           optional: true,
         },
@@ -171,7 +201,7 @@ export function formFor(kind: string, data: Snapshot, row?: Row): FormSpec {
       ],
     },
     courses: {
-      title: "Curso",
+      title: "Plantilla de capacitación",
       op: "course.save",
       fields: [
         field("title", "Título"),
@@ -182,7 +212,27 @@ export function formFor(kind: string, data: Snapshot, row?: Row): FormSpec {
           min: 1,
           max: 10000,
         },
-        field("required", "Asignar automáticamente al contratar", "checkbox"),
+        {
+          ...select(
+            "department_id",
+            "Área de la plantilla",
+            options("departments"),
+          ),
+          optional: true,
+        },
+        {
+          ...select(
+            "position_id",
+            "Puesto de la plantilla",
+            options("positions"),
+          ),
+          optional: true,
+        },
+        field(
+          "required",
+          "Asignar automáticamente al contratar en este ámbito",
+          "checkbox",
+        ),
       ],
     },
     assignment: {

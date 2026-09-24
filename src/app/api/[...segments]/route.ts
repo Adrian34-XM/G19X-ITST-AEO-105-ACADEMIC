@@ -1,10 +1,18 @@
+import { requireHrHierarchySchema } from "@/lib/api";
 /**
  * Adaptador de rutas REST por recurso. Reutiliza las funciones de archivos, IA y comandos para mantener las mismas validaciones en los distintos puntos de entrada.
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticate, ApiError, requireRole } from "@/lib/auth";
-import { checkOrigin, readJson, failure, databaseError } from "@/lib/api";
+import {
+  checkOrigin,
+  readJson,
+  failure,
+  databaseError,
+  requireCourseEvidenceSchema,
+  validateInterviewSchedule,
+} from "@/lib/api";
 import { schemas, type Operation } from "@/modules/commands/schemas";
 import { performance } from "@/modules/performance/service";
 import { GET as getFile, POST as uploadFile } from "@/app/api/files/route";
@@ -223,6 +231,10 @@ async function mutate(req: Request, ctx: Ctx) {
     if (!op) throw new ApiError(404, "Ruta no encontrada.");
     if (op === "task.save" && input.status) op = "task.status";
     const payload = schemas[op].parse(input);
+    if (op === "employee.save") await requireHrHierarchySchema(client);
+    if (op === "interview.save")
+      await validateInterviewSchedule(client, payload);
+    if (op === "course.progress") await requireCourseEvidenceSchema(client);
     const { data, error } = await client.rpc("command", { op, payload });
     if (error) databaseError(error);
     return NextResponse.json(data, {

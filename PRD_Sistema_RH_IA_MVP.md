@@ -1,5 +1,7 @@
 # PRD --- Sistema Integral de Gestión de Talento Humano con IA
 
+> Actualización del alcance: [Ideas para el sistema](IDEAS_PARA_EL_SISTEMA.md) reúne las solicitudes posteriores. En particular, la auditoría queda exclusiva de SUPERUSER y el rol JEFE, la jerarquía multinivel y el ambiente laboral forman parte del alcance solicitado. El contenido siguiente conserva la planificación original.
+
 **Versión:** 1.0\
 **Fecha:** 10 de septiembre de 2026\
 **Plazo de desarrollo:** 2 semanas\

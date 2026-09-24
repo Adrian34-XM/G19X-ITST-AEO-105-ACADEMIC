@@ -5,6 +5,7 @@ import {
   insightContext,
   overdue,
   notifications,
+  taskRecipients,
 } from "../src/modules/workspace/insights";
 import { mayEnter } from "../src/lib/permissions";
 import { type Profile, type Snapshot } from "../src/modules/workspace/types";
@@ -87,4 +88,30 @@ it("alertas de atraso excluyen entregadas, aprobadas y vencimientos de hoy", () 
 it("la ruta de auditoría exige superadministrador", () => {
   expect(mayEnter("RH_ADMIN", "/rh/audit")).toBe(false);
   expect(mayEnter("SUPERUSER", "/admin/audit")).toBe(true);
+});
+it("asignar tareas excluye al propio jefe, superiores y otras ramas, conservando descendientes", () => {
+  const tree: Snapshot = {
+    ...data,
+    employees: [
+      ...data.employees.map((e) =>
+        e.id === "m" ? { ...e, manager_id: "top" } : e,
+      ),
+      { id: "top", profile_id: "superior" },
+      { id: "peer", profile_id: "peer", manager_id: "top" },
+      { id: "nested", profile_id: "nested", manager_id: "e" },
+    ],
+  };
+  expect(taskRecipients(tree, manager).employees.map((e) => e.id)).toEqual([
+    "e",
+    "nested",
+  ]);
+  expect(
+    taskRecipients(tree, { ...manager, role: "RH_ADMIN" }).employees,
+  ).toHaveLength(6);
+  expect(
+    taskRecipients(tree, { ...manager, role: "EMPLEADO" }).employees,
+  ).toEqual([]);
+  expect(scopeData(tree, manager).employees.some((e) => e.id === "m")).toBe(
+    true,
+  );
 });

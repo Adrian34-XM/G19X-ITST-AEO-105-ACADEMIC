@@ -1,5 +1,7 @@
 # MVP — Sistema de Gestión de RRHH con IA
 
+> Consulta [Ideas para el sistema](IDEAS_PARA_EL_SISTEMA.md) para las ampliaciones posteriores y prioridades vigentes. Este documento conserva el plan inicial; sus referencias a auditoría de RH y a funciones P1 no sustituyen las solicitudes posteriores.
+
 **Basado en:** `PRD_Sistema_RH_IA_MVP_2_Semanas.md`  
 **Objetivo:** entregar en 14 días un MVP funcional, seguro y demostrable.
 

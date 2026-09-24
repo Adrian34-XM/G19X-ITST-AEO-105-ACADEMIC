@@ -25,3 +25,28 @@ Para completar: aplicar migraciones en orden, cargar datos demo en el proyecto d
 - Peticiones reales al servidor local: RH y jefe reciben 403 en `/api/audit`; las páginas de entrevistas, onboarding, tareas y desempeño responden 200 para los roles probados.
 - Las pruebas de orquestación simulan el proveedor: comprueban guardado, fallo controlado y eliminación de referencias no autorizadas. No demuestran disponibilidad de Gemini.
 - La base remota todavía no tiene `orchestration_runs` (PGRST205 al comprobar). Aplicar `supabase/migrations/202609170001_orchestration_audit.sql` para activar persistencia, cuotas, catálogo y restricción RLS de auditoría. Mientras tanto, la aplicación bloquea la auditoría de RH en rutas y carga de datos, pero la política remota previa solo cambia al aplicar la migración.
+
+
+## 21 de septiembre: operaciones RH y formularios
+
+- 70 pruebas aprobadas en 11 archivos. Incluyen PostgreSQL embebido con todas las migraciones, el archivo de activación ejecutado dos veces, permisos del superadministrador, alta del rol RH, doble entrevista del mismo candidato entre vacantes, documentos privados, anonimato y umbral de encuestas, jerarquía multinivel y rechazo de ciclos.
+- Pruebas de IA con proveedor simulado: borrador de vacante revisable, documento de referencia, rechazo de PDF falso, permisos, filtrado de contexto, instrucciones generadas y manejo de errores sin revelar detalles internos.
+- TypeScript y ESLint sin errores. Compilación de producción comprobada.
+- Navegador local: edición y vista previa de encuestas por tarjetas; selección de fecha de calendario que completa el formulario de entrevista; filtros por área vacía y persona contratada; visualización de gráficas por proceso.
+- Supabase remoto muestra que falta la migración de ambiente laboral. No se aplicaron migraciones remotas desde esta sesión. El archivo supabase/activar-mejoras-rh.sql queda listo para SQL Editor; véase ACTIVAR_MEJORAS_RH.md.
+- No se hicieron llamadas reales al proveedor de IA para certificar su disponibilidad ni se modificaron credenciales de usuarios.
+
+
+## Asignaciones múltiples y organigrama visual
+
+74 pruebas aprobadas en 11 archivos; TypeScript, ESLint y compilación correctos. PostgreSQL verifica lotes por jerarquía, rechazo sin cambios parciales, duplicados e inactivos. Las pruebas del árbol cubren ancestros de otra área, aislamiento, vistas vacías y ciclos. En navegador se comprobó selección de varias personas, quitar una, búsqueda sin acentos conservando seleccionados, organigrama inicial y área sin integrantes.
+
+La migración nueva es 202609210002_bulk_assignments.sql y está incluida en activar-mejoras-rh.sql. No se aplicó a Supabase remoto desde esta sesión.
+
+## 22 de septiembre: planes de onboarding
+
+- Plantillas por puesto y área, selección automática al contratar, borrador manual o de IA revisable, responsables por función y fechas ajustables.
+- Documentos privados con revisión RH y correcciones; bloqueos de completar actividades ajenas, requisitos documentales y protección de planes iniciados comprobados en PostgreSQL.
+- 81 pruebas locales aprobadas en 13 archivos. IA probada con proveedor simulado, no se afirma una ejecución real del proveedor.
+- Nueva migración `202609220001_onboarding_plans.sql`, incluida también en el activador repetible. Pendiente de aplicación/verificación en Supabase remoto.
+- Uso y límites en `docs/ONBOARDING.md`.

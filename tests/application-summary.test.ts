@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   ApplicationSummary,
   recommendedApplications,
+  rankApplications,
 } from "../src/components/application-summary";
 const result = (score: number) => ({
   score,
@@ -59,9 +60,37 @@ it("muestra conteos por vacante y enlaces a cada tarjeta recomendada", () => {
       openCv: async () => {},
     }),
   );
-  expect(html).toContain("Desarrollo (4)");
+  expect(html).toContain("Desarrollo (3)");
   expect(html).toContain("Diseño (0)");
   expect(html).toContain('href="#postulacion-a"');
   expect(html).toContain('href="#postulacion-b"');
   expect(html).not.toContain('href="#postulacion-c"');
+});
+
+it("el historial de rechazados cuenta solo ese estado y oculta recomendaciones", () => {
+  const html = renderToStaticMarkup(
+    createElement(ApplicationSummary, {
+      data: { applications, vacancies: [{ id: "v", title: "Desarrollo" }] },
+      applications,
+      status: "RECHAZADO",
+      selected: "",
+      select: () => {},
+      busy: false,
+      openCv: async () => {},
+    }),
+  );
+  expect(html).toContain("Desarrollo (1)");
+  expect(html).toContain("Historial de rechazados");
+  expect(html).not.toContain("Candidatos recomendados");
+});
+
+it("ordena tarjetas por puntuación válida y deja pendientes al final sin modificar datos", () => {
+  const original = applications.map((a) => a.id);
+  expect(rankApplications(applications).map((a) => a.id)).toEqual([
+    "c",
+    "b",
+    "a",
+    "d",
+  ]);
+  expect(applications.map((a) => a.id)).toEqual(original);
 });

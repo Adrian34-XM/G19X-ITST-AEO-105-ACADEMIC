@@ -21,8 +21,8 @@ export function mayEnter(role: Role, path: string) {
   const prefix = path.split("/")[1];
   const allowed: Record<string, Role[]> = {
     admin: ["SUPERUSER"],
-    rh: ["RH_ADMIN"],
-    manager: ["JEFE", "RH_ADMIN"],
+    rh: ["RH_ADMIN", "SUPERUSER"],
+    manager: ["JEFE", "RH_ADMIN", "SUPERUSER"],
     employee: ["EMPLEADO", "JEFE"],
     candidate: ["CANDIDATO"],
   };
@@ -36,3 +36,8 @@ export const applicationTransitions: Record<string, string[]> = {
   CONTRATADO: [],
   RECHAZADO: [],
 };
+
+/** Superadministración hereda las operaciones de RH conservando su identidad. */
+export function isHR(role: string | undefined) {
+  return role === "RH_ADMIN" || role === "SUPERUSER";
+}

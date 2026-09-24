@@ -4,6 +4,69 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { ApiError } from "@/lib/auth";
+import type { SupabaseClient } from "@supabase/supabase-js";
+/** Exige el esquema que valida la jerarquía de RH antes de editar personal. */
+export async function requireHrHierarchySchema(client: SupabaseClient) {
+  const { error } = await client.rpc("hr_hierarchy_ready");
+  if (error)
+    throw new ApiError(
+      503,
+      "Activa supabase/activar-mejoras-rh.sql en Supabase para habilitar los permisos de jerarquía de RH.",
+    );
+}
+/** Evita ejecutar el flujo antiguo de autoaprobación mientras falta activar la migración. */
+export async function requireWorkforceSchema(client: SupabaseClient) {
+  const { error } = await client
+    .from("onboarding_items")
+    .select("reviewed_by")
+    .limit(0);
+  if (error)
+    throw new ApiError(
+      503,
+      "Falta activar las revisiones e historiales. Ejecuta supabase/activar-mejoras-rh.sql en el SQL Editor de Supabase y vuelve a intentar.",
+    );
+}
+/** Bloquea avances sin evidencias si aún no se activó la nueva migración. */
+export async function requireCourseEvidenceSchema(client: SupabaseClient) {
+  const { error } = await client.from("course_evidence").select("id").limit(0);
+  if (error)
+    throw new ApiError(
+      503,
+      "Ejecuta supabase/migrations/202609230003_course_evidence.sql en Supabase para activar evidencias de capacitación.",
+    );
+}
+export async function validateInterviewSchedule(
+  client: SupabaseClient,
+  payload: Record<string, unknown>,
+) {
+  const time = new Date(String(payload.scheduled_at)).getTime();
+  if (time >= Date.now()) return;
+  if (payload.id) {
+    const { data } = await client
+      .from("interviews")
+      .select("scheduled_at,status")
+      .eq("id", payload.id)
+      .single();
+    if (
+      data &&
+      new Date(data.scheduled_at).getTime() === time &&
+      !(payload.status === "SCHEDULED" && data.status !== "SCHEDULED")
+    )
+      return;
+  }
+  throw new ApiError(
+    422,
+    "Selecciona una fecha y hora posterior al momento actual.",
+  );
+}
+export async function requireHiringSchema(client: SupabaseClient) {
+  const { error } = await client.rpc("hiring_options_ready");
+  if (error)
+    throw new ApiError(
+      503,
+      "Activa supabase/migrations/202609230004_interviews_hiring.sql para asignar área y jefe al contratar.",
+    );
+}
 /** Rechaza escrituras desde otro origen; no confía en cabeceras de host reenviado. */
 export function checkOrigin(req: Request) {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return;
@@ -25,9 +88,24 @@ export function checkOrigin(req: Request) {
 }
 /** Convierte códigos de PostgreSQL en mensajes públicos sin revelar detalles internos. */
 export function databaseError(error: { code?: string; message: string }) {
+  if (error.message === "HR_HIERARCHY_FORBIDDEN")
+    throw new ApiError(
+      403,
+      "Solo el superior de RH más alto de esta cadena o el superusuario puede modificar a este integrante de RH.",
+    );
   const messages: Record<string, string> = {
+    INTERVIEW_IN_PAST:
+      "Selecciona una fecha y hora posterior al momento actual.",
+    INVALID_HIRING_AREA: "Selecciona un puesto que pertenezca al área elegida.",
+    INVALID_MANAGER: "Selecciona un jefe activo y autorizado.",
+    COURSE_EVIDENCE_REQUIRED:
+      "Adjunta evidencia del porcentaje de avance solicitado antes de registrar o aprobar la capacitación.",
+    CANDIDATE_SCHEDULED:
+      "Este candidato ya tiene una entrevista agendada. Edita o cancela la cita existente.",
     SCHEDULE_CONFLICT:
       "El entrevistador ya tiene una entrevista en ese horario.",
+    DOCUMENT_REVIEW_PENDING:
+      "Revisa todos los archivos entregados en esta actividad antes de aprobarla.",
     INVALID_TRANSITION: "El estado actual no permite esta acción.",
     VACANCY_CLOSED: "Esta vacante ya no recibe postulaciones.",
     CLOSE_FIRST: "Cierra la vacante antes de eliminarla.",

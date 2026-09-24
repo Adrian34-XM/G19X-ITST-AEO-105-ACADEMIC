@@ -50,6 +50,12 @@ export function EditForm({
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [minimumInterviewTime] = useState(() => {
+    const now = new Date();
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16);
+  });
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
@@ -148,7 +154,13 @@ export function EditForm({
                     type={f.type === "list" ? "text" : (f.type ?? "text")}
                     required={!f.optional}
                     defaultValue={initial}
-                    min={f.min ?? (f.type === "number" ? 0 : undefined)}
+                    min={
+                      spec.op === "interview.save" &&
+                      f.key === "scheduled_at" &&
+                      !spec.values?.id
+                        ? minimumInterviewTime
+                        : (f.min ?? (f.type === "number" ? 0 : undefined))
+                    }
                     max={f.max}
                     maxLength={f.type === "password" ? 128 : 500}
                     minLength={f.type === "password" ? 12 : undefined}
@@ -179,9 +191,13 @@ export function Upload({
   bucket,
   id,
   onSaved,
+  itemId,
+  multiple = false,
 }: {
   bucket: string;
   id?: string;
+  itemId?: string;
+  multiple?: boolean;
   onSaved: () => void;
 }) {
   const [error, setError] = useState(""),
@@ -193,35 +209,57 @@ export function Upload({
         e.preventDefault();
         setBusy(true);
         setError("");
-        const form = new FormData(e.currentTarget);
+        const element = e.currentTarget;
+        const form = new FormData(element);
         form.set("bucket", bucket);
         if (id) form.set("id", id);
+        if (itemId) form.set("item_id", itemId);
+        let saved = 0;
         try {
-          const response = await fetch("/api/files", {
-            method: "POST",
-            body: form,
-          });
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error);
+          const files = form.getAll("file");
+          if (files.length > 10)
+            throw new Error(
+              "Selecciona un máximo de diez archivos por entrega.",
+            );
+          for (const file of files) {
+            form.set("file", file);
+            const response = await fetch("/api/files", {
+              method: "POST",
+              body: form,
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+            saved++;
+          }
+          element.reset();
           onSaved();
         } catch (e) {
-          setError(e instanceof Error ? e.message : "Error al subir.");
+          setError(
+            (saved
+              ? `${saved} archivos guardados. Selecciona solamente los pendientes para reintentar. `
+              : "") + (e instanceof Error ? e.message : "Error al subir."),
+          );
+          if (saved) {
+            element.reset();
+            onSaved();
+          }
         } finally {
           setBusy(false);
         }
       }}
     >
       <label>
-        Archivo privado · máximo 5 MB
+        Archivos privados · máximo 5 MB por archivo
         <input
           name="file"
           type="file"
+          multiple={multiple}
           required
           accept={bucket === "cvs" ? ".pdf,.txt" : ".pdf,.txt,.png,.jpg,.jpeg"}
         />
       </label>
       <button disabled={busy} className="secondary">
-        {busy ? "Subiendo…" : "Subir archivo"}
+        {busy ? "Subiendo…" : multiple ? "Subir archivos" : "Subir archivo"}
       </button>
       {error && (
         <p className="error" role="alert">

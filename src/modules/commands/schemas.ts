@@ -43,7 +43,14 @@ export const schemas = {
       status: z.enum(["EN_REVISION", "PRESELECCIONADO", "RECHAZADO"]),
     })
     .strict(),
-  "application.hire": z.object({ id }).strict(),
+  "application.hire": z
+    .object({
+      id,
+      department_id: optionalId,
+      position_id: optionalId,
+      manager_id: z.union([id, z.literal("")]).optional(),
+    })
+    .strict(),
   "interview.save": z
     .object({
       id: optionalId,
@@ -55,6 +62,20 @@ export const schemas = {
     })
     .strict(),
   "interview.cancel": z.object({ id }).strict(),
+  "employee.enroll": z
+    .object({
+      profile_id: id,
+      position_id: id,
+      manager_id: z.union([id, z.literal("")]),
+    })
+    .strict(),
+  "course.review": z
+    .object({
+      id,
+      status: z.enum(["COMPLETED", "IN_PROGRESS"]),
+      comments: text,
+    })
+    .strict(),
   "employee.save": z
     .object({
       id,
@@ -72,6 +93,8 @@ export const schemas = {
       content: text,
       duration_minutes: z.number().int().min(1).max(10000),
       required: z.boolean(),
+      department_id: z.union([id, z.literal("")]).optional(),
+      position_id: z.union([id, z.literal("")]).optional(),
     })
     .strict(),
   "course.delete": z.object({ id }).strict(),

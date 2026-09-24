@@ -15,7 +15,9 @@ import { inspectFile } from "@/lib/storage/files";
 describe("permisos y validaciones", () => {
   it.each(roles)("aislamiento de rutas para %s", (role) => {
     expect(mayEnter(role, "/admin/users")).toBe(role === "SUPERUSER");
-    expect(mayEnter(role, "/rh")).toBe(role === "RH_ADMIN");
+    expect(mayEnter(role, "/rh")).toBe(
+      ["RH_ADMIN", "SUPERUSER"].includes(role),
+    );
   });
   it("contratación solo por operación transaccional", () => {
     expect(Object.values(applicationTransitions).flat()).not.toContain(

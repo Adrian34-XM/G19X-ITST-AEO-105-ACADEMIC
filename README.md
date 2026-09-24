@@ -1,5 +1,9 @@
 # Nexo · Sistema de RRHH con IA
 
+**Ideas y evolución del alcance:** [Ideas para el sistema](IDEAS_PARA_EL_SISTEMA.md) consolida las propuestas iniciales y las ampliaciones solicitadas hasta el 21 de septiembre de 2026.
+
+**Activación de mejoras:** consulta [la guía de operaciones RH](docs/ACTIVAR_MEJORAS_RH.md) para habilitar superadministración, encuestas, agenda y adjuntos de vacantes en Supabase.
+
 Aplicación Next.js/React/TypeScript con Supabase Auth, PostgreSQL, RLS y Storage privado. El código conecta reclutamiento, contratación, onboarding, cursos, tareas, evidencias, recomendaciones IA y desempeño.
 
 **Documentación del código:** consulta [la guía en español](docs/CODIGO.md) para entender los módulos, permisos, base de datos y flujo de IA. Las pruebas locales no garantizan la disponibilidad de servicios externos; comprueba cada entorno antes de utilizarlo.

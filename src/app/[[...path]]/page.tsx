@@ -63,6 +63,7 @@ export default async function Page({
     if (auth)
       return (
         <Workspace
+          key={path.join("/")}
           data={await snapshot(auth.client)}
           path={path}
           profile={auth.profile}
@@ -75,7 +76,12 @@ export default async function Page({
       .eq("status", "PUBLISHED");
     if (error) throw new Error("DATA_UNAVAILABLE");
     return (
-      <Workspace data={{ vacancies: data ?? [] }} path={path} profile={null} />
+      <Workspace
+        key={path.join("/")}
+        data={{ vacancies: data ?? [] }}
+        path={path}
+        profile={null}
+      />
     );
   }
   if (!path.length) redirect("/login");
@@ -88,6 +94,14 @@ export default async function Page({
     redirect("/login");
   }
   if (!mayEnter(auth.profile.role, pathname)) redirect(home[auth.profile.role]);
+  if (path[1] === "recommendations") redirect(`${home[auth.profile.role]}/applications`);
   const data = await snapshot(auth.client);
-  return <Workspace data={data} path={path} profile={auth.profile} />;
+  return (
+    <Workspace
+      key={path.join("/")}
+      data={data}
+      path={path}
+      profile={auth.profile}
+    />
+  );
 }

@@ -40,6 +40,9 @@ export async function authenticate() {
 }
 /** Exige pertenencia a la lista de roles permitidos para esta operación. */
 export function requireRole(role: Role, allowed: Role[]) {
-  if (!allowed.includes(role))
+  if (
+    !allowed.includes(role) &&
+    !(role === "SUPERUSER" && allowed.includes("RH_ADMIN"))
+  )
     throw new ApiError(403, "No tienes permiso para realizar esta acción.");
 }

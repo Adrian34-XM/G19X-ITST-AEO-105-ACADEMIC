@@ -1,7 +1,25 @@
 "use client";
+import { canEditStaff } from "@/modules/workspace/organization";
 /**
  * Interfaz principal por rol: navegación, listados, formularios y acciones de RRHH. Recibe datos filtrados por RLS; los botones no sustituyen los controles del servidor. Tras escribir, refresca los datos desde Next.js.
  */
+import {
+  filterWorkspace,
+  type WorkspaceFilters,
+} from "@/modules/workspace/filters";
+import { InterviewCalendar } from "./interview-calendar";
+import { VacancyDocuments } from "./vacancy-documents";
+import { VacancyAssistant } from "./vacancy-assistant";
+import { ModuleFilterBar } from "./module-filter-bar";
+import { OnboardingPanel } from "./onboarding-panel";
+import { EmployeePicker } from "./employee-picker";
+import { labels, stateLabel } from "@/modules/workspace/labels";
+import { sortTasks } from "@/modules/workspace/tasks";
+import { TrainingResources, TrainingEvidence } from "./training-evidence";
+import { HireCandidate } from "./hire-candidate";
+import { BulkAssignment } from "./bulk-assignment";
+import { EmployeeProfile } from "./employee-profile";
+import { isHR } from "@/lib/permissions";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -22,15 +40,26 @@ import {
   Menu,
 } from "lucide-react";
 import { EditForm, Upload, request, type FormSpec } from "./forms";
-import { RecruitmentRecommendations } from "./recruitment-recommendations";
-import { ApplicationSummary } from "./application-summary";
+import {
+  WorkforceAI,
+  TrainingAssistant,
+  StaffEnrollment,
+  TrainingProgress,
+} from "./workforce-tools";
+import { applicationSections } from "@/modules/workspace/application-sections";
+import { ApplicationSummary, rankApplications } from "./application-summary";
+import { WorkplaceClimate } from "./workplace-climate";
 import {
   OperationsPanel,
   TeamTree,
   AnalyticsCharts,
   AuditPanel,
 } from "./operations-panels";
-import { scopeData, overdue } from "@/modules/workspace/insights";
+import {
+  scopeData,
+  overdue,
+  taskRecipients,
+} from "@/modules/workspace/insights";
 import { formFor } from "@/modules/workspace/forms";
 import {
   value,
@@ -45,6 +74,7 @@ const titles: Record<string, string> = {
   vacancies: "Vacantes",
   applications: "Postulaciones",
   recommendations: "Recomendaciones IA",
+  climate: "Ambiente laboral",
   candidates: "Candidatos",
   interviews: "Entrevistas",
   employees: "Equipo",
@@ -60,32 +90,7 @@ const titles: Record<string, string> = {
   profile: "Mi perfil",
   jobs: "Oportunidades abiertas",
 };
-const labels: Record<string, string> = {
-  DRAFT: "Borrador",
-  PUBLISHED: "Publicada",
-  CLOSED: "Cerrada",
-  PENDING: "Pendiente",
-  IN_PROGRESS: "En progreso",
-  SUBMITTED: "En revisión",
-  APPROVED: "Aprobado",
-  REJECTED: "Rechazado",
-  COMPLETED: "Completado",
-  ASSIGNED: "Asignado",
-  SCHEDULED: "Agendada",
-  CANCELLED: "Cancelada",
-  ACTIVE: "Activo",
-  INACTIVE: "Inactivo",
-  POSTULADO: "Postulado",
-  EN_REVISION: "En revisión",
-  PRESELECCIONADO: "Preseleccionado",
-  ENTREVISTA: "Entrevista",
-  CONTRATADO: "Contratado",
-  RECHAZADO: "Rechazado",
-  NEEDS_REVIEW: "Revisión humana",
-  HIGH: "Alta",
-  MEDIUM: "Media",
-  LOW: "Baja",
-};
+
 function Badge({ status }: { status: string }) {
   return (
     <span
@@ -105,7 +110,7 @@ function Badge({ status }: { status: string }) {
             : "")
       }
     >
-      {labels[status] ?? status}
+      {stateLabel(status)}
     </span>
   );
 }
@@ -155,14 +160,73 @@ export function Workspace({
   path: string[];
   profile: Profile | null;
 }) {
-  const data = profile ? scopeData(rawData, profile) : rawData;
+  const [assignment, setAssignment] = useState<{ course?: string } | null>(
+    null,
+  );
+  const [filters, setFilters] = useState<WorkspaceFilters>({});
+  const [reportTab, setReportTab] = useState("summary");
+  const [interviewSection, setInterviewSection] = useState("SCHEDULED");
+  const [courseSection, setCourseSection] = useState("catalog");
+  const [reportFiltersOpen, setReportFiltersOpen] = useState(false);
+  const [taskSection, setTaskSection] = useState("active");
+  const taskHistory = taskSection === "history";
+  const taskMatches = (t: Row) =>
+    taskSection === "history"
+      ? t.status === "APPROVED"
+      : taskSection === "review"
+        ? t.status === "SUBMITTED"
+        : !["APPROVED", "SUBMITTED"].includes(value(t, "status"));
+  const [applicationStatus, setApplicationStatus] = useState("POSTULADO");
+  const authorized = profile ? scopeData(rawData, profile) : rawData;
+  const filterable = [
+    "onboarding",
+    "tasks",
+    "performance",
+    "analytics",
+    "employees",
+    "vacancies",
+    "applications",
+    "interviews",
+    "positions",
+    "courses",
+  ].includes(path[1] ?? "");
+  const activeFilters: WorkspaceFilters = filterable
+    ? {
+        department:
+          profile && isHR(profile.role) ? filters.department : undefined,
+        ...(path[1] === "tasks" ? { employees: filters.employees } : {}),
+        ...(["performance", "analytics", "courses", "onboarding"].includes(
+          path[1],
+        )
+          ? { employee: filters.employee }
+          : {}),
+        ...(path[1] === "analytics"
+          ? { days: filters.days, process: filters.process }
+          : {}),
+      }
+    : {};
+  Object.assign(activeFilters, {
+    module: path[0] === "jobs" ? "jobs" : path[1],
+    state: filters.state,
+    priority: filters.priority,
+    from: filters.from,
+    to: filters.to,
+    position: filters.position,
+    role: filters.role,
+    required: filters.required,
+    overdue: filters.overdue,
+    query: filters.query,
+  });
+  const data =
+    path[1] === "interviews"
+      ? authorized
+      : filterWorkspace(authorized, activeFilters);
+  const changeFilters = (next: WorkspaceFilters) => setFilters(next);
   const router = useRouter();
   const [search, setSearch] = useState(""),
     [applicationVacancy, setApplicationVacancy] = useState(""),
     [spec, setSpec] = useState<FormSpec | null>(() =>
-      path[2] === "new" &&
-      path[1] === "vacancies" &&
-      profile?.role === "RH_ADMIN"
+      path[2] === "new" && path[1] === "vacancies" && isHR(profile?.role)
         ? formFor("vacancies", data)
         : null,
     ),
@@ -173,13 +237,13 @@ export function Workspace({
     view = root === "jobs" ? "jobs" : (path[1] ?? "overview"),
     detail =
       path[0] === "jobs" ? path[1] : path[2] === "new" ? undefined : path[2];
-  const hr = profile?.role === "RH_ADMIN",
+  const hr = isHR(profile?.role),
     manager = profile?.role === "JEFE",
     admin = profile?.role === "SUPERUSER",
     candidate = profile?.role === "CANDIDATO";
   const rows = (table: string) => data[table] ?? [];
   const find = (table: string, id: unknown) =>
-    rows(table).find((r) => r.id === id) ?? { id: "" };
+    (authorized[table] ?? []).find((r) => r.id === id) ?? { id: "" };
   const name = (id: unknown) =>
     value(find("profiles", id), "full_name") || "Persona";
   const employeeName = (id: unknown) => name(find("employees", id).profile_id);
@@ -187,7 +251,25 @@ export function Workspace({
     router.refresh();
     setNotice("Cambios guardados.");
   };
-  const edit = (kind: string, row?: Row) => setSpec(formFor(kind, data, row));
+  const edit = (kind: string, row?: Row) => {
+    if (kind === "assignment") {
+      setAssignment({ course: row?.id });
+      return;
+    }
+    if (kind === "tasks" && !row?.id) {
+      setAssignment({});
+      return;
+    }
+    setSpec(
+      formFor(
+        kind,
+        kind === "tasks" && profile
+          ? taskRecipients(authorized, profile)
+          : data,
+        row,
+      ),
+    );
+  };
   async function act(op: string, payload: Record<string, unknown>) {
     setBusy(true);
     setNotice("");
@@ -229,7 +311,23 @@ export function Workspace({
     }
   }
   const nav = admin
-    ? ["overview", "users", "departments", "positions", "audit"]
+    ? [
+        "overview",
+        "users",
+        "departments",
+        "positions",
+        "vacancies",
+        "applications",
+        "interviews",
+        "employees",
+        "onboarding",
+        "courses",
+        "tasks",
+        "performance",
+        "analytics",
+        "climate",
+        "audit",
+      ]
     : candidate
       ? ["overview", "jobs", "applications", "interviews", "profile"]
       : hr
@@ -237,7 +335,6 @@ export function Workspace({
             "overview",
             "vacancies",
             "applications",
-            "recommendations",
             "interviews",
             "employees",
             "onboarding",
@@ -245,15 +342,25 @@ export function Workspace({
             "tasks",
             "performance",
             "analytics",
+            "climate",
           ]
         : manager
-          ? ["overview", "employees", "tasks", "courses", "performance"]
+          ? [
+              "overview",
+              "onboarding",
+              "employees",
+              "tasks",
+              "courses",
+              "performance",
+              "climate",
+            ]
           : [
               "overview",
               "onboarding",
               "courses",
               "tasks",
               "performance",
+              "climate",
               "profile",
             ];
   const icons = [
@@ -325,6 +432,12 @@ export function Workspace({
       !applicationVacancy ||
       row.vacancy_id === applicationVacancy,
   );
+  // El historial conserva el registro original y respeta búsqueda, vacante y permisos.
+  const applicationRows = rankApplications(
+    detail
+      ? tableRows
+      : tableRows.filter((a) => a.status === applicationStatus),
+  );
   function vacancyCard(v: Row) {
     return (
       <article className="record" key={v.id}>
@@ -350,10 +463,14 @@ export function Workspace({
           <strong>Requisitos:</strong> {value(v, "requirements")}
         </p>
         <small>{value(v, "experience_required")} años de experiencia</small>
+        {hr && <VacancyDocuments vacancy={v.id} />}
         <div className="actions">
           {hr ? (
             <>
-              <Link className="ai-button" href={`/rh/recommendations/${v.id}`}>
+              <Link
+                className="ai-button"
+                href={`${home[profile!.role]}/applications`}
+              >
                 ✧ Ver postulantes recomendados
               </Link>
               <button
@@ -394,8 +511,18 @@ export function Workspace({
   }
   function taskCard(t: Row) {
     const own = mine?.id === t.employee_id;
+    const canManage =
+      hr ||
+      (manager &&
+        taskRecipients(authorized, profile!).employees.some(
+          (e) => e.id === t.employee_id,
+        ));
     return (
-      <article className="record" key={t.id}>
+      <article
+        className="record task-priority-card"
+        data-priority={value(t, "priority")}
+        key={t.id}
+      >
         <div className="section-head">
           <div>
             <span className="eyebrow">
@@ -405,97 +532,107 @@ export function Workspace({
           </div>
           <Badge status={value(t, "status")} />
         </div>
-        <p>{value(t, "description")}</p>
         <small>Fecha límite: {value(t, "due_date")}</small>
-        {Boolean(t.comments) &&
-          ((
-            <p>
-              <strong>Revisión:</strong> {value(t, "comments")}
+        <details open={!!detail}>
+          <summary>Ver instrucciones, entrega y revisión</summary>
+          <p>{value(t, "description")}</p>
+          {t.status === "APPROVED" && (
+            <p className="muted">
+              Tarea aprobada · Conservada en el historial con sus evidencias y
+              comentarios.
             </p>
-          ) as React.ReactNode)}
-        <div className="actions">
-          {(hr || manager) &&
-            ["PENDING", "IN_PROGRESS", "REJECTED"].includes(
-              value(t, "status"),
-            ) && (
-              <button className="secondary" onClick={() => edit("tasks", t)}>
-                Editar
-              </button>
-            )}
-          {own && ["PENDING", "REJECTED"].includes(value(t, "status")) && (
-            <button
-              disabled={busy}
-              onClick={() =>
-                act("task.status", { id: t.id, status: "IN_PROGRESS" })
-              }
-            >
-              Iniciar tarea
-            </button>
           )}
-          {(hr || manager) && t.status === "SUBMITTED" && (
-            <>
+          {Boolean(t.comments) &&
+            ((
+              <p>
+                <strong>Revisión:</strong> {value(t, "comments")}
+              </p>
+            ) as React.ReactNode)}
+          <div className="actions">
+            {canManage &&
+              ["PENDING", "IN_PROGRESS", "REJECTED"].includes(
+                value(t, "status"),
+              ) && (
+                <button className="secondary" onClick={() => edit("tasks", t)}>
+                  Editar
+                </button>
+              )}
+            {own && ["PENDING", "REJECTED"].includes(value(t, "status")) && (
               <button
                 disabled={busy}
                 onClick={() =>
-                  act("task.status", {
-                    id: t.id,
-                    status: "APPROVED",
-                    comments: "Evidencia revisada y aprobada por responsable.",
-                  })
+                  act("task.status", { id: t.id, status: "IN_PROGRESS" })
                 }
               >
-                Aprobar entrega
+                Iniciar tarea
               </button>
-              <button
-                className="secondary"
-                disabled={busy}
-                onClick={() => {
-                  const comments = window.prompt(
-                    "Motivo y correcciones necesarias",
-                  );
-                  if (comments?.trim())
-                    void act("task.status", {
+            )}
+            {canManage && t.status === "SUBMITTED" && (
+              <>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    act("task.status", {
                       id: t.id,
-                      status: "REJECTED",
-                      comments,
-                    });
-                }}
-              >
-                Solicitar corrección
-              </button>
-            </>
+                      status: "APPROVED",
+                      comments:
+                        "Evidencia revisada y aprobada por responsable.",
+                    })
+                  }
+                >
+                  Aprobar entrega
+                </button>
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    const comments = window.prompt(
+                      "Motivo y correcciones necesarias",
+                    );
+                    if (comments?.trim())
+                      void act("task.status", {
+                        id: t.id,
+                        status: "REJECTED",
+                        comments,
+                      });
+                  }}
+                >
+                  Solicitar corrección
+                </button>
+              </>
+            )}
+          </div>
+          {own && ["IN_PROGRESS", "REJECTED"].includes(value(t, "status")) && (
+            <Upload bucket="task-evidence" id={t.id} onSaved={refresh} />
           )}
-        </div>
-        {own && ["IN_PROGRESS", "REJECTED"].includes(value(t, "status")) && (
-          <Upload bucket="task-evidence" id={t.id} onSaved={refresh} />
-        )}
-        <div>
-          {rows("task_evidence")
-            .filter((e) => e.task_id === t.id)
-            .map((e) => (
-              <div className="evidence" key={e.id}>
-                <div className="actions">
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={() => openFile("task-evidence", e.id)}
-                  >
-                    Ver evidencia privada
-                  </button>
-                  {(hr || manager) && t.status === "SUBMITTED" && (
+          <div>
+            {rows("task_evidence")
+              .filter((e) => e.task_id === t.id)
+              .map((e) => (
+                <div className="evidence" key={e.id}>
+                  <div className="actions">
                     <button
-                      className="ai-button"
+                      className="secondary"
                       disabled={busy}
-                      onClick={() => analyze("evidence", e.id)}
+                      onClick={() => openFile("task-evidence", e.id)}
                     >
-                      ✧ Analizar evidencia
+                      Ver evidencia privada
                     </button>
-                  )}
+                    {(hr || manager) && t.status === "SUBMITTED" && (
+                      <button
+                        className="ai-button"
+                        disabled={busy}
+                        onClick={() => analyze("evidence", e.id)}
+                      >
+                        ✧ Analizar evidencia
+                      </button>
+                    )}
+                  </div>
+                  <AIResult result={e.ai_result} />
                 </div>
-                <AIResult result={e.ai_result} />
-              </div>
-            ))}
-        </div>
+              ))}
+          </div>
+        </details>
       </article>
     );
   }
@@ -572,7 +709,7 @@ export function Workspace({
             <span>
               <strong>{profile?.full_name ?? "Portal de talento"}</strong>
               <small>
-                {profile?.role.replace("_", " ") ?? "Acceso público"}
+                {profile ? stateLabel(profile.role) : "Acceso público"}
               </small>
             </span>
             <div className="avatar">
@@ -614,6 +751,27 @@ export function Workspace({
               </button>
             )}
           </div>
+          {view === "users" && admin && (
+            <section className="panel">
+              <h2>Encargados de Recursos Humanos</h2>
+              <p>
+                El rol RH_ADMIN administra los procesos de RH. El
+                superadministrador también tiene acceso a todos esos módulos
+                desde su menú.
+              </p>
+              <button
+                onClick={() =>
+                  setSpec({
+                    ...formFor("users", data),
+                    title: "Dar de alta encargado de RH",
+                    values: { role: "RH_ADMIN" },
+                  })
+                }
+              >
+                Crear encargado de RH
+              </button>
+            </section>
+          )}
           {notice && (
             <div className="notice" role="status">
               {notice}
@@ -745,36 +903,101 @@ export function Workspace({
                     </h2>
                     <Link
                       href={
-                        candidate
-                          ? "/candidate/applications"
-                          : admin
-                            ? "/admin/users"
-                            : href("tasks")
+                        candidate ? "/candidate/applications" : href("tasks")
                       }
                     >
                       Ver todos ↗
                     </Link>
                   </div>
-                  {(candidate
-                    ? rows("applications")
-                    : scopedTasks.filter((t) => t.status !== "APPROVED")
-                  )
-                    .slice(0, 5)
-                    .map((r) => (
-                      <div className="list-line" key={r.id}>
-                        <div>
-                          <strong>
-                            {value(r, "title") ||
-                              value(find("vacancies", r.vacancy_id), "title")}
-                          </strong>
-                          <small>
-                            {value(r, "due_date") ||
-                              "Seguimiento de candidatura"}
-                          </small>
+                  {candidate &&
+                    rows("applications")
+                      .slice(0, 5)
+                      .map((r) => (
+                        <div className="list-line" key={r.id}>
+                          <div>
+                            <strong>
+                              {value(r, "title") ||
+                                value(find("vacancies", r.vacancy_id), "title")}
+                            </strong>
+                            <small>
+                              {value(r, "due_date") ||
+                                "Seguimiento de candidatura"}
+                            </small>
+                          </div>
+                          <Badge status={value(r, "status")} />
                         </div>
-                        <Badge status={value(r, "status")} />
-                      </div>
-                    ))}
+                      ))}
+                  {!candidate && (
+                    <div className="area-pending-groups">
+                      {Array.from(
+                        scopedTasks
+                          .filter((t) => t.status !== "APPROVED")
+                          .reduce((groups, task) => {
+                            const employee = find(
+                              "employees",
+                              task.employee_id,
+                            );
+                            const position = find(
+                              "positions",
+                              employee.position_id,
+                            );
+                            const department = find(
+                              "departments",
+                              position.department_id,
+                            );
+                            const key = department.id || "unassigned";
+                            const group = groups.get(key) ?? {
+                              title:
+                                value(department, "name") ||
+                                "Sin área asignada",
+                              tasks: [] as Row[],
+                            };
+                            group.tasks.push(task);
+                            groups.set(key, group);
+                            return groups;
+                          }, new Map<string, { title: string; tasks: Row[] }>()),
+                      )
+                        .sort((a, b) =>
+                          a[1].title.localeCompare(b[1].title, "es"),
+                        )
+                        .map(([id, group]) => (
+                          <details className="area-pending-group" key={id}>
+                            <summary>
+                              <span>{group.title}</span>
+                              <span className="badge">
+                                {group.tasks.length}{" "}
+                                {group.tasks.length === 1
+                                  ? "pendiente"
+                                  : "pendientes"}
+                              </span>
+                            </summary>
+                            {sortTasks(group.tasks).map((task) => (
+                              <div className="list-line" key={task.id}>
+                                <div>
+                                  <Link href={`${href("tasks")}/${task.id}`}>
+                                    <strong>
+                                      {value(task, "title") ||
+                                        "Tarea pendiente"}
+                                    </strong>
+                                  </Link>
+                                  <small>
+                                    {employeeName(task.employee_id)} ·{" "}
+                                    {value(task, "due_date")
+                                      ? `Vence: ${value(task, "due_date")}`
+                                      : "Sin fecha límite"}
+                                  </small>
+                                  <small>
+                                    Prioridad:{" "}
+                                    {stateLabel(value(task, "priority"))}
+                                  </small>
+                                </div>
+                                <Badge status={value(task, "status")} />
+                              </div>
+                            ))}
+                          </details>
+                        ))}
+                    </div>
+                  )}
                   {!(
                     candidate
                       ? rows("applications")
@@ -828,18 +1051,236 @@ export function Workspace({
           )}
           {view !== "overview" && (
             <>
-              <div className="toolbar">
-                <div className="search">
-                  <Search size={17} />
-                  <input
-                    aria-label="Buscar registros"
-                    placeholder="Buscar en esta vista…"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
+              <section
+                className="workspace-filters"
+                aria-label="Buscar y filtrar"
+                hidden={view === "interviews"}
+              >
+                <div className="filter-heading">
+                  <strong>Buscar y filtrar</strong>
+                  <span>
+                    Los filtros se aplican a los resultados de esta vista.
+                  </span>
+                  {[
+                    "analytics",
+                    "performance",
+                    "onboarding",
+                    "courses",
+                    "tasks",
+                  ].includes(view) && (
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      aria-expanded={reportFiltersOpen}
+                      aria-controls="workspace-filter-controls"
+                      onClick={() => setReportFiltersOpen(!reportFiltersOpen)}
+                    >
+                      {reportFiltersOpen
+                        ? "Ocultar filtros"
+                        : "Mostrar filtros"}
+                      {Object.values(filters).some((v) => v && v !== "all")
+                        ? " · Activos"
+                        : ""}
+                    </button>
+                  )}
                 </div>
-                <span className="muted">Información actualizada</span>
-              </div>
+                <div
+                  id="workspace-filter-controls"
+                  hidden={
+                    [
+                      "analytics",
+                      "performance",
+                      "onboarding",
+                      "courses",
+                      "tasks",
+                    ].includes(view) && !reportFiltersOpen
+                  }
+                >
+                  <div className="toolbar">
+                    <div className="search">
+                      <Search size={17} />
+                      <input
+                        aria-label="Buscar registros"
+                        placeholder="Buscar en esta vista…"
+                        value={search}
+                        onChange={(e) => {
+                          setSearch(e.target.value);
+                          changeFilters({ ...filters, query: e.target.value });
+                        }}
+                      />
+                    </div>
+                    <span className="muted">Información actualizada</span>
+                    {filterable && view !== "tasks" && hr && (
+                      <label>
+                        Área
+                        <select
+                          value={filters.department ?? ""}
+                          onChange={(e) =>
+                            changeFilters({
+                              ...filters,
+                              department: e.target.value,
+                              employee: "",
+                            })
+                          }
+                        >
+                          <option value="">Todas las áreas autorizadas</option>
+                          {(authorized.departments ?? []).map((d) => (
+                            <option value={d.id} key={d.id}>
+                              {value(d, "name")}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                    {[
+                      "performance",
+                      "analytics",
+                      "courses",
+                      "onboarding",
+                    ].includes(view) &&
+                      (hr || manager) && (
+                        <label>
+                          Colaborador
+                          <select
+                            value={filters.employee ?? ""}
+                            onChange={(e) =>
+                              changeFilters({
+                                ...filters,
+                                employee: e.target.value,
+                              })
+                            }
+                          >
+                            <option value="">
+                              {hr
+                                ? "Todas las personas del área"
+                                : "Todas las personas de mi equipo"}
+                            </option>
+                            {(
+                              filterWorkspace(authorized, {
+                                department: activeFilters.department,
+                              }).employees ?? []
+                            ).map((e) => (
+                              <option key={e.id} value={e.id}>
+                                {name(e.profile_id)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                    {view === "analytics" && hr && (
+                      <>
+                        <label>
+                          Proceso
+                          <select
+                            value={filters.process ?? "all"}
+                            onChange={(e) =>
+                              changeFilters({
+                                ...filters,
+                                process: e.target.value,
+                              })
+                            }
+                          >
+                            <option value="all">Todos</option>
+                            <option value="tasks">Tareas</option>
+                            <option value="courses">Capacitación</option>
+                            <option value="applications">Reclutamiento</option>
+                          </select>
+                        </label>
+                        <label>
+                          Fecha de creación
+                          <select
+                            value={filters.days ?? "all"}
+                            onChange={(e) =>
+                              changeFilters({
+                                ...filters,
+                                days: e.target.value,
+                              })
+                            }
+                          >
+                            <option value="all">Todo el periodo</option>
+                            <option value="7">Últimos 7 días</option>
+                            <option value="30">Últimos 30 días</option>
+                            <option value="90">Últimos 90 días</option>
+                          </select>
+                        </label>
+                      </>
+                    )}
+                  </div>
+                  {!detail && view !== "profile" && view !== "climate" && (
+                    <ModuleFilterBar
+                      view={view}
+                      data={authorized}
+                      filters={filters}
+                      onChange={(next) => {
+                        changeFilters(next);
+                        if (view === "tasks" && next.state)
+                          setTaskSection(
+                            next.state === "APPROVED"
+                              ? "history"
+                              : next.state === "SUBMITTED"
+                                ? "review"
+                                : "active",
+                          );
+                      }}
+                      onReset={() => {
+                        setFilters({});
+                        setSearch("");
+                        setApplicationVacancy("");
+                      }}
+                    />
+                  )}
+                </div>
+              </section>
+              {view === "tasks" && (hr || manager) && (
+                <details className="panel">
+                  <summary>
+                    Filtrar por personas{" "}
+                    {filters.employees?.length
+                      ? `(${filters.employees.length} seleccionadas)`
+                      : ""}
+                  </summary>
+                  <p>
+                    {hr
+                      ? "Sin personas seleccionadas se muestran todas las del área."
+                      : "Sin personas seleccionadas se muestra tu equipo autorizado."}{" "}
+                    Cada selección filtra también las alertas y los análisis.
+                  </p>
+                  <EmployeePicker
+                    data={authorized}
+                    showAreaFilter={hr}
+                    activeOnly={false}
+                    selected={filters.employees ?? []}
+                    department={filters.department ?? ""}
+                    onDepartmentChange={(department) =>
+                      changeFilters({ ...filters, department })
+                    }
+                    onChange={(employees) =>
+                      changeFilters({ ...filters, employees })
+                    }
+                  />
+                </details>
+              )}
+              {view === "vacancies" && hr && (
+                <VacancyAssistant
+                  data={data}
+                  onDraft={(values) =>
+                    setSpec({ ...formFor("vacancies", data), values })
+                  }
+                />
+              )}
+              {view === "interviews" &&
+                hr &&
+                interviewSection === "SCHEDULED" && (
+                  <details className="panel">
+                    <summary>
+                      Agendar o consultar entrevistas en el calendario
+                    </summary>
+                    <InterviewCalendar
+                      data={data}
+                      onSelect={(row) => edit("interviews", row)}
+                    />
+                  </details>
+                )}
               {["jobs", "vacancies"].includes(view) && (
                 <div className="record-grid">
                   {filtered("vacancies").map(vacancyCard)}
@@ -850,19 +1291,34 @@ export function Workspace({
                   )}
                 </div>
               )}
-              {view === "recommendations" && hr && (
-                <RecruitmentRecommendations
-                  key={detail ?? "all"}
-                  data={data}
-                  initialVacancy={detail}
-                  busy={busy}
-                  analyze={analyze}
-                />
+
+              {view === "applications" && !detail && (
+                <section aria-label="Postulaciones por estado">
+                  <div className="actions task-history-controls">
+                    {Object.entries(applicationSections).map(
+                      ([status, title]) => (
+                        <button
+                          key={status}
+                          className={
+                            applicationStatus === status ? "" : "secondary"
+                          }
+                          aria-pressed={applicationStatus === status}
+                          onClick={() => setApplicationStatus(status)}
+                        >
+                          {title} (
+                          {tableRows.filter((a) => a.status === status).length})
+                        </button>
+                      ),
+                    )}
+                  </div>
+                  <h2>{applicationSections[applicationStatus]}</h2>
+                </section>
               )}
-              {view === "applications" && hr && (
+              {view === "applications" && hr && !detail && (
                 <ApplicationSummary
                   data={data}
-                  applications={tableRows}
+                  applications={applicationRows}
+                  status={applicationStatus}
                   selected={applicationVacancy}
                   select={setApplicationVacancy}
                   busy={busy}
@@ -871,7 +1327,7 @@ export function Workspace({
               )}
               {view === "applications" && (
                 <div className="record-grid">
-                  {tableRows.map((a) => (
+                  {applicationRows.map((a) => (
                     <article
                       className="record"
                       key={a.id}
@@ -923,13 +1379,17 @@ export function Workspace({
                             >
                               Ver CV privado
                             </button>
-                            <button
-                              className="ai-button"
-                              disabled={busy}
-                              onClick={() => analyze("recruitment", a.id)}
-                            >
-                              ✧ Evaluar candidato
-                            </button>
+                            {!["CONTRATADO", "RECHAZADO"].includes(
+                              value(a, "status"),
+                            ) && (
+                              <button
+                                className="ai-button"
+                                disabled={busy}
+                                onClick={() => analyze("recruitment", a.id)}
+                              >
+                                ✧ Evaluar candidato
+                              </button>
+                            )}
                           </div>
                         </>
                       )}
@@ -966,176 +1426,319 @@ export function Workspace({
                             </button>
                           )}
                           {a.status === "ENTREVISTA" && (
-                            <button
-                              disabled={busy}
-                              onClick={() => {
-                                if (
-                                  window.confirm(
-                                    "Confirmar contratación y crear empleado, onboarding, cursos y tarea inicial.",
-                                  )
-                                )
-                                  void act("application.hire", { id: a.id });
-                              }}
-                            >
-                              Confirmar contratación
-                            </button>
+                            <HireCandidate
+                              applicationId={a.id}
+                              positionId={value(
+                                find("vacancies", a.vacancy_id),
+                                "position_id",
+                              )}
+                              data={authorized}
+                              onSaved={refresh}
+                            />
                           )}
                         </div>
                       )}
                     </article>
                   ))}
-                  {!tableRows.length && (
-                    <p className="empty">No hay postulaciones para mostrar.</p>
+                  {!applicationRows.length && (
+                    <p className="empty">
+                      {detail
+                        ? "No hay postulaciones para mostrar."
+                        : "No hay postulaciones en este estado con los filtros actuales."}
+                    </p>
                   )}
                 </div>
               )}
-              {profile &&
-                ["courses", "tasks", "performance", "analytics"].includes(
-                  view,
-                ) &&
-                !candidate &&
-                !admin && (
+              {profile && ["tasks"].includes(view) && !candidate && (
+                <details className="panel">
+                  <summary>Alertas y análisis del equipo con IA</summary>
                   <OperationsPanel
-                    key={view}
+                    key={view + JSON.stringify(activeFilters)}
+                    filters={activeFilters}
                     data={data}
                     profile={profile}
                     area={
                       view as "courses" | "tasks" | "performance" | "analytics"
                     }
                   />
-                )}
-              {view === "employees" && profile && (hr || manager) && (
-                <TeamTree data={data} profile={profile} />
+                </details>
               )}
-              {view === "analytics" && profile && hr && (
-                <AnalyticsCharts data={data} profile={profile} />
+              {view === "employees" &&
+                !detail &&
+                profile &&
+                (hr || manager) && (
+                  <TeamTree
+                    data={authorized}
+                    profile={profile}
+                    selectedIds={(data.employees ?? []).map((e) => e.id)}
+                  />
+                )}
+              {view === "employees" && detail && profile && (
+                <EmployeeProfile
+                  data={authorized}
+                  profile={profile}
+                  id={detail}
+                />
               )}
               {view === "audit" && admin && <AuditPanel data={data} />}
+              {view === "climate" &&
+                profile &&
+                (hr || manager || profile.role === "EMPLEADO") && (
+                  <WorkplaceClimate data={data} profile={profile} />
+                )}
               {view === "interviews" && (
-                <div className="record-grid">
-                  {tableRows.map((i) => (
-                    <article key={i.id} className="record">
-                      <Badge status={value(i, "status")} />
-                      <h3>
-                        {new Date(value(i, "scheduled_at")).toLocaleString(
-                          "es-MX",
-                        )}
-                      </h3>
-                      <p>
-                        {value(
-                          find(
-                            "vacancies",
-                            find("applications", i.application_id).vacancy_id,
-                          ),
-                          "title",
-                        )}
+                <section>
+                  <div
+                    className="module-tabs"
+                    aria-label="Entrevistas por estado"
+                  >
+                    {[
+                      ["SCHEDULED", "Agendadas"],
+                      ["COMPLETED", "Completadas"],
+                      ["CANCELLED", "Canceladas"],
+                    ].map(([state, label]) => (
+                      <button
+                        key={state}
+                        aria-pressed={interviewSection === state}
+                        className={
+                          interviewSection === state ? "" : "secondary"
+                        }
+                        onClick={() => setInterviewSection(state)}
+                      >
+                        {label} (
+                        {
+                          rows("interviews").filter((i) => i.status === state)
+                            .length
+                        }
+                        )
+                      </button>
+                    ))}
+                  </div>
+                  <div className="record-grid">
+                    {rows("interviews")
+                      .filter(
+                        (i) =>
+                          (!detail || i.id === detail) &&
+                          (detail || i.status === interviewSection),
+                      )
+                      .sort((a, b) =>
+                        value(a, "scheduled_at").localeCompare(
+                          value(b, "scheduled_at"),
+                        ),
+                      )
+                      .map((i) => (
+                        <article key={i.id} className="record">
+                          <Badge status={value(i, "status")} />
+                          <h3>
+                            {new Date(value(i, "scheduled_at")).toLocaleString(
+                              "es-MX",
+                            )}
+                          </h3>
+                          <p>
+                            {value(
+                              find(
+                                "vacancies",
+                                find("applications", i.application_id)
+                                  .vacancy_id,
+                              ),
+                              "title",
+                            )}
+                          </p>
+                          <p>
+                            <strong>
+                              {name(
+                                find(
+                                  "candidates",
+                                  find("applications", i.application_id)
+                                    .candidate_id,
+                                ).profile_id,
+                              )}
+                            </strong>
+                          </p>
+                          <p>{value(i, "notes")}</p>
+                          {hr && (
+                            <div className="actions">
+                              <button
+                                className="secondary"
+                                onClick={() => edit("interviews", i)}
+                              >
+                                Editar
+                              </button>
+                              {i.status === "SCHEDULED" && (
+                                <button
+                                  className="quiet"
+                                  disabled={busy}
+                                  onClick={() =>
+                                    act("interview.cancel", { id: i.id })
+                                  }
+                                >
+                                  Cancelar entrevista
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </article>
+                      ))}
+                    {!rows("interviews").some(
+                      (i) =>
+                        (!detail || i.id === detail) &&
+                        (detail || i.status === interviewSection),
+                    ) && (
+                      <p className="empty">
+                        No hay entrevistas en esta sección.
                       </p>
-                      <p>{value(i, "notes")}</p>
-                      {hr && (
-                        <div className="actions">
-                          <button
-                            className="secondary"
-                            onClick={() => edit("interviews", i)}
-                          >
-                            Editar
-                          </button>
-                          <button
-                            className="quiet"
-                            disabled={busy}
-                            onClick={() =>
-                              act("interview.cancel", { id: i.id })
-                            }
-                          >
-                            Cancelar entrevista
-                          </button>
-                        </div>
-                      )}
-                    </article>
-                  ))}
-                  {!tableRows.length && (
-                    <p className="empty">No hay entrevistas agendadas.</p>
-                  )}
-                </div>
+                    )}
+                  </div>
+                </section>
               )}
               {view === "tasks" && (
-                <div className="record-grid">
-                  {tableRows.map(taskCard)}
-                  {!tableRows.length && (
-                    <p className="empty">No hay tareas en esta vista.</p>
-                  )}
-                </div>
-              )}
-              {view === "onboarding" && (
-                <div className="record-grid">
-                  {filtered("onboarding").map((o) => {
-                    const items = rows("onboarding_items").filter(
-                      (i) => i.onboarding_id === o.id,
-                    );
-                    const pct = items.length
-                      ? (items.filter((i) => i.status === "COMPLETED").length /
-                          items.length) *
-                        100
-                      : 0;
-                    return (
-                      <article key={o.id} className="record">
-                        <h3>{employeeName(o.employee_id)}</h3>
-                        <Badge status={value(o, "status")} />
-                        <div className="progress-label">
-                          <span>Avance</span>
-                          <strong>{Math.round(pct)}%</strong>
-                        </div>
-                        <progress max={100} value={pct} />
-                        {items.map((i) => (
-                          <div className="list-line" key={i.id}>
-                            <span>{value(i, "title")}</span>
-                            {i.status === "COMPLETED" ? (
-                              <Badge status="COMPLETED" />
-                            ) : (
-                              <button
+                <section>
+                  {detail ? (
+                    <>
+                      <Link className="secondary" href={href("tasks")}>
+                        ← Volver a tareas
+                      </Link>
+                      <div className="record-grid">
+                        {tableRows.map(taskCard)}
+                      </div>
+                      {!tableRows.length && (
+                        <p className="empty">
+                          Tarea no disponible con los permisos y filtros
+                          actuales.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="actions task-history-controls">
+                        <button
+                          className={
+                            taskSection === "review" ? "" : "secondary"
+                          }
+                          onClick={() => setTaskSection("review")}
+                        >
+                          Entregadas por revisar (
+                          {
+                            tableRows.filter((t) => t.status === "SUBMITTED")
+                              .length
+                          }
+                          )
+                        </button>
+                        <button
+                          className={
+                            taskSection === "active" ? "" : "secondary"
+                          }
+                          aria-pressed={taskSection === "active"}
+                          onClick={() => setTaskSection("active")}
+                        >
+                          Tareas pendientes (
+                          {
+                            tableRows.filter(
+                              (t) =>
+                                !["APPROVED", "SUBMITTED"].includes(
+                                  value(t, "status"),
+                                ),
+                            ).length
+                          }
+                          )
+                        </button>
+                        <button
+                          className={taskHistory ? "" : "secondary"}
+                          aria-pressed={taskHistory}
+                          onClick={() => setTaskSection("history")}
+                        >
+                          Historial de aprobadas (
+                          {
+                            tableRows.filter((t) => t.status === "APPROVED")
+                              .length
+                          }
+                          )
+                        </button>
+                      </div>
+                      <p>
+                        Orden: prioridad alta (rojo), media (ámbar) y baja
+                        (verde). A igual prioridad, primero la fecha límite más
+                        cercana.
+                      </p>
+                      <div className="record-grid">
+                        {sortTasks(tableRows.filter(taskMatches)).map((t) =>
+                          taskHistory ? (
+                            <article
+                              className="record task-priority-card"
+                              data-priority={value(t, "priority")}
+                              key={t.id}
+                            >
+                              <span className="eyebrow">
+                                {employeeName(t.employee_id)} ·{" "}
+                                {labels[value(t, "priority")]}
+                              </span>
+                              <h3>{value(t, "title")}</h3>
+                              <Badge status="APPROVED" />
+                              <p>Fecha límite: {value(t, "due_date")}</p>
+                              <Link
                                 className="secondary"
-                                disabled={busy}
-                                onClick={() =>
-                                  act("onboarding.complete", { id: i.id })
-                                }
+                                href={`${href("tasks")}/${t.id}`}
                               >
-                                Completar
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                        {mine?.id === o.employee_id && (
-                          <Upload
-                            bucket="onboarding-documents"
-                            id={o.id}
-                            onSaved={refresh}
-                          />
+                                Ver características y evidencias ↗
+                              </Link>
+                            </article>
+                          ) : (
+                            taskCard(t)
+                          ),
                         )}
-                        <div className="actions">
-                          {rows("onboarding_documents")
-                            .filter((d) => d.onboarding_id === o.id)
-                            .map((d, i) => (
-                              <button
-                                className="secondary"
-                                key={d.id}
-                                onClick={() =>
-                                  openFile("onboarding-documents", d.id)
-                                }
-                              >
-                                Documento {i + 1}
-                              </button>
-                            ))}
-                        </div>
-                      </article>
-                    );
-                  })}
-                  {!rows("onboarding").length && (
-                    <p className="empty">
-                      Todavía no hay procesos de onboarding.
-                    </p>
+                      </div>
+                      {!tableRows.some(taskMatches) && (
+                        <p className="empty">
+                          {taskHistory
+                            ? "No hay tareas aprobadas con estos filtros."
+                            : "No hay tareas pendientes con estos filtros."}
+                        </p>
+                      )}
+                    </>
                   )}
-                </div>
+                </section>
               )}
-              {view === "courses" && (
+              {view === "onboarding" && profile && (
+                <OnboardingPanel
+                  data={data}
+                  profile={profile}
+                  detail={detail}
+                />
+              )}
+              {view === "courses" && profile && (
+                <>
+                  <div
+                    className="module-tabs"
+                    aria-label="Vistas de capacitación"
+                  >
+                    {[
+                      ["catalog", "Cursos y asignaciones"],
+                      ["follow", "Seguimiento y revisión"],
+                      ...(hr ? [["create", "Crear con IA"]] : []),
+                    ].map(([id, label]) => (
+                      <button
+                        key={id}
+                        aria-pressed={courseSection === id}
+                        className={courseSection === id ? "" : "secondary"}
+                        onClick={() => setCourseSection(id)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {hr && courseSection === "create" && (
+                    <TrainingAssistant data={authorized} onSaved={refresh} />
+                  )}
+                  <div hidden={courseSection !== "follow"}>
+                    <TrainingProgress
+                      data={data}
+                      profile={profile}
+                      onSaved={refresh}
+                    />
+                  </div>
+                </>
+              )}
+              {view === "courses" && courseSection === "catalog" && (
                 <div className="record-grid">
                   {filtered("courses").map((c) => (
                     <article className="record" key={c.id}>
@@ -1145,6 +1748,7 @@ export function Workspace({
                       </span>
                       <h3>{value(c, "title")}</h3>
                       <p>{value(c, "description")}</p>
+                      <TrainingResources courseId={c.id} />
                       <details>
                         <summary>Leer contenido del curso</summary>
                         <div className="course-content">
@@ -1179,40 +1783,68 @@ export function Workspace({
                           </button>
                         </div>
                       )}
-                      {rows("course_assignments")
-                        .filter((a) => a.course_id === c.id)
-                        .map((a) => (
-                          <div key={a.id} className="assignment">
-                            <div className="progress-label">
-                              <span>{employeeName(a.employee_id)}</span>
-                              <strong>{value(a, "progress")}%</strong>
+                      {manager && (
+                        <button onClick={() => setAssignment({ course: c.id })}>
+                          Asignar a mi equipo
+                        </button>
+                      )}
+                      <details>
+                        <summary>
+                          Personas asignadas (
+                          {
+                            rows("course_assignments").filter(
+                              (a) => a.course_id === c.id,
+                            ).length
+                          }
+                          )
+                        </summary>
+                        {rows("course_assignments")
+                          .filter((a) => a.course_id === c.id)
+                          .map((a) => (
+                            <div key={a.id} className="assignment">
+                              <div className="progress-label">
+                                <span>{employeeName(a.employee_id)}</span>
+                                <strong>{value(a, "progress")}%</strong>
+                              </div>
+                              <progress max={100} value={Number(a.progress)} />
+                              <Badge status={value(a, "status")} />
+                              <TrainingEvidence
+                                assignmentId={a.id}
+                                progress={Number(a.progress)}
+                                status={value(a, "status")}
+                                own={a.employee_id === mine?.id}
+                                canReview={
+                                  (hr || manager) && a.employee_id !== mine?.id
+                                }
+                                onSaved={refresh}
+                              />
+                              {a.employee_id === mine?.id &&
+                                !["COMPLETED", "SUBMITTED"].includes(
+                                  value(a, "status"),
+                                ) && (
+                                  <button
+                                    className="secondary"
+                                    disabled={busy}
+                                    onClick={() =>
+                                      act("course.progress", {
+                                        id: a.id,
+                                        progress: Math.min(
+                                          100,
+                                          Number(a.progress) + 25,
+                                        ),
+                                      })
+                                    }
+                                  >
+                                    {Number(a.progress) === 0
+                                      ? "Iniciar curso"
+                                      : Number(a.progress) === 75
+                                        ? "Enviar curso a revisión"
+                                        : "Registrar avance +25%"}
+                                  </button>
+                                )}
                             </div>
-                            <progress max={100} value={Number(a.progress)} />
-                            <Badge status={value(a, "status")} />
-                            {a.employee_id === mine?.id &&
-                              a.status !== "COMPLETED" && (
-                                <button
-                                  className="secondary"
-                                  disabled={busy}
-                                  onClick={() =>
-                                    act("course.progress", {
-                                      id: a.id,
-                                      progress: Math.min(
-                                        100,
-                                        Number(a.progress) + 25,
-                                      ),
-                                    })
-                                  }
-                                >
-                                  {Number(a.progress) === 0
-                                    ? "Iniciar curso"
-                                    : Number(a.progress) === 75
-                                      ? "Completar curso"
-                                      : "Registrar avance +25%"}
-                                </button>
-                              )}
-                          </div>
-                        ))}
+                          ))}
+                      </details>
                     </article>
                   ))}
                   {!filtered("courses").length && (
@@ -1222,15 +1854,32 @@ export function Workspace({
                   )}
                 </div>
               )}
+              {view === "employees" && !detail && profile && hr && (
+                <StaffEnrollment
+                  data={authorized}
+                  superuser={admin}
+                  onSaved={refresh}
+                />
+              )}
               {["performance", "analytics"].includes(view) && (
-                <>
+                <section
+                  className="report-workspace"
+                  aria-label="Panel de resultados"
+                >
                   <div className="kpi-grid">
                     {[
-                      ["Candidatos", rows("candidates").length],
                       [
-                        "Contrataciones",
-                        rows("applications").filter(
-                          (a) => a.status === "CONTRATADO",
+                        view === "performance"
+                          ? "Personas en seguimiento"
+                          : "Candidatos",
+                        rows(
+                          view === "performance" ? "employees" : "candidates",
+                        ).length,
+                      ],
+                      [
+                        "Incorporaciones completadas",
+                        rows("onboarding").filter(
+                          (a) => a.status === "COMPLETED",
                         ).length,
                       ],
                       [
@@ -1251,8 +1900,88 @@ export function Workspace({
                       </article>
                     ))}
                   </div>
-                  <div className="panel">
+                  <div
+                    className="report-navigation"
+                    aria-label="Vistas del informe"
+                  >
+                    {[
+                      {
+                        id: "summary",
+                        label: "Resumen",
+                        hint: "Indicadores y distribuciones",
+                      },
+                      {
+                        id: "analysis",
+                        label: "Análisis con IA",
+                        hint: "Preguntas y recomendaciones",
+                      },
+                      {
+                        id: "people",
+                        label: "Por persona",
+                        hint: "Avances y perfiles",
+                      },
+                    ].map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        aria-pressed={reportTab === t.id}
+                        onClick={() => setReportTab(t.id)}
+                      >
+                        <strong>{t.label}</strong>
+                        <span>{t.hint}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div hidden={reportTab !== "summary"}>
+                    <div className="report-section-heading">
+                      <h2>Una mirada a tus procesos</h2>
+                      <p>
+                        Compara la distribución de los registros del ámbito
+                        seleccionado.
+                      </p>
+                    </div>
+                    {profile && (
+                      <AnalyticsCharts
+                        key={JSON.stringify(activeFilters)}
+                        data={data}
+                        profile={profile}
+                        process={
+                          view === "performance" ? "workforce" : filters.process
+                        }
+                      />
+                    )}
+                  </div>
+                  <div
+                    hidden={reportTab !== "analysis"}
+                    className="report-ai-grid"
+                  >
+                    {profile && (
+                      <>
+                        <WorkforceAI
+                          key={JSON.stringify(activeFilters)}
+                          mode="chart"
+                          section={view as "performance" | "analytics"}
+                          filters={activeFilters}
+                        />
+                        <OperationsPanel
+                          key={view + JSON.stringify(activeFilters)}
+                          data={data}
+                          profile={profile}
+                          area={view as "performance" | "analytics"}
+                          filters={activeFilters}
+                        />
+                      </>
+                    )}
+                  </div>
+                  <div
+                    hidden={reportTab !== "people"}
+                    className="panel people-report"
+                  >
                     <h2>Progreso por persona</h2>
+                    <p>
+                      Abre un perfil para consultar su historial y seguimiento
+                      autorizado.
+                    </p>
                     {rows("employees").map((e) => {
                       const p = performance(
                         rows("tasks")
@@ -1264,19 +1993,33 @@ export function Workspace({
                       );
                       return (
                         <div key={e.id} className="performance-row">
-                          <strong>{name(e.profile_id)}</strong>
-                          <progress max={100} value={p.overall_score} />
-                          <span>{p.overall_score}%</span>
-                          <Badge status={p.signal} />
+                          <Link href={`${href("employees")}/${e.id}`}>
+                            {name(e.profile_id)}
+                          </Link>
+                          {rows("tasks").some((t) => t.employee_id === e.id) ||
+                          rows("course_assignments").some(
+                            (c) => c.employee_id === e.id,
+                          ) ? (
+                            <>
+                              <progress max={100} value={p.overall_score} />
+                              <span>{p.overall_score}%</span>
+                              <Badge status={p.signal} />
+                            </>
+                          ) : (
+                            <span className="muted">
+                              Sin asignaciones para evaluar
+                            </span>
+                          )}
                         </div>
                       );
                     })}
                     <p className="muted">
                       Desempeño = tareas aprobadas × 60% + cursos completados ×
-                      40%. Sin asignaciones se considera 0%.
+                      40%. Sin asignaciones el indicador no permite evaluar
+                      desempeño.
                     </p>
                   </div>
-                </>
+                </section>
               )}
               {view === "profile" && (
                 <section className="panel">
@@ -1320,87 +2063,95 @@ export function Workspace({
                 "positions",
                 "departments",
                 "candidates",
-              ].includes(view) && (
-                <div className="panel table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>{view === "audit" ? "Acción" : "Nombre"}</th>
-                        <th>Detalle</th>
-                        <th>Estado / fecha</th>
-                        <th>
-                          <span className="sr-only">Acciones</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tableRows.map((r) => (
-                        <tr key={r.id}>
-                          <td>
-                            <strong>
-                              {view === "employees" || view === "candidates"
-                                ? name(r.profile_id)
-                                : value(r, "full_name") ||
-                                  value(r, "name") ||
-                                  value(r, "action")}
-                            </strong>
-                          </td>
-                          <td>
-                            {view === "employees"
-                              ? value(find("positions", r.position_id), "name")
-                              : view === "audit"
-                                ? value(r, "resource_type")
-                                : value(r, "email") ||
-                                  value(
-                                    find("departments", r.department_id),
-                                    "name",
-                                  ) ||
-                                  value(r, "skills")}
-                          </td>
-                          <td>
-                            {r.status ? (
-                              <Badge status={value(r, "status")} />
-                            ) : r.role ? (
-                              <Badge status={value(r, "role")} />
-                            ) : (
-                              new Date(
-                                value(r, "created_at"),
-                              ).toLocaleDateString("es-MX")
-                            )}
-                          </td>
-                          <td>
-                            {((admin &&
-                              ["users", "positions", "departments"].includes(
-                                view,
-                              )) ||
-                              (hr && view === "employees")) && (
-                              <button
-                                className="secondary"
-                                onClick={() => edit(tableView, r)}
-                              >
-                                Editar
-                              </button>
-                            )}
-                            {view === "candidates" && hr && (
-                              <button
-                                className="secondary"
-                                onClick={() => openFile("cvs", r.id)}
-                              >
-                                Ver CV
-                              </button>
-                            )}
-                          </td>
+              ].includes(view) &&
+                !(view === "employees" && detail) && (
+                  <div className="panel table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>{view === "audit" ? "Acción" : "Nombre"}</th>
+                          <th>Detalle</th>
+                          <th>Estado / fecha</th>
+                          <th>
+                            <span className="sr-only">Acciones</span>
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {!tableRows.length && (
-                    <p className="empty">
-                      No hay registros que coincidan con tu búsqueda.
-                    </p>
-                  )}
-                </div>
-              )}
+                      </thead>
+                      <tbody>
+                        {tableRows.map((r) => (
+                          <tr key={r.id}>
+                            <td>
+                              <strong>
+                                {view === "employees" || view === "candidates"
+                                  ? name(r.profile_id)
+                                  : value(r, "full_name") ||
+                                    value(r, "name") ||
+                                    value(r, "action")}
+                              </strong>
+                            </td>
+                            <td>
+                              {view === "employees"
+                                ? value(
+                                    find("positions", r.position_id),
+                                    "name",
+                                  )
+                                : view === "audit"
+                                  ? value(r, "resource_type")
+                                  : value(r, "email") ||
+                                    value(
+                                      find("departments", r.department_id),
+                                      "name",
+                                    ) ||
+                                    value(r, "skills")}
+                            </td>
+                            <td>
+                              {r.status ? (
+                                <Badge status={value(r, "status")} />
+                              ) : r.role ? (
+                                <Badge status={value(r, "role")} />
+                              ) : (
+                                new Date(
+                                  value(r, "created_at"),
+                                ).toLocaleDateString("es-MX")
+                              )}
+                            </td>
+                            <td>
+                              {((admin &&
+                                ["users", "positions", "departments"].includes(
+                                  view,
+                                )) ||
+                                (hr &&
+                                  view === "employees" &&
+                                  profile &&
+                                  canEditStaff(authorized, profile, r) &&
+                                  (r.profile_id !== profile?.id || admin))) && (
+                                <button
+                                  className="secondary"
+                                  onClick={() => edit(tableView, r)}
+                                >
+                                  Editar
+                                </button>
+                              )}
+                              {view === "candidates" && hr && (
+                                <button
+                                  className="secondary"
+                                  onClick={() => openFile("cvs", r.id)}
+                                >
+                                  Ver CV
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {!tableRows.length && (
+                      <p className="empty">
+                        No hay registros que coincidan con tu búsqueda.
+                      </p>
+                    )}
+                  </div>
+                )}
             </>
           )}
           <footer className="page-footer">
@@ -1411,6 +2162,23 @@ export function Workspace({
           </footer>
         </main>
       </div>
+      {assignment && (
+        <BulkAssignment
+          showAreaFilter={hr}
+          data={
+            !assignment.course && profile
+              ? taskRecipients(authorized, profile)
+              : authorized
+          }
+          subordinatesOnly={manager && !assignment.course}
+          course={assignment.course}
+          onClose={() => setAssignment(null)}
+          onSaved={(message) => {
+            router.refresh();
+            setNotice(message);
+          }}
+        />
+      )}
       {spec && (
         <EditForm spec={spec} onClose={() => setSpec(null)} onSaved={refresh} />
       )}

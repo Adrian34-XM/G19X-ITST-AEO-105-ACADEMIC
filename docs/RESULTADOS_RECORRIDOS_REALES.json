@@ -1,0 +1,244 @@
+{
+  "date": "2026-09-23T19:04:49.977Z",
+  "label": "PRUEBA RECORRIDOS 1790190228438",
+  "users": {
+    "admin": "cbde8c68-4408-420b-8cdb-dc79ebb8d6ec",
+    "rh": "0234a44f-2257-4e44-b425-c9a4e9e6f5b8",
+    "manager": "f83596e2-b516-46b0-82cb-048b39bf1db2",
+    "employee": "6e301fff-0254-4ac4-bcbc-9f755d897ba8",
+    "outside": "e8da6552-3d7d-40c0-9e7b-838a474a5490",
+    "candidate": "ec77719a-c0fb-41ca-9f6b-81df9e171cf8"
+  },
+  "results": [
+    {
+      "name": "Login superadministrador",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Alta y login RH_ADMIN",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Alta y login JEFE",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Alta y login EMPLEADO",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Alta y login EMPLEADO",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Alta y login CANDIDATO",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "RH configura equipo y jefe",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "RH no crea cuentas privilegiadas",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Jefe no asigna fuera de su jerarquía",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Jefe asigna tarea a subordinado",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Evidencia deja tarea pendiente de revisión",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Colaborador no autoaprueba tarea",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Descarga privada task-evidence",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "IA real analiza evidencia",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "IA no aprueba automáticamente la tarea",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Archivo inaccesible a otro colaborador",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Corrección y aprobación por jefe",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Curso entregado requiere revisión",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Colaborador no autoaprueba curso",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "RH confirma curso",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Onboarding exige documento solicitado",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Actividad admite múltiples documentos",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "RH debe revisar documentos antes de aprobar",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Descarga privada onboarding-documents",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Descarga privada onboarding-documents",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Onboarding completado tras revisión",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Descarga privada cvs",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Candidato sube CV y se postula",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Pantalla de candidato accesible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Candidato no entra a RH",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "IA real evalúa postulación",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Candidato no se contrata a sí mismo",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Impide segunda entrevista del mismo candidato",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Contratación crea empleado y actualiza rol",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Postulación queda en historial contratado",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Jefe no encuesta a personas ajenas",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Encuesta permite un destinatario",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "No permite responder dos veces",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Grupo pequeño no expone comentarios",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "IA respeta mínimo anónimo",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Pantalla autenticada admin",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Pantalla autenticada rh",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Pantalla autenticada manager",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Pantalla autenticada employee",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Auditoría bloqueada para RH",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Superadmin abre auditoría",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

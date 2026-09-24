@@ -1,6 +1,7 @@
 /**
  * Gestiona documentos privados. POST valida propietario y archivo, sube a Storage y registra la asociación. GET comprueba acceso y entrega un enlace de descarga de 60 segundos. Storage y SQL son operaciones separadas: un fallo al asociar puede dejar un archivo sin referencia.
  */
+import { requireWorkforceSchema, requireCourseEvidenceSchema } from "@/lib/api";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticate, ApiError } from "@/lib/auth";
@@ -14,9 +15,22 @@ export async function POST(req: Request) {
       throw new ApiError(413, "El archivo supera 5 MB.");
     const form = await req.formData();
     const bucket = z
-      .enum(["cvs", "task-evidence", "onboarding-documents"])
+      .enum(["cvs", "task-evidence", "onboarding-documents", "course-evidence"])
       .parse(form.get("bucket"));
     const id = form.get("id") ? z.uuid().parse(form.get("id")) : undefined;
+    const reportedProgress =
+      bucket === "course-evidence"
+        ? z.coerce.number().int().min(1).max(100).parse(form.get("progress"))
+        : undefined;
+    if (bucket === "course-evidence") await requireCourseEvidenceSchema(client);
+    const itemId = form.get("item_id")
+      ? z.uuid().parse(form.get("item_id"))
+      : undefined;
+    if (bucket === "onboarding-documents" && !itemId)
+      throw new ApiError(
+        422,
+        "Selecciona la actividad a la que pertenecen los documentos.",
+      );
     const file = form.get("file");
     if (!(file instanceof File))
       throw new ApiError(422, "Selecciona un archivo.");
@@ -25,7 +39,13 @@ export async function POST(req: Request) {
     if (bucket !== "cvs") {
       if (!id) throw new ApiError(422, "Falta el recurso.");
       const { data: record } = await client
-        .from(bucket === "task-evidence" ? "tasks" : "onboarding")
+        .from(
+          bucket === "course-evidence"
+            ? "course_assignments"
+            : bucket === "task-evidence"
+              ? "tasks"
+              : "onboarding",
+        )
         .select("employee_id")
         .eq("id", id)
         .single();
@@ -36,6 +56,23 @@ export async function POST(req: Request) {
       if (!own)
         throw new ApiError(403, "No puedes adjuntar archivos a este recurso.");
     }
+    if (bucket === "onboarding-documents") {
+      await requireWorkforceSchema(client);
+      const { data: item } = await client
+        .from("onboarding_items")
+        .select("onboarding_id,status")
+        .eq("id", itemId!)
+        .single();
+      if (
+        !item ||
+        item.onboarding_id !== id ||
+        !["PENDING", "IN_PROGRESS"].includes(item.status)
+      )
+        throw new ApiError(
+          403,
+          "La actividad no acepta archivos o no corresponde al proceso.",
+        );
+    }
     const { bytes, ext, text } = await inspectFile(file, bucket);
     const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
     const { error: uploadError } = await client.storage
@@ -43,11 +80,27 @@ export async function POST(req: Request) {
       .upload(path, bytes, { contentType: file.type, upsert: false });
     if (uploadError)
       throw new ApiError(502, "No se pudo subir el archivo. Intenta de nuevo.");
-    const { data, error } = await client.rpc("command", {
-      op: "file.attach",
-      payload: { id, bucket, path, text },
-    });
-    if (error) databaseError(error);
+    const { data, error } =
+      bucket === "course-evidence"
+        ? await client.rpc("attach_course_evidence", {
+            aid: id,
+            path,
+            body: text,
+            reported_progress: reportedProgress,
+          })
+        : bucket === "onboarding-documents"
+          ? await client.rpc("onboarding_command", {
+              op: "document.attach",
+              payload: { id: itemId, path },
+            })
+          : await client.rpc("command", {
+              op: "file.attach",
+              payload: { id, bucket, path, text },
+            });
+    if (error) {
+      await client.storage.from(bucket).remove([path]);
+      databaseError(error);
+    }
     return NextResponse.json(data, { status: 201 });
   } catch (e) {
     return failure(e);
@@ -58,15 +111,17 @@ export async function GET(req: Request) {
     const { client } = await authenticate();
     const url = new URL(req.url);
     const kind = z
-      .enum(["cvs", "task-evidence", "onboarding-documents"])
+      .enum(["cvs", "task-evidence", "onboarding-documents", "course-evidence"])
       .parse(url.searchParams.get("bucket"));
     const id = z.uuid().parse(url.searchParams.get("id"));
     const table =
-      kind === "cvs"
-        ? "candidates"
-        : kind === "task-evidence"
-          ? "task_evidence"
-          : "onboarding_documents";
+      kind === "course-evidence"
+        ? "course_evidence"
+        : kind === "cvs"
+          ? "candidates"
+          : kind === "task-evidence"
+            ? "task_evidence"
+            : "onboarding_documents";
     const field = kind === "cvs" ? "cv_path" : "file_path";
     const { data, error } = await client
       .from(table)
