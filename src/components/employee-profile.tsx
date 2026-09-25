@@ -8,12 +8,16 @@ export function EmployeeProfile({
   data,
   profile,
   id,
+  ownView = false,
 }: {
   data: Snapshot;
   profile: Profile;
   id: string;
+  ownView?: boolean;
 }) {
-  const e = (data.employees ?? []).find((e) => e.id === id);
+  const e = (data.employees ?? []).find(
+    (e) => e.id === id && (!ownView || e.profile_id === profile.id),
+  );
   if (!e)
     return (
       <section className="panel">
@@ -40,11 +44,25 @@ export function EmployeeProfile({
     );
   return (
     <section className="panel employee-profile">
-      <Link href={`${home[profile.role]}/employees`}>
-        ← Volver al organigrama
+      <Link
+        href={ownView ? home[profile.role] : `${home[profile.role]}/employees`}
+      >
+        {ownView ? "← Volver a vista general" : "← Volver al organigrama"}
       </Link>
       <h2>{value(person, "full_name") || "Integrante"}</h2>
+      {ownView && (
+        <p>
+          Tu información es de solo consulta. Si necesitas corregir algún dato,
+          solicita el cambio a Recursos Humanos.
+        </p>
+      )}
       <dl>
+        {ownView && (
+          <>
+            <dt>Tipo de cuenta</dt>
+            <dd>{stateLabel(profile.role)}</dd>
+          </>
+        )}
         <dt>Puesto</dt>
         <dd>{value(position, "name")}</dd>
         <dt>Área</dt>
@@ -61,14 +79,14 @@ export function EmployeeProfile({
               ? "Fuera del alcance visible"
               : "Sin jefe asignado"}
         </dd>
-        {isHR(profile.role) && (
+        {(isHR(profile.role) || ownView) && (
           <>
             <dt>Correo de contacto</dt>
-            <dd>{value(person, "email")}</dd>
+            <dd>{ownView ? profile.email : value(person, "email")}</dd>
           </>
         )}
       </dl>
-      <WorkforceAI mode="profile" employeeId={id} />
+      {!ownView && <WorkforceAI mode="profile" employeeId={id} />}
       <h3>Seguimiento laboral</h3>
       <p>
         {tasks.length} tareas ·{" "}

@@ -1298,7 +1298,6 @@ export function Workspace({
 
               {view === "applications" && !detail && (
                 <section aria-label="Postulaciones por estado">
-                  <TaskCalendar tasks={tableRows} basePath={href("tasks")} />
                   <div className="actions task-history-controls">
                     {Object.entries(applicationSections).map(
                       ([status, title]) => (
@@ -1598,6 +1597,7 @@ export function Workspace({
               )}
               {view === "tasks" && (
                 <section>
+                  {!detail && <TaskCalendar tasks={tableRows} basePath={href("tasks")} />}
                   {detail ? (
                     <>
                       <Link className="secondary" href={href("tasks")}>
@@ -2026,7 +2026,19 @@ export function Workspace({
                   </div>
                 </section>
               )}
-              {view === "profile" && (
+              {view === "profile" && profile?.role === "EMPLEADO" && (
+                <EmployeeProfile
+                  data={authorized}
+                  profile={profile}
+                  id={
+                    (authorized.employees ?? []).find(
+                      (e) => e.profile_id === profile.id,
+                    )?.id ?? ""
+                  }
+                  ownView
+                />
+              )}
+              {view === "profile" && profile?.role !== "EMPLEADO" && (
                 <section className="panel">
                   <h2>{profile?.full_name}</h2>
                   <p>{profile?.email}</p>
