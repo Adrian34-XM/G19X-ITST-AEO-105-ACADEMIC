@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { stateLabel } from "@/modules/workspace/labels";
 type Message = {
   id: string;
@@ -17,9 +18,11 @@ export function TaskConversation({
   taskId: string;
   userId: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const search = useSearchParams();
+  const [toggled, setOpen] = useState<boolean | null>(null);
+  const open = toggled ?? search.get("conversation") === "open";
   return (
-    <section className="task-conversation">
+    <section className="task-conversation" id={`conversation-${taskId}`}>
       <button
         type="button"
         className="secondary"
@@ -67,6 +70,21 @@ function Conversation({ taskId, userId }: { taskId: string; userId: string }) {
     initialized.current = true;
     setClosed(data.closed);
     setError("");
+    // Confirma únicamente el lote entregado, nunca mensajes que lleguen después.
+    const latest = data.messages.at(-1)?.sequence;
+    if (!before && latest && !document.hidden) {
+      const ack = await fetch("/api/task-messages", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task: taskId, through_sequence: latest }),
+        signal,
+      });
+      if (!ack.ok)
+        throw new Error(
+          "Los mensajes se cargaron, pero no se pudieron marcar como leídos.",
+        );
+      window.dispatchEvent(new Event("task-messages-read"));
+    }
   }
   useEffect(() => {
     const controller = new AbortController();

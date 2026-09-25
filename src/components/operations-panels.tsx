@@ -17,6 +17,7 @@ import {
   type InsightArea,
 } from "@/modules/workspace/insights";
 import { home } from "@/lib/permissions";
+import { TaskMessageAlerts } from "./task-message-alerts";
 // La categoría viene de la señal original; el color no depende del texto del título.
 const alertLabels = {
   overdue: "Atraso",
@@ -262,6 +263,9 @@ export function OperationsPanel({
         <p role="status">
           El orquestador está revisando tus novedades y pendientes…
         </p>
+      )}
+      {area === "overview" && profile.role !== "CANDIDATO" && (
+        <TaskMessageAlerts key={profile.id} profile={profile} />
       )}
       {advice && (
         <div className="ai-result">

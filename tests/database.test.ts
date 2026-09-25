@@ -1835,6 +1835,34 @@ it("conversaciones de tarea: acceso, autor, reintentos e historial cerrado", asy
   await expect(
     send(ids.other, "Mensaje ajeno", "71000000-0000-4000-8000-000000000004"),
   ).rejects.toThrow();
+  const unread = async (who: string) =>
+    (
+      await as(who, "select * from unread_task_messages() where task_id=$1", [
+        task,
+      ])
+    ).rows as { unread_count: number }[];
+  expect(Number((await unread(user))[0].unread_count)).toBe(2);
+  expect(Number((await unread(ids.manager))[0].unread_count)).toBe(2);
+  expect(await unread(ids.other)).toHaveLength(0);
+  expect(await unread(ids.candidate)).toHaveLength(0);
+  const sequences = (
+    await as(
+      user,
+      "select sequence from task_messages where task_id=$1 order by sequence",
+      [task],
+    )
+  ).rows as { sequence: number }[];
+  const mark = (who: string, sequence: number) =>
+    as(who, "select mark_task_messages_read($1,$2)", [task, sequence]);
+  await expect(mark(ids.other, sequences[2].sequence)).rejects.toThrow();
+  await expect(mark(user, 99999999)).rejects.toThrow();
+  await mark(user, sequences[1].sequence);
+  expect(Number((await unread(user))[0].unread_count)).toBe(1);
+  await mark(user, sequences[0].sequence);
+  expect(Number((await unread(user))[0].unread_count)).toBe(1);
+  await mark(user, sequences[2].sequence);
+  expect(await unread(user)).toHaveLength(0);
+  expect(Number((await unread(ids.manager))[0].unread_count)).toBe(2);
   expect(
     (
       await as(ids.other, "select * from task_messages where task_id=$1", [

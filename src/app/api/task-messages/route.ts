@@ -25,6 +25,14 @@ export async function GET(req: Request) {
     const { client, profile } = await authenticate();
     requireRole(profile.role, ["RH_ADMIN", "JEFE", "EMPLEADO"]);
     const params = new URL(req.url).searchParams;
+    if (params.get("unread") === "true") {
+      const { data, error } = await client.rpc("unread_task_messages");
+      if (error) chatError(error);
+      return NextResponse.json(
+        { tasks: data ?? [] },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const task = z.uuid().parse(params.get("task"));
     const before = params.has("before")
       ? z.coerce
@@ -79,6 +87,30 @@ export async function POST(req: Request) {
     const { data, error } = await client.rpc("send_task_message", input);
     if (error) chatError(error);
     return NextResponse.json({ id: data });
+  } catch (e) {
+    return failure(e);
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    checkOrigin(req);
+    const { client, profile } = await authenticate();
+    requireRole(profile.role, ["RH_ADMIN", "JEFE", "EMPLEADO"]);
+    const input = z
+      .object({
+        task: z.uuid(),
+        through_sequence: z
+          .number()
+          .int()
+          .positive()
+          .max(Number.MAX_SAFE_INTEGER),
+      })
+      .strict()
+      .parse(await readJson(req));
+    const { error } = await client.rpc("mark_task_messages_read", input);
+    if (error) chatError(error);
+    return NextResponse.json({ ok: true });
   } catch (e) {
     return failure(e);
   }

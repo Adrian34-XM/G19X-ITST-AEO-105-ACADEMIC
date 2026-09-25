@@ -54,7 +54,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   state.role = "JEFE";
   state.cached = [];
-  state.rpc.mockResolvedValue({ data: "run", error: null });
+  state.rpc.mockImplementation(async (name: string) => ({
+    data: name === "unread_task_messages" ? [] : "run",
+    error: null,
+  }));
   state.final.mockResolvedValue({ error: null });
   state.update.mockReturnValue({ eq: () => ({ eq: state.final }) });
   state.generate.mockResolvedValue({
@@ -177,8 +180,34 @@ it("reutiliza el mismo contexto y vuelve a generar tras cambiar el rol", async (
   const again = await POST(req("overview"));
   expect((await again.json()).cached).toBe(true);
   expect(state.generate).not.toHaveBeenCalled();
-  expect(state.rpc).not.toHaveBeenCalled();
+  expect(state.rpc).toHaveBeenCalledExactlyOnceWith("unread_task_messages");
   state.role = "EMPLEADO";
   expect((await POST(req("overview"))).status).toBe(200);
   expect(state.generate).toHaveBeenCalledTimes(1);
+});
+it("los mensajes nuevos invalidan el resumen guardado", async () => {
+  await POST(req("overview"));
+  state.cached = [
+    {
+      result: state.update.mock.calls.at(-1)![0].result,
+      model: "test",
+      created_at: "2026-09-25T10:00:00Z",
+    },
+  ];
+  const unread = [
+    {
+      task_id: "t",
+      title: "Revisar",
+      unread_count: 2,
+      last_message_at: "2026-09-25T10:00:00Z",
+    },
+  ];
+  state.rpc.mockImplementation(async (name: string) => ({
+    data: name === "unread_task_messages" ? unread : "run",
+    error: null,
+  }));
+  state.generate.mockClear();
+  expect((await POST(req("overview"))).status).toBe(200);
+  expect(state.generate).toHaveBeenCalledTimes(1);
+  expect(state.generate.mock.calls[0][0].unread_task_messages).toEqual(unread);
 });
