@@ -14,6 +14,7 @@ import {
   notifications,
   overdue,
   scopeData,
+  canReviewTeamPerformance,
   type InsightArea,
 } from "@/modules/workspace/insights";
 import { home } from "@/lib/permissions";
@@ -70,6 +71,8 @@ export function OperationsPanel({
     [advice, setAdvice] = useState<Advice | null>(null),
     [generated, setGenerated] = useState("");
   const [prompt, setPrompt] = useState("");
+  const personalPerformance =
+    area === "performance" && !canReviewTeamPerformance(data, profile);
   const [notificationKind, setNotificationKind] = useState("");
   const scoped = data,
     today = new Date().toISOString().slice(0, 10);
@@ -192,7 +195,9 @@ export function OperationsPanel({
           <span className="eyebrow">
             {area === "overview"
               ? "ORQUESTADOR · RESUMEN DE TU ESPACIO"
-              : "SEGUIMIENTO DEL EQUIPO"}
+              : personalPerformance
+                ? "MI DESEMPEÑO"
+                : "SEGUIMIENTO DEL EQUIPO"}
           </span>
           <h2>
             {area === "overview"
@@ -215,11 +220,13 @@ export function OperationsPanel({
         </button>
       </div>
       <p>
-        {isHR(profile.role)
-          ? "Alcance: todas las áreas autorizadas de RH."
-          : profile.role === "JEFE"
-            ? "Alcance: tu equipo, sus niveles subordinados y tus propios registros."
-            : "Alcance: la información permitida para tu cuenta."}{" "}
+        {personalPerformance
+          ? "Alcance: únicamente tus tareas, capacitación e incorporación."
+          : isHR(profile.role)
+            ? "Alcance: todas las áreas autorizadas de RH."
+            : profile.role === "JEFE"
+              ? "Alcance: tu equipo, sus niveles subordinados y tus propios registros."
+              : "Alcance: la información permitida para tu cuenta."}{" "}
         Las recomendaciones no ejecutan cambios automáticamente.
       </p>
       {["performance", "analytics"].includes(area) && (
@@ -232,7 +239,9 @@ export function OperationsPanel({
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={
                 area === "performance"
-                  ? "Analiza avances y necesidades de capacitación de las personas seleccionadas."
+                  ? personalPerformance
+                    ? "Analiza mi avance y sugiere cómo organizar mis pendientes y capacitación."
+                    : "Analiza avances y necesidades de capacitación de las personas seleccionadas."
                   : "Resume cantidades, distribución y oportunidades de mejora del proceso seleccionado."
               }
             />

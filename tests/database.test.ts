@@ -1886,3 +1886,84 @@ it("conversaciones de tarea: acceso, autor, reintentos e historial cerrado", asy
       .rows,
   ).toHaveLength(3);
 });
+
+it("revisión parcial de capacitación: avisos, permisos, corrección y aprobación", async () => {
+  await db.exec("reset role");
+  const user = "70000000-0000-4000-8000-000000000001";
+  const e = (
+    await db.query<{ id: string }>(
+      "select id from employees where profile_id=$1",
+      [user],
+    )
+  ).rows[0];
+  const c = (
+    await db.query<{ id: string }>(
+      "insert into courses(title,description,content,duration_minutes) values('Prueba parcial','prueba','prueba',20) returning id",
+    )
+  ).rows[0];
+  const a = (
+    await db.query<{ id: string }>(
+      "insert into course_assignments(course_id,employee_id) values($1,$2) returning id",
+      [c.id, e.id],
+    )
+  ).rows[0];
+  const attach = async (p: number) => {
+    const path = user + "/" + crypto.randomUUID() + ".txt";
+    await as(
+      user,
+      "insert into storage.objects(bucket_id,name) values('course-evidence',$1)",
+      [path],
+    );
+    await as(
+      user,
+      "select attach_course_evidence($1,$2,'Evidencia sintética',$3)",
+      [a.id, path, p],
+    );
+  };
+  const review = (who: string, decision: string, p: number) =>
+    as(who, "select review_course_progress($1,$2,$3,'Prueba de revisión')", [
+      a.id,
+      decision,
+      p,
+    ]);
+  const state = async () =>
+    (
+      await as(
+        user,
+        "select progress,approved_progress,progress_review_pending,status from course_assignments where id=$1",
+        [a.id],
+      )
+    ).rows[0];
+  await attach(25);
+  await command(user, "course.progress", { id: a.id, progress: 25 });
+  expect(await state()).toMatchObject({
+    progress_review_pending: true,
+    progress: 25,
+  });
+  await expect(review(user, "ACCEPT", 25)).rejects.toThrow();
+  await expect(review(ids.other, "ACCEPT", 25)).rejects.toThrow();
+  await expect(review(ids.manager, "ACCEPT", 50)).rejects.toThrow(
+    "COURSE_EVIDENCE_REQUIRED",
+  );
+  await review(ids.manager, "ACCEPT", 20);
+  expect(await state()).toMatchObject({
+    progress: 20,
+    approved_progress: 20,
+    progress_review_pending: false,
+  });
+  await expect(review(ids.hr, "ACCEPT", 20)).rejects.toThrow(
+    "NO_PENDING_REVIEW",
+  );
+  await attach(50);
+  await expect(review(ids.manager, "REJECT", 50)).rejects.toThrow(
+    "REJECTED_PROGRESS_INCREASE",
+  );
+  await review(ids.hr, "REJECT", 20);
+  await attach(100);
+  await review(ids.manager, "ACCEPT", 100);
+  expect(await state()).toMatchObject({
+    status: "COMPLETED",
+    progress: 100,
+    progress_review_pending: false,
+  });
+});

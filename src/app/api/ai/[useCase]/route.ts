@@ -7,6 +7,7 @@ import { authenticate, ApiError, requireRole } from "@/lib/auth";
 import { adminDb } from "@/lib/supabase/server";
 import { checkOrigin, databaseError, failure, readJson } from "@/lib/api";
 import { generate, sanitize, type Attachment } from "@/lib/ai/provider";
+import { authorizedAttachment } from "@/lib/ai/attachments";
 import { recommendation, verification } from "@/lib/ai/schemas";
 export async function POST(
   req: Request,
@@ -30,31 +31,7 @@ export async function POST(
     let cached: unknown;
     let attachment: Attachment | undefined;
     async function attach(bucket: string, path: string) {
-      const ext = path.split(".").pop();
-      if (
-        process.env.AI_PROVIDER !== "gemini" &&
-        (ext === "pdf" || !process.env.OLLAMA_VISION_MODEL)
-      )
-        throw new ApiError(
-          422,
-          "Este archivo requiere Gemini o un modelo Ollama de visión compatible. También puedes revisarlo manualmente o adjuntar PDF con texto/TXT.",
-        );
-      const { data: file, error } = await client.storage
-        .from(bucket)
-        .download(path);
-      if (error || !file)
-        throw new ApiError(502, "No se pudo leer el archivo autorizado.");
-      if (file.size > 5 * 1024 * 1024)
-        throw new ApiError(422, "Archivo demasiado grande.");
-      attachment = {
-        mimeType:
-          ext === "pdf"
-            ? "application/pdf"
-            : ext === "png"
-              ? "image/png"
-              : "image/jpeg",
-        data: Buffer.from(await file.arrayBuffer()).toString("base64"),
-      };
+      attachment = await authorizedAttachment(client, bucket, path);
     }
     if (useCase === "recruitment") {
       const { data: a } = await client
@@ -142,13 +119,14 @@ export async function POST(
       });
       if (saveError) throw new Error("AI_SAVE_FAILED");
       return NextResponse.json({ result, cached: false });
-    } catch {
+    } catch (e) {
       await admin.rpc("finish_ai", {
         request: request.id,
         output: {},
         model_name: "",
         succeeded: false,
       });
+      if (e instanceof ApiError) throw e;
       throw new ApiError(
         502,
         "No se pudo completar el análisis. Verifica el proveedor de IA e intenta de nuevo.",

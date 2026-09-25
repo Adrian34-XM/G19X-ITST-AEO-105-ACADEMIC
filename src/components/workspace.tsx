@@ -59,6 +59,7 @@ import {
 } from "./operations-panels";
 import {
   scopeData,
+  canReviewTeamPerformance,
   overdue,
   taskRecipients,
 } from "@/modules/workspace/insights";
@@ -168,7 +169,9 @@ export function Workspace({
   const [filters, setFilters] = useState<WorkspaceFilters>({});
   const [reportTab, setReportTab] = useState("summary");
   const [interviewSection, setInterviewSection] = useState("SCHEDULED");
-  const [courseSection, setCourseSection] = useState("catalog");
+  const [courseSection, setCourseSection] = useState(
+    profile?.role === "EMPLEADO" ? "pending" : "catalog",
+  );
   const [reportFiltersOpen, setReportFiltersOpen] = useState(false);
   const [taskSection, setTaskSection] = useState("active");
   const taskHistory = taskSection === "history";
@@ -244,6 +247,10 @@ export function Workspace({
     admin = profile?.role === "SUPERUSER",
     candidate = profile?.role === "CANDIDATO";
   const rows = (table: string) => data[table] ?? [];
+  const personalPerformance =
+    view === "performance" &&
+    !!profile &&
+    !canReviewTeamPerformance(authorized, profile);
   const find = (table: string, id: unknown) =>
     (authorized[table] ?? []).find((r) => r.id === id) ?? { id: "" };
   const name = (id: unknown) =>
@@ -1144,7 +1151,8 @@ export function Workspace({
                       "courses",
                       "onboarding",
                     ].includes(view) &&
-                      (hr || manager) && (
+                      (hr || manager) &&
+                      !personalPerformance && (
                         <label>
                           Colaborador
                           <select
@@ -1716,13 +1724,27 @@ export function Workspace({
               )}
               {view === "courses" && profile && (
                 <>
+                  {detail && profile.role === "EMPLEADO" && (
+                    <Link href={href("courses")}>
+                      ← Volver a mis capacitaciones
+                    </Link>
+                  )}
                   <div
                     className="module-tabs"
                     aria-label="Vistas de capacitación"
+                    hidden={!!detail && profile.role === "EMPLEADO"}
                   >
                     {[
+                      ...(profile.role === "EMPLEADO"
+                        ? [
+                            ["pending", "Mis capacitaciones pendientes"],
+                            ["completed", "Mis capacitaciones completadas"],
+                          ]
+                        : []),
                       ["catalog", "Cursos y asignaciones"],
-                      ["follow", "Seguimiento y revisión"],
+                      ...(profile.role !== "EMPLEADO"
+                        ? [["follow", "Seguimiento y revisión"]]
+                        : []),
                       ...(hr ? [["create", "Crear con IA"]] : []),
                     ].map(([id, label]) => (
                       <button
@@ -1747,122 +1769,209 @@ export function Workspace({
                   </div>
                 </>
               )}
-              {view === "courses" && courseSection === "catalog" && (
-                <div className="record-grid">
-                  {filtered("courses").map((c) => (
-                    <article className="record" key={c.id}>
-                      <span className="eyebrow">
-                        {value(c, "duration_minutes")} MIN ·{" "}
-                        {c.required ? "INDUCCIÓN" : "DESARROLLO"}
-                      </span>
-                      <h3>{value(c, "title")}</h3>
-                      <p>{value(c, "description")}</p>
-                      <TrainingResources courseId={c.id} />
-                      <details>
-                        <summary>Leer contenido del curso</summary>
-                        <div className="course-content">
-                          {value(c, "content")}
-                        </div>
-                      </details>
-                      {hr && (
-                        <div className="actions">
-                          <button
-                            className="secondary"
-                            onClick={() => edit("courses", c)}
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => edit("assignment", { id: c.id })}
-                          >
-                            Asignar
-                          </button>
-                          <button
-                            className="quiet"
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  "Eliminar curso sin asignaciones.",
-                                )
-                              )
-                                void act("course.delete", { id: c.id });
-                            }}
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      )}
-                      {manager && (
-                        <button onClick={() => setAssignment({ course: c.id })}>
-                          Asignar a mi equipo
-                        </button>
-                      )}
-                      <details>
-                        <summary>
-                          Personas asignadas (
-                          {
-                            rows("course_assignments").filter(
-                              (a) => a.course_id === c.id,
-                            ).length
-                          }
-                          )
-                        </summary>
-                        {rows("course_assignments")
-                          .filter((a) => a.course_id === c.id)
-                          .map((a) => (
-                            <div key={a.id} className="assignment">
-                              <div className="progress-label">
-                                <span>{employeeName(a.employee_id)}</span>
-                                <strong>{value(a, "progress")}%</strong>
-                              </div>
-                              <progress max={100} value={Number(a.progress)} />
-                              <Badge status={value(a, "status")} />
-                              <TrainingEvidence
-                                assignmentId={a.id}
-                                progress={Number(a.progress)}
-                                status={value(a, "status")}
-                                own={a.employee_id === mine?.id}
-                                canReview={
-                                  (hr || manager) && a.employee_id !== mine?.id
-                                }
-                                onSaved={refresh}
-                              />
-                              {a.employee_id === mine?.id &&
-                                !["COMPLETED", "SUBMITTED"].includes(
-                                  value(a, "status"),
-                                ) && (
-                                  <button
-                                    className="secondary"
-                                    disabled={busy}
-                                    onClick={() =>
-                                      act("course.progress", {
-                                        id: a.id,
-                                        progress: Math.min(
-                                          100,
-                                          Number(a.progress) + 25,
-                                        ),
-                                      })
-                                    }
-                                  >
-                                    {Number(a.progress) === 0
-                                      ? "Iniciar curso"
-                                      : Number(a.progress) === 75
-                                        ? "Enviar curso a revisión"
-                                        : "Registrar avance +25%"}
-                                  </button>
-                                )}
-                            </div>
-                          ))}
-                      </details>
-                    </article>
-                  ))}
-                  {!filtered("courses").length && (
-                    <p className="empty">
-                      Todavía no tienes cursos disponibles.
+              {view === "courses" &&
+                !detail &&
+                profile?.role === "EMPLEADO" &&
+                ["pending", "completed"].includes(courseSection) && (
+                  <section className="panel">
+                    <h2>
+                      {courseSection === "pending"
+                        ? "Mis capacitaciones pendientes"
+                        : "Mis capacitaciones completadas"}
+                    </h2>
+                    <p>
+                      {courseSection === "pending"
+                        ? "Abre una capacitación para consultar el contenido, registrar tu avance y entregar evidencias. Las enviadas a revisión siguen pendientes hasta que RH o tu jefe las valide."
+                        : "Consulta las capacitaciones que ya fueron validadas."}
                     </p>
-                  )}
-                </div>
-              )}
+                    <div className="record-grid">
+                      {rows("course_assignments")
+                        .filter(
+                          (a) =>
+                            a.employee_id === mine?.id &&
+                            (courseSection === "completed"
+                              ? a.status === "COMPLETED"
+                              : a.status !== "COMPLETED"),
+                        )
+                        .map((a) => {
+                          const course = find("courses", a.course_id);
+                          return (
+                            <article className="record" key={a.id}>
+                              <Badge status={value(a, "status")} />
+                              {!!a.review_comments && (
+                                <p>
+                                  Observaciones del responsable:{" "}
+                                  {value(a, "review_comments")}
+                                </p>
+                              )}
+                              {a.progress_review_pending === true && (
+                                <p>Avance o evidencia pendiente de revisión.</p>
+                              )}
+                              <h3>
+                                {value(course, "title") ||
+                                  "Capacitación asignada"}
+                              </h3>
+                              <p>{value(course, "description")}</p>
+                              <div className="progress-label">
+                                <span>Mi avance</span>
+                                <strong>{Number(a.progress) || 0}%</strong>
+                              </div>
+                              <progress
+                                max={100}
+                                value={Number(a.progress) || 0}
+                              />
+                              <Link href={`${href("courses")}/${a.course_id}`}>
+                                {a.status === "COMPLETED"
+                                  ? "Consultar capacitación"
+                                  : a.status === "SUBMITTED"
+                                    ? "Ver capacitación en revisión"
+                                    : "Continuar capacitación"}
+                              </Link>
+                            </article>
+                          );
+                        })}
+                    </div>
+                    {!rows("course_assignments").some(
+                      (a) =>
+                        a.employee_id === mine?.id &&
+                        (courseSection === "completed"
+                          ? a.status === "COMPLETED"
+                          : a.status !== "COMPLETED"),
+                    ) && (
+                      <p className="empty">
+                        {courseSection === "pending"
+                          ? "No tienes capacitaciones pendientes con estos filtros."
+                          : "No tienes capacitaciones completadas con estos filtros."}
+                      </p>
+                    )}
+                  </section>
+                )}
+              {view === "courses" &&
+                (courseSection === "catalog" ||
+                  (!!detail && profile?.role === "EMPLEADO")) && (
+                  <div className="record-grid">
+                    {filtered("courses").map((c) => (
+                      <article className="record" key={c.id}>
+                        <span className="eyebrow">
+                          {value(c, "duration_minutes")} MIN ·{" "}
+                          {c.required ? "INDUCCIÓN" : "DESARROLLO"}
+                        </span>
+                        <h3>{value(c, "title")}</h3>
+                        <p>{value(c, "description")}</p>
+                        <TrainingResources courseId={c.id} />
+                        <details>
+                          <summary>Leer contenido del curso</summary>
+                          <div className="course-content">
+                            {value(c, "content")}
+                          </div>
+                        </details>
+                        {hr && (
+                          <div className="actions">
+                            <button
+                              className="secondary"
+                              onClick={() => edit("courses", c)}
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => edit("assignment", { id: c.id })}
+                            >
+                              Asignar
+                            </button>
+                            <button
+                              className="quiet"
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    "Eliminar curso sin asignaciones.",
+                                  )
+                                )
+                                  void act("course.delete", { id: c.id });
+                              }}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        )}
+                        {manager && (
+                          <button
+                            onClick={() => setAssignment({ course: c.id })}
+                          >
+                            Asignar a mi equipo
+                          </button>
+                        )}
+                        <details open={profile?.role === "EMPLEADO"}>
+                          <summary>
+                            {profile?.role === "EMPLEADO"
+                              ? "Mi avance y evidencias ("
+                              : "Personas asignadas ("}
+                            {
+                              rows("course_assignments").filter(
+                                (a) => a.course_id === c.id,
+                              ).length
+                            }
+                            )
+                          </summary>
+                          {rows("course_assignments")
+                            .filter((a) => a.course_id === c.id)
+                            .map((a) => (
+                              <div key={a.id} className="assignment">
+                                <div className="progress-label">
+                                  <span>{employeeName(a.employee_id)}</span>
+                                  <strong>{value(a, "progress")}%</strong>
+                                </div>
+                                <progress
+                                  max={100}
+                                  value={Number(a.progress)}
+                                />
+                                <Badge status={value(a, "status")} />
+                                <TrainingEvidence
+                                  assignmentId={a.id}
+                                  progress={Number(a.progress)}
+                                  status={value(a, "status")}
+                                  own={a.employee_id === mine?.id}
+                                  canReview={
+                                    (hr || manager) &&
+                                    a.employee_id !== mine?.id
+                                  }
+                                  onSaved={refresh}
+                                />
+                                {a.employee_id === mine?.id &&
+                                  !["COMPLETED", "SUBMITTED"].includes(
+                                    value(a, "status"),
+                                  ) && (
+                                    <button
+                                      className="secondary"
+                                      disabled={busy}
+                                      onClick={() =>
+                                        act("course.progress", {
+                                          id: a.id,
+                                          progress: Math.min(
+                                            100,
+                                            Number(a.progress) + 25,
+                                          ),
+                                        })
+                                      }
+                                    >
+                                      {Number(a.progress) === 0
+                                        ? "Iniciar curso"
+                                        : Number(a.progress) === 75
+                                          ? "Enviar curso a revisión"
+                                          : "Registrar avance +25%"}
+                                    </button>
+                                  )}
+                              </div>
+                            ))}
+                        </details>
+                      </article>
+                    ))}
+                    {!filtered("courses").length && (
+                      <p className="empty">
+                        Todavía no tienes cursos disponibles.
+                      </p>
+                    )}
+                  </div>
+                )}
               {view === "employees" && !detail && profile && hr && (
                 <StaffEnrollment
                   data={authorized}
@@ -1875,14 +1984,29 @@ export function Workspace({
                   className="report-workspace"
                   aria-label="Panel de resultados"
                 >
+                  {personalPerformance && (
+                    <div className="report-section-heading">
+                      <h2>Mi desempeño</h2>
+                      <p>
+                        Consulta tus tareas, capacitación e incorporación. El
+                        análisis con IA utiliza únicamente tus registros.
+                      </p>
+                    </div>
+                  )}
                   <div className="kpi-grid">
                     {[
                       [
                         view === "performance"
-                          ? "Personas en seguimiento"
+                          ? personalPerformance
+                            ? "Mis tareas"
+                            : "Personas en seguimiento"
                           : "Candidatos",
                         rows(
-                          view === "performance" ? "employees" : "candidates",
+                          view === "performance"
+                            ? personalPerformance
+                              ? "tasks"
+                              : "employees"
+                            : "candidates",
                         ).length,
                       ],
                       [
@@ -1929,21 +2053,27 @@ export function Workspace({
                         label: "Por persona",
                         hint: "Avances y perfiles",
                       },
-                    ].map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        aria-pressed={reportTab === t.id}
-                        onClick={() => setReportTab(t.id)}
-                      >
-                        <strong>{t.label}</strong>
-                        <span>{t.hint}</span>
-                      </button>
-                    ))}
+                    ]
+                      .filter((t) => !personalPerformance || t.id !== "people")
+                      .map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          aria-pressed={reportTab === t.id}
+                          onClick={() => setReportTab(t.id)}
+                        >
+                          <strong>{t.label}</strong>
+                          <span>{t.hint}</span>
+                        </button>
+                      ))}
                   </div>
                   <div hidden={reportTab !== "summary"}>
                     <div className="report-section-heading">
-                      <h2>Una mirada a tus procesos</h2>
+                      <h2>
+                        {personalPerformance
+                          ? "Mi avance"
+                          : "Una mirada a tus procesos"}
+                      </h2>
                       <p>
                         Compara la distribución de los registros del ámbito
                         seleccionado.
@@ -1982,52 +2112,56 @@ export function Workspace({
                       </>
                     )}
                   </div>
-                  <div
-                    hidden={reportTab !== "people"}
-                    className="panel people-report"
-                  >
-                    <h2>Progreso por persona</h2>
-                    <p>
-                      Abre un perfil para consultar su historial y seguimiento
-                      autorizado.
-                    </p>
-                    {rows("employees").map((e) => {
-                      const p = performance(
-                        rows("tasks")
-                          .filter((t) => t.employee_id === e.id)
-                          .map((t) => ({ status: value(t, "status") })),
-                        rows("course_assignments")
-                          .filter((c) => c.employee_id === e.id)
-                          .map((c) => ({ status: value(c, "status") })),
-                      );
-                      return (
-                        <div key={e.id} className="performance-row">
-                          <Link href={`${href("employees")}/${e.id}`}>
-                            {name(e.profile_id)}
-                          </Link>
-                          {rows("tasks").some((t) => t.employee_id === e.id) ||
-                          rows("course_assignments").some(
-                            (c) => c.employee_id === e.id,
-                          ) ? (
-                            <>
-                              <progress max={100} value={p.overall_score} />
-                              <span>{p.overall_score}%</span>
-                              <Badge status={p.signal} />
-                            </>
-                          ) : (
-                            <span className="muted">
-                              Sin asignaciones para evaluar
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                    <p className="muted">
-                      Desempeño = tareas aprobadas × 60% + cursos completados ×
-                      40%. Sin asignaciones el indicador no permite evaluar
-                      desempeño.
-                    </p>
-                  </div>
+                  {!personalPerformance && (
+                    <div
+                      hidden={reportTab !== "people"}
+                      className="panel people-report"
+                    >
+                      <h2>Progreso por persona</h2>
+                      <p>
+                        Abre un perfil para consultar su historial y seguimiento
+                        autorizado.
+                      </p>
+                      {rows("employees").map((e) => {
+                        const p = performance(
+                          rows("tasks")
+                            .filter((t) => t.employee_id === e.id)
+                            .map((t) => ({ status: value(t, "status") })),
+                          rows("course_assignments")
+                            .filter((c) => c.employee_id === e.id)
+                            .map((c) => ({ status: value(c, "status") })),
+                        );
+                        return (
+                          <div key={e.id} className="performance-row">
+                            <Link href={`${href("employees")}/${e.id}`}>
+                              {name(e.profile_id)}
+                            </Link>
+                            {rows("tasks").some(
+                              (t) => t.employee_id === e.id,
+                            ) ||
+                            rows("course_assignments").some(
+                              (c) => c.employee_id === e.id,
+                            ) ? (
+                              <>
+                                <progress max={100} value={p.overall_score} />
+                                <span>{p.overall_score}%</span>
+                                <Badge status={p.signal} />
+                              </>
+                            ) : (
+                              <span className="muted">
+                                Sin asignaciones para evaluar
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                      <p className="muted">
+                        Desempeño = tareas aprobadas × 60% + cursos completados
+                        × 40%. Sin asignaciones el indicador no permite evaluar
+                        desempeño.
+                      </p>
+                    </div>
+                  )}
                 </section>
               )}
               {view === "profile" && profile?.role === "EMPLEADO" && (

@@ -1,6 +1,29 @@
 /** Señales del orquestador sobre registros autorizados; no interpreta cambios sin evidencia temporal. */
 import type { Profile, Snapshot } from "./types";
 import { insightContext, notifications, scopeData, overdue } from "./insights";
+import { labels } from "./labels";
+
+const processNames: Record<string, string> = {
+  onboarding_items: "actividades de incorporación",
+  onboarding_documents: "documentos de incorporación",
+  onboarding: "incorporación",
+  course_assignments: "capacitaciones asignadas",
+  course_evidence: "evidencias de capacitación",
+  courses: "capacitaciones",
+  task_evidence: "evidencias de tareas",
+  task_messages: "mensajes de tareas",
+  tasks: "tareas",
+  climate_surveys: "encuestas de ambiente laboral",
+  climate_answers: "respuestas de encuestas",
+  applications: "postulaciones",
+  interviews: "entrevistas",
+  vacancies: "vacantes",
+  employees: "colaboradores",
+  departments: "áreas",
+  positions: "puestos",
+  profiles: "perfiles",
+  audit_logs: "actividad de la plataforma",
+};
 
 /** Sustituye referencias técnicas solo con títulos del contexto autorizado, nunca con datos ajenos. */
 export function readableOverview(
@@ -16,7 +39,20 @@ export function readableOverview(
     }
   const uuid =
     /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
-  return text
+  // Los códigos nunca se presentan al usuario, incluso si el modelo ignora el prompt.
+  const readable = text
+    .replace(/\\_/g, "_")
+    .replace(/\b[a-z]+(?:_[a-z]+)*\b/g, (token) => processNames[token] ?? token)
+    .replace(
+      /\b[A-Z]+(?:_[A-Z]+)*\b/g,
+      (token) => labels[token]?.toLocaleLowerCase("es") ?? token,
+    )
+    .replace(/[`*]/g, "")
+    .replace(
+      /['"](pendiente|completado|en progreso|en revisión|abierta|cerrada|asignado|aprobado|rechazado)['"]/g,
+      "$1",
+    );
+  return readable
     .replace(/\b(?:con\s+)?ID\s*:?\s*(?=[0-9a-f]{8}-)/gi, "")
     .replace(
       uuid,
@@ -48,6 +84,8 @@ export function overviewContext(
     "scheduled_at",
     "hire_date",
     "progress",
+    "progress_review_pending",
+    "approved_progress",
     "created_at",
     "updated_at",
     "completed_at",

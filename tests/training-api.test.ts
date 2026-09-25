@@ -143,3 +143,18 @@ it("salida inválida de IA no se acepta", async () => {
   });
   expect((await POST(req())).status).toBe(502);
 });
+
+it("no presenta evidencia suficiente cuando la IA enumera faltantes", async () => {
+  state.generate.mockResolvedValue({
+    model: "test",
+    result: {
+      summary: "Faltan resultados",
+      demonstrated: ["Captura de pantalla"],
+      missing: ["Resultado obtenido"],
+      recommendation: "SUFFICIENT",
+    },
+  });
+  const r = await POST(req());
+  expect(r.status).toBe(200);
+  expect((await r.json()).result.recommendation).toBe("MORE_EVIDENCE");
+});

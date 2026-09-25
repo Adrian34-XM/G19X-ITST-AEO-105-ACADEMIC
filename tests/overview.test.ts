@@ -129,3 +129,30 @@ it("resume señales autorizadas sin textos privados ni expedientes de otra jerar
   });
   expect(result.recent).toEqual([expect.objectContaining({ id: "t" })]);
 });
+
+it("el resumen no expone tablas ni estados técnicos incluso si la IA los devuelve", () => {
+  const input =
+    "Hay actividades en 'onboarding_items' con estado 'PENDING', tareas en tasks con estado IN_PROGRESS y climate_surveys con estado OPEN. **COMPLETED** en course_assignments.";
+  const result = readableOverview(input, {});
+  for (const token of [
+    "onboarding_items",
+    "PENDING",
+    "tasks",
+    "IN_PROGRESS",
+    "climate_surveys",
+    "OPEN",
+    "COMPLETED",
+    "course_assignments",
+    "**",
+  ])
+    expect(result).not.toContain(token);
+  expect(result).toContain("actividades de incorporación");
+  expect(result).toContain("pendiente");
+  expect(result).toContain("en progreso");
+  expect(result).toContain("encuestas de ambiente laboral");
+});
+it("traduce etiquetas escapadas sin confundir incorporación y capacitación", () => {
+  expect(
+    readableOverview("onboarding\\_items COMPLETED; courses ASSIGNED", {}),
+  ).toBe("actividades de incorporación completado; capacitaciones asignado");
+});

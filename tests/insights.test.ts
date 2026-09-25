@@ -2,6 +2,7 @@
 import { it, expect } from "vitest";
 import {
   scopeData,
+  canReviewTeamPerformance,
   insightContext,
   overdue,
   notifications,
@@ -44,6 +45,19 @@ const data: Snapshot = {
   audit_logs: [{ id: "audit", action: "UPDATE" }],
 };
 it("jefe ve su equipo, RH todas las áreas y empleado solo lo suyo", () => {
+  expect(canReviewTeamPerformance(data, manager)).toBe(true);
+  expect(
+    canReviewTeamPerformance(
+      { ...data, employees: [data.employees[0], data.employees[2]] },
+      manager,
+    ),
+  ).toBe(false);
+  expect(canReviewTeamPerformance(data, { ...manager, role: "EMPLEADO" })).toBe(
+    false,
+  );
+  expect(canReviewTeamPerformance(data, { ...manager, role: "RH_ADMIN" })).toBe(
+    true,
+  );
   expect(scopeData(data, manager).tasks.map((t) => t.id)).toEqual(["t"]);
   expect(scopeData(data, { ...manager, role: "RH_ADMIN" }).tasks).toHaveLength(
     2,

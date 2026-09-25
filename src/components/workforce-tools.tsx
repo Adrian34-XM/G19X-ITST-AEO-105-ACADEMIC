@@ -459,7 +459,7 @@ export function TrainingProgress({
   profile: Profile;
   onSaved: () => void;
 }) {
-  const [status, setStatus] = useState("SUBMITTED"),
+  const [status, setStatus] = useState("REVIEW"),
     [query, setQuery] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -469,7 +469,10 @@ export function TrainingProgress({
   };
   const rows = (data.course_assignments ?? []).filter(
     (a) =>
-      (!status || a.status === status) &&
+      (!status ||
+        (status === "REVIEW"
+          ? a.progress_review_pending || a.status === "SUBMITTED"
+          : a.status === status)) &&
       (
         value(person(a.employee_id) ?? { id: "" }, "full_name") +
         " " +
@@ -492,6 +495,7 @@ export function TrainingProgress({
         Estado
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">Todos</option>
+          <option value="REVIEW">Avances pendientes de revisión</option>
           {["ASSIGNED", "IN_PROGRESS", "SUBMITTED", "COMPLETED"].map((s) => (
             <option key={s} value={s}>
               {s === "COMPLETED" ? "Historial de completadas" : stateLabel(s)}
@@ -521,6 +525,12 @@ export function TrainingProgress({
             {stateLabel(value(a, "status"))} · {value(a, "progress")}%
           </p>
           <p>{value(a, "review_comments")}</p>
+          {a.progress_review_pending === true && (
+            <p role="status">
+              Nuevo avance o evidencia pendiente de revisión · Último porcentaje
+              aprobado: {Number(a.approved_progress) || 0}%
+            </p>
+          )}
           <TrainingEvidence
             assignmentId={a.id}
             progress={Number(a.progress)}
@@ -532,7 +542,7 @@ export function TrainingProgress({
             }
             onSaved={onSaved}
           />
-          {a.status === "SUBMITTED" &&
+          {(a.progress_review_pending || a.status === "SUBMITTED") &&
             (isHR(profile.role) || profile.role === "JEFE") &&
             person(a.employee_id)?.id !== profile.id && (
               <form
@@ -542,14 +552,21 @@ export function TrainingProgress({
                   setBusy(true);
                   setError("");
                   try {
-                    await request("/api/commands", {
-                      op: "course.review",
-                      payload: {
-                        id: a.id,
-                        status: f.get("status"),
+                    const response = await fetch("/api/training", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        assignment: a.id,
+                        decision: f.get("decision"),
+                        percentage: Number(f.get("percentage")),
                         comments: f.get("comments"),
-                      },
+                      }),
                     });
+                    const result = await response.json();
+                    if (!response.ok)
+                      throw new Error(
+                        result.error || "No se pudo guardar la revisión.",
+                      );
                     onSaved();
                   } catch (e) {
                     setError(
@@ -566,11 +583,30 @@ export function TrainingProgress({
                 </label>
                 <label>
                   Resultado
-                  <select name="status">
-                    <option value="COMPLETED">Confirmar finalización</option>
-                    <option value="IN_PROGRESS">Solicitar correcciones</option>
+                  <select name="decision">
+                    <option value="ACCEPT">Aceptar avance</option>
+                    <option value="REJECT">
+                      Rechazar y solicitar correcciones
+                    </option>
                   </select>
                 </label>
+                <label>
+                  Porcentaje validado (%)
+                  <input
+                    name="percentage"
+                    type="number"
+                    min={0}
+                    max={100}
+                    defaultValue={Number(a.progress)}
+                    required
+                  />
+                </label>
+                <p>
+                  Al aceptar puedes ajustar el porcentaje respaldado por las
+                  evidencias. Solo el 100% aceptado completa la capacitación. Al
+                  rechazar, indica el último porcentaje aprobado o uno menor y
+                  explica qué debe corregirse.
+                </p>
                 <button disabled={busy}>Guardar revisión</button>
               </form>
             )}

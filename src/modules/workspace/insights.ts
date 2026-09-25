@@ -5,6 +5,16 @@ import { isHR } from "@/lib/permissions";
 import { type Profile, type Row, type Snapshot, value } from "./types";
 export type InsightArea =
   "overview" | "courses" | "tasks" | "performance" | "analytics";
+/** El seguimiento colectivo requiere permiso de RH o subordinados autorizados. */
+export function canReviewTeamPerformance(data: Snapshot, profile: Profile) {
+  return (
+    isHR(profile.role) ||
+    (profile.role === "JEFE" &&
+      scopeData(data, profile).employees.some(
+        (e) => e.profile_id !== profile.id,
+      ))
+  );
+}
 export function overdue(task: Row, today: string) {
   return (
     !!task.due_date &&
@@ -134,10 +144,14 @@ export function notifications(data: Snapshot, today: string) {
         id: c.course_id as string,
         section: "courses",
         kind: "training" as const,
-        title: "Capacitación pendiente",
-        detail: c.due_date
-          ? `Fecha objetivo: ${value(c, "due_date")}`
-          : "Curso asignado sin completar.",
+        title: c.progress_review_pending
+          ? "Avance de capacitación pendiente de revisión"
+          : "Capacitación pendiente",
+        detail: c.progress_review_pending
+          ? `${value((data.courses ?? []).find((course) => course.id === c.course_id) ?? { id: "" }, "title") || "Capacitación"} · ${value((data.profiles ?? []).find((p) => p.id === (data.employees ?? []).find((e) => e.id === c.employee_id)?.profile_id) ?? { id: "" }, "full_name") || "Colaborador"} · Avance declarado: ${Number(c.progress)}%. Revisa las evidencias y valida el porcentaje.`
+          : c.due_date
+            ? `Fecha objetivo: ${value(c, "due_date")}`
+            : "Curso asignado sin completar.",
       })),
     ...(data.applications ?? []).map((a) => ({
       id: a.id,

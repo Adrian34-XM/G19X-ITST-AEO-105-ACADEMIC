@@ -6,7 +6,7 @@ const config: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   // PDF.js resuelve su trabajador respecto del paquete en tiempo de ejecución.
-  serverExternalPackages: ["pdfjs-dist"],
+  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
   async headers() {
     return [
       {
