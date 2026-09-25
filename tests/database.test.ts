@@ -1676,3 +1676,35 @@ it("solo el superior de RH más alto o superusuario modifica la jerarquía de RH
     as(ids.admin, "select assign_team_manager($1,$2)", [staff[0], staff[3]]),
   ).resolves.toBeDefined();
 });
+
+it("auditoría detalla cambios operativos solo para superusuario",async()=>{
+ const id=await command(ids.admin,"department.save",{name:"Área auditoría inicial"});
+ await command(ids.admin,"department.save",{id,name:"Área auditoría actualizada"});
+ const logs=await as(ids.admin,"select metadata from audit_logs where resource_id=$1 and action='UPDATE' order by created_at desc",[id]);
+ const meta=(logs.rows[0] as {metadata:unknown}).metadata as {changes:Record<string,{before:unknown;after:unknown}>;actor_name:string};
+ expect(meta.changes.name).toEqual({before:"Área auditoría inicial",after:"Área auditoría actualizada"});
+ expect(meta.actor_name).toBeTruthy();
+ expect((await as(ids.hr,"select * from audit_logs where resource_id=$1",[id])).rows).toHaveLength(0);
+ expect((await as(ids.manager,"select * from audit_logs where resource_id=$1",[id])).rows).toHaveLength(0);
+ await db.exec("reset role");
+ const triggers=await db.query<{name:string}>("select c.relname as name from pg_trigger t join pg_class c on c.oid=t.tgrelid where t.tgname='audit'");
+ expect(triggers.rows.map(r=>r.name)).toContain("course_evidence");
+ expect(triggers.rows.map(r=>r.name)).toContain("climate_surveys");
+ expect(triggers.rows.map(r=>r.name)).not.toContain("climate_answers");
+ expect(triggers.rows.map(r=>r.name)).not.toContain("climate_feedback");
+});
+
+it("la contratación genera un aviso persistente y RH confirma la asignación",async()=>{
+ await db.exec("reset role");
+ const result=await db.query<{id:string;position_id:string;department_id:string;manager_id:string|null}>("select e.id,e.position_id,p.department_id,e.manager_id from employees e join positions p on p.id=e.position_id where e.assignment_pending and e.status='ACTIVE' limit 1");
+ expect(result.rows).toHaveLength(1);
+ const e=result.rows[0];
+ const params=[e.id,e.department_id,e.position_id,e.manager_id];
+ const sql="select complete_hiring_assignment($1,$2,$3,$4)";
+ await expect(as(ids.manager,sql,params)).rejects.toThrow();
+ await expect(as(ids.candidate,sql,params)).rejects.toThrow();
+ await expect(as(ids.hr,sql,[e.id,'00000000-0000-4000-8000-000000000000',e.position_id,e.manager_id])).rejects.toThrow('INVALID_HIRING_AREA');
+ await expect(as(ids.hr,sql,params)).resolves.toBeDefined();
+ expect((await as(ids.admin,"select assignment_pending from employees where id=$1",[e.id])).rows).toEqual([{assignment_pending:false}]);
+ await expect(as(ids.hr,sql,params)).rejects.toThrow('ASSIGNMENT_NOT_PENDING');
+});

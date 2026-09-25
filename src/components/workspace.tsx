@@ -16,7 +16,7 @@ import { EmployeePicker } from "./employee-picker";
 import { labels, stateLabel } from "@/modules/workspace/labels";
 import { sortTasks } from "@/modules/workspace/tasks";
 import { TrainingResources, TrainingEvidence } from "./training-evidence";
-import { HireCandidate } from "./hire-candidate";
+import { HireCandidate, HiringAssignmentNotices } from "./hire-candidate";
 import { BulkAssignment } from "./bulk-assignment";
 import { EmployeeProfile } from "./employee-profile";
 import { isHR } from "@/lib/permissions";
@@ -783,6 +783,9 @@ export function Workspace({
                 ×
               </button>
             </div>
+          )}
+          {hr && ["overview", "employees", "applications"].includes(view) && (
+            <HiringAssignmentNotices data={authorized} onSaved={refresh} />
           )}
           {view === "overview" && profile && (
             <OperationsPanel data={data} profile={profile} area="overview" />

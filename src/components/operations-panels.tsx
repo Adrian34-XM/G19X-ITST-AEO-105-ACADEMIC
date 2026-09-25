@@ -791,49 +791,245 @@ function AnalyticsChart({ data, metric }: { data: Snapshot; metric: string }) {
   );
 }
 
+/** Vista exclusiva del superusuario; RLS y rutas también restringen el acceso. */
 export function AuditPanel({ data }: { data: Snapshot }) {
-  const [filter, setFilter] = useState("");
-  const rows = (data.audit_logs ?? []).filter((r) =>
-    JSON.stringify(r).toLowerCase().includes(filter.toLowerCase()),
-  );
+  const [filter, setFilter] = useState(""),
+    [module, setModule] = useState(""),
+    [action, setAction] = useState("");
+  const modules: Record<string, string> = {
+    profiles: "Usuarios",
+    departments: "Áreas",
+    positions: "Puestos",
+    candidates: "Candidatos",
+    vacancies: "Vacantes",
+    applications: "Postulaciones",
+    interviews: "Entrevistas",
+    employees: "Equipo",
+    onboarding: "Onboarding",
+    onboarding_items: "Actividades de onboarding",
+    onboarding_documents: "Documentos de onboarding",
+    onboarding_templates: "Plantillas de onboarding",
+    courses: "Capacitaciones",
+    course_assignments: "Asignaciones de capacitación",
+    course_evidence: "Evidencias de capacitación",
+    tasks: "Tareas",
+    task_evidence: "Evidencias de tareas",
+    performance_reviews: "Desempeño",
+    climate_surveys: "Encuestas de clima",
+    orchestration_runs: "Resúmenes IA",
+    ai_requests: "Solicitudes IA",
+    ai_results: "Resultados IA",
+    vacancy_documents: "Documentos de vacantes",
+  };
+  const actions: Record<string, string> = {
+    INSERT: "Creación",
+    UPDATE: "Modificación",
+    DELETE: "Eliminación",
+    "candidate.hired": "Contratación",
+  };
+  const fields: Record<string, string> = {
+    name: "Nombre",
+    full_name: "Nombre completo",
+    title: "Título",
+    status: "Estado",
+    role: "Rol",
+    active: "Cuenta activa",
+    priority: "Prioridad",
+    due_date: "Fecha límite",
+    scheduled_at: "Fecha de entrevista",
+    progress: "Avance (%)",
+    position_id: "Puesto",
+    department_id: "Área",
+    manager_id: "Jefe directo",
+    employee_id: "Colaborador",
+    course_id: "Capacitación",
+    owner_role: "Responsable",
+    requires_document: "Requiere documento",
+    required: "Obligatorio",
+    hire_date: "Fecha de ingreso",
+  };
+  function display(field: string, raw: unknown): string {
+    if (raw == null) return "Sin valor";
+    if (typeof raw === "boolean") return raw ? "Sí" : "No";
+    const tables: Record<string, string> = {
+      position_id: "positions",
+      department_id: "departments",
+      course_id: "courses",
+      manager_id: "employees",
+      employee_id: "employees",
+    };
+    if (tables[field]) {
+      const row = (data[tables[field]] ?? []).find((r) => r.id === raw);
+      if (row?.profile_id)
+        return (
+          value(
+            (data.profiles ?? []).find((p) => p.id === row.profile_id) ?? {
+              id: "",
+            },
+            "full_name",
+          ) || "Persona no disponible"
+        );
+      return row
+        ? value(row, "name") || value(row, "title")
+        : "Registro no disponible";
+    }
+    return stateLabel(String(raw));
+  }
+  const all = (data.audit_logs ?? []).map((r) => {
+    const m = (
+      r.metadata && typeof r.metadata === "object" ? r.metadata : {}
+    ) as Record<string, unknown>;
+    const actor = String(
+      m.actor_name ||
+        value(
+          (data.profiles ?? []).find((p) => p.id === r.user_id) ?? { id: "" },
+          "full_name",
+        ) ||
+        "Sistema o usuario no disponible",
+    );
+    const resource = (data[String(r.resource_type)] ?? []).find(
+      (x) => x.id === r.resource_id,
+    );
+    const title = String(
+      m.resource_name ||
+        (resource && (value(resource, "title") || value(resource, "name"))) ||
+        "",
+    );
+    return { r, m, actor, title };
+  });
+  const rows = all
+    .filter(
+      ({ r, actor, title }) =>
+        (!module || r.resource_type === module) &&
+        (!action || r.action === action) &&
+        [
+          actor,
+          title,
+          modules[String(r.resource_type)],
+          actions[String(r.action)] || r.action,
+          r.resource_id,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(filter.toLowerCase()),
+    )
+    .sort((a, b) =>
+      String(b.r.created_at).localeCompare(String(a.r.created_at)),
+    );
   return (
     <section className="panel">
-      <h2>Auditoría de plataforma</h2>
-      <label>
-        Buscar acción, recurso o identificador
-        <input value={filter} onChange={(e) => setFilter(e.target.value)} />
-      </label>
+      <h2>Historial de cambios de la plataforma</h2>
       <p>
-        {rows.length} eventos cargados. Los eventos históricos pueden no tener
-        metadatos ampliados.
+        Consulta quién realizó cada cambio, cuándo ocurrió y los valores
+        anteriores y nuevos disponibles.
+      </p>
+      <div className="chart-filters">
+        <label>
+          Buscar persona o registro
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Nombre, título o identificador"
+          />
+        </label>
+        <label>
+          Módulo
+          <select value={module} onChange={(e) => setModule(e.target.value)}>
+            <option value="">Todos los módulos</option>
+            {Array.from(new Set(all.map(({ r }) => String(r.resource_type))))
+              .sort()
+              .map((m) => (
+                <option key={m} value={m}>
+                  {modules[m] || m}
+                </option>
+              ))}
+          </select>
+        </label>
+        <label>
+          Tipo de cambio
+          <select value={action} onChange={(e) => setAction(e.target.value)}>
+            <option value="">Todos los cambios</option>
+            {Array.from(new Set(all.map(({ r }) => String(r.action))))
+              .sort()
+              .map((a) => (
+                <option key={a} value={a}>
+                  {actions[a] || a}
+                </option>
+              ))}
+          </select>
+        </label>
+      </div>
+      <p>
+        {rows.length} eventos en los registros cargados. Se consultan hasta los
+        1000 eventos más recientes; los filtros se aplican a esa muestra. Los
+        registros antiguos pueden no contener valores anteriores.
       </p>
       <div className="record-grid">
-        {rows.map((r) => {
-          const actor = (data.profiles ?? []).find((p) => p.id === r.user_id);
+        {rows.map(({ r, m, actor, title }) => {
+          const changes =
+            m.changes && typeof m.changes === "object"
+              ? (m.changes as Record<
+                  string,
+                  { before: unknown; after: unknown }
+                >)
+              : {};
+          const changed = Array.isArray(m.changed_fields)
+            ? m.changed_fields.map(String)
+            : [];
           return (
             <article className="record" key={r.id}>
               <h3>
-                {value(r, "action")} · {value(r, "resource_type")}
+                {actions[String(r.action)] || String(r.action)} ·{" "}
+                {modules[String(r.resource_type)] || String(r.resource_type)}
               </h3>
+              {title && (
+                <p>
+                  <strong>{title}</strong>
+                </p>
+              )}
               <p>
-                {actor
-                  ? value(actor, "full_name")
-                  : "Sistema o usuario no disponible"}
+                {actor}
+                {m.actor_role ? " · " + stateLabel(String(m.actor_role)) : ""}
               </p>
-              <small>
-                {new Date(value(r, "created_at")).toLocaleString("es-MX")}
-              </small>
-              <p>Recurso: {value(r, "resource_id")}</p>
+              <time dateTime={String(r.created_at)}>
+                {new Date(String(r.created_at)).toLocaleString("es-MX")}
+              </time>
               <details>
-                <summary>Metadatos del evento</summary>
-                <pre className="audit-json">
-                  {JSON.stringify(r.metadata ?? {}, null, 2)}
-                </pre>
+                <summary>Ver cambios ({changed.length})</summary>
+                {Object.entries(changes).map(([field, change]) => (
+                  <div key={field} className="audit-change">
+                    <strong>{fields[field] || field}</strong>
+                    <p>Antes: {display(field, change.before)}</p>
+                    <p>Después: {display(field, change.after)}</p>
+                  </div>
+                ))}
+                {!Object.keys(changes).length && (
+                  <p>
+                    {m.previous_status || m.new_status
+                      ? "Estado: " +
+                        display("status", m.previous_status) +
+                        " → " +
+                        display("status", m.new_status)
+                      : "Este evento no conserva valores anteriores y nuevos."}
+                  </p>
+                )}
+                {changed.length > 0 && (
+                  <p>
+                    Campos modificados:{" "}
+                    {changed.map((f) => fields[f] || f).join(", ")}.
+                  </p>
+                )}
+                <p className="muted">
+                  No se copian contraseñas, documentos, respuestas anónimas ni
+                  contenidos de IA al historial de cambios.
+                </p>
+                <small>Referencia del registro: {String(r.resource_id)}</small>
               </details>
             </article>
           );
         })}
       </div>
+      {!rows.length && <p>No hay eventos que coincidan con los filtros.</p>}
     </section>
   );
 }

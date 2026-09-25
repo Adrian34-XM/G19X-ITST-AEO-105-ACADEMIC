@@ -1,7 +1,7 @@
 /** Valida el archivo que ejecutará el usuario, incluyendo su repetición sin duplicados. */
 import { it, expect } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 it("activa las tres mejoras pendientes y permite repetir el script", async () => {
   const db = new PGlite();
   try {
@@ -15,10 +15,7 @@ it("activa las tres mejoras pendientes y permite repetir el script", async () =>
       create function storage.foldername(text) returns text[] language sql as $$ select string_to_array($1,'/') $$;
       grant usage on schema auth,storage,public to authenticated,anon,service_role;
       grant select,insert on storage.objects to authenticated;`);
-    for (const file of (await readdir("supabase/migrations"))
-      .sort()
-      .filter((f) => f < "202609170001"))
-      await db.exec(await readFile("supabase/migrations/" + file, "utf8"));
+    await db.exec(await readFile("supabase/instalar-proyecto.sql", "utf8"));
     const activation = await readFile(
       "supabase/activar-mejoras-rh.sql",
       "utf8",
@@ -43,4 +40,13 @@ it("activa las tres mejoras pendientes y permite repetir el script", async () =>
   } finally {
     await db.close();
   }
+});
+
+it("rechaza una base vacía antes de intentar activar mejoras", async () => {
+ const db = new PGlite();
+ try {
+  await expect(db.exec(await readFile("supabase/activar-mejoras-rh.sql","utf8"))).rejects.toThrow("BASE_RH_INCOMPLETA");
+  await db.exec("rollback");
+  expect((await db.query("select tablename from pg_tables where schemaname='public'")).rows).toEqual([]);
+ } finally { await db.close(); }
 });

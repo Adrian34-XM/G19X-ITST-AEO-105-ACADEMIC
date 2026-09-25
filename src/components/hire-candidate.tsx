@@ -4,11 +4,13 @@ import { request } from "./forms";
 import { type Snapshot, value } from "@/modules/workspace/types";
 export function HireCandidate({
   applicationId,
+  employeeId,
   positionId,
   data,
   onSaved,
 }: {
-  applicationId: string;
+  applicationId?: string;
+  employeeId?: string;
   positionId: string;
   data: Snapshot;
   onSaved: () => void;
@@ -21,33 +23,54 @@ export function HireCandidate({
       ),
     ),
     [position, setPosition] = useState(positionId),
-    [manager, setManager] = useState(""),
+    [manager, setManager] = useState(
+      String(
+        (data.employees ?? []).find((e) => e.id === employeeId)?.manager_id ??
+          "",
+      ),
+    ),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   return (
     <>
-      <button onClick={() => setOpen(true)}>Confirmar contratación</button>
+      <button onClick={() => setOpen(true)}>
+        {employeeId ? "Asignar área y puesto" : "Confirmar contratación"}
+      </button>
       {open && (
         <div className="modal-backdrop">
           <form
             className="modal"
             role="dialog"
             aria-modal="true"
-            aria-label="Confirmar contratación y equipo"
+            aria-label={
+              employeeId
+                ? "Asignar área y puesto"
+                : "Confirmar contratación y equipo"
+            }
             onSubmit={async (e) => {
               e.preventDefault();
               setBusy(true);
               setError("");
               try {
-                await request("/api/commands", {
-                  op: "application.hire",
-                  payload: {
-                    id: applicationId,
-                    department_id: department,
-                    position_id: position,
-                    manager_id: manager,
-                  },
-                });
+                await request(
+                  employeeId ? "/api/employee-assignment" : "/api/commands",
+                  employeeId
+                    ? {
+                        employee: employeeId,
+                        department,
+                        position,
+                        manager: manager || null,
+                      }
+                    : {
+                        op: "application.hire",
+                        payload: {
+                          id: applicationId,
+                          department_id: department,
+                          position_id: position,
+                          manager_id: manager,
+                        },
+                      },
+                );
                 setOpen(false);
                 onSaved();
               } catch (e) {
@@ -59,10 +82,13 @@ export function HireCandidate({
               }
             }}
           >
-            <h2>Contratación y equipo</h2>
+            <h2>
+              {employeeId ? "Asignar área y puesto" : "Contratación y equipo"}
+            </h2>
             <p>
-              Confirma el destino del nuevo colaborador. Se crearán su
-              incorporación y actividades iniciales.
+              {employeeId
+                ? "Confirma el área, puesto y jefe del colaborador. Su avance de incorporación se conserva."
+                : "Confirma el destino del nuevo colaborador. Se crearán su incorporación y actividades iniciales."}
             </p>
             <label>
               Área
@@ -136,12 +162,60 @@ export function HireCandidate({
                 Cancelar
               </button>
               <button disabled={busy}>
-                {busy ? "Contratando…" : "Contratar y guardar asignación"}
+                {busy
+                  ? "Guardando…"
+                  : employeeId
+                    ? "Guardar asignación"
+                    : "Contratar y guardar asignación"}
               </button>
             </footer>
           </form>
         </div>
       )}
     </>
+  );
+}
+
+/** Pendientes persistentes visibles solo desde los espacios autorizados de RH. */
+export function HiringAssignmentNotices({
+  data,
+  onSaved,
+}: {
+  data: Snapshot;
+  onSaved: () => void;
+}) {
+  const pending = (data.employees ?? []).filter(
+    (e) => e.assignment_pending === true && e.status === "ACTIVE",
+  );
+  if (!pending.length) return null;
+  return (
+    <section
+      className="panel"
+      aria-label="Asignaciones pendientes de contratación"
+    >
+      <h2>Personas contratadas · asignación pendiente ({pending.length})</h2>
+      <p>Revisa y confirma el área y puesto de cada nueva contratación.</p>
+      <div className="record-grid">
+        {pending.map((e) => (
+          <article className="record" key={e.id}>
+            <h3>
+              {value(
+                (data.profiles ?? []).find((p) => p.id === e.profile_id) ?? {
+                  id: "",
+                },
+                "full_name",
+              ) || "Nuevo colaborador"}
+            </h3>
+            <p>Contratación completada. Falta confirmar su asignación.</p>
+            <HireCandidate
+              employeeId={e.id}
+              positionId={String(e.position_id ?? "")}
+              data={data}
+              onSaved={onSaved}
+            />
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }

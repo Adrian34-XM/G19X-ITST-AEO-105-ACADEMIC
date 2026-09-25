@@ -1,7 +1,14 @@
--- Instalador inicial consolidado. Para una instalación al día, revisar también las migraciones posteriores incluidas en la carpeta migrations; no reutilizar como actualización sobre una base ya instalada.
--- Ejecutar una vez en el SQL Editor del proyecto de pruebas.
--- Esquema y catálogo inicial. No crea usuarios demo ni configura IA.
+-- Instalación inicial en un proyecto vacío. Después ejecutar activar-mejoras-rh.sql.
+-- No usar para reparar instalaciones parciales ni bases existentes.
 begin;
+do $guard$ begin
+ if to_regtype('public.app_role') is not null or to_regclass('public.profiles') is not null or to_regclass('public.audit_logs') is not null then
+ raise exception 'La base ya contiene parte del sistema. No reinstales: revisa el proyecto y las migraciones pendientes.';
+ end if;
+end $guard$;
+
+-- 202609140001_foundation.sql
+-- Esquema inicial: tablas, relaciones, roles, funciones auxiliares, políticas RLS y auditoría. Las políticas controlan las filas visibles y los disparadores registran cambios.
 create type public.app_role as enum ('SUPERUSER','RH_ADMIN','JEFE','EMPLEADO','CANDIDATO');
 create table public.profiles (id uuid primary key references auth.users(id) on delete cascade, full_name text not null check(length(full_name) between 1 and 150), email text not null, role public.app_role not null default 'CANDIDATO', active boolean not null default true, created_at timestamptz not null default now());
 create table public.departments (id uuid primary key default gen_random_uuid(), name text unique not null, created_at timestamptz not null default now());
@@ -94,6 +101,8 @@ create index on public.audit_logs(created_at desc);
 create index on public.survey_questions(survey_id);
 create index on public.survey_responses(employee_id);
 
+-- 202609140002_commands.sql
+-- Operaciones de negocio ejecutadas en PostgreSQL. command comprueba el usuario y aplica cambios en una transacción; finish_ai queda reservado al servidor administrativo.
 -- Las escrituras de la aplicación pasan por esta lista de operaciones; se revocan las escrituras directas.
 create function public.command(op text, payload jsonb default '{}') returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
@@ -261,6 +270,8 @@ revoke all on function public.finish_ai(uuid,jsonb,text,boolean) from public,ano
 grant execute on function public.finish_ai(uuid,jsonb,text,boolean) to service_role;
 revoke all on function public.new_user(),public.audit_change() from public,anon,authenticated;
 
+-- 202609140003_storage.sql
+-- Crea depósitos privados y políticas de acceso a objetos. Relaciona rutas de archivos con propietarios y recursos autorizados.
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) values
 ('cvs','cvs',false,5242880,array['application/pdf','text/plain']),
 ('task-evidence','task-evidence',false,5242880,array['application/pdf','text/plain','image/png','image/jpeg']),
@@ -276,6 +287,8 @@ public.current_role() is not null and (
 (bucket_id='onboarding-documents' and public.is_hr() and exists(select 1 from public.onboarding_documents d where d.file_path=name))));
 -- Sin políticas de sobrescritura ni eliminación: el usuario no modifica evidencias ya enviadas.
 
+-- 202609140004_hardening.sql
+-- Endurece permisos y reglas del esquema existente. Se aplica después de las migraciones iniciales; no sustituye la instalación completa.
 -- Invalida recomendaciones al actualizar los campos de entrada vigilados por los disparadores.
 create function public.invalidate_recommendations() returns trigger language plpgsql security definer set search_path='' as $$ begin
 if TG_TABLE_NAME='candidates' then
@@ -301,6 +314,35 @@ revoke all on function public.owns_candidate(uuid),public.owns_employee(uuid),pu
 grant execute on function public.owns_candidate(uuid),public.owns_employee(uuid),public.manages_employee(uuid),public.read_employee(uuid),public.read_application(uuid) to authenticated,anon;
 grant all on all tables in schema public to service_role;
 
+-- 202609140005_public_vacancies.sql
+-- Ajusta la lectura pública de vacantes y sus relaciones para permitir consultar oportunidades sin iniciar sesión.
+-- Separa la visibilidad anónima de las políticas que consultan tablas privadas.
+-- No concede acceso anónimo a postulaciones ni datos de candidatos.
+alter policy vacancies_read on public.vacancies to authenticated;
+drop policy if exists vacancies_public_read on public.vacancies;
+create policy vacancies_public_read on public.vacancies
+for select to anon using (status = 'PUBLISHED');
+
+-- 202609150001_fix_ai_evidence_alias.sql
+-- Corrige el alias SQL que impedía iniciar análisis de evidencias. Detecta la versión esperada antes de reemplazar el fragmento y admite volver a ejecutarse.
+-- Corrige la colision entre la variable PL/pgSQL t y el alias de tasks.
+-- Ejecutar completo en Supabase > SQL Editor. Conserva permisos y datos.
+do $migration$
+declare
+  definition text;
+  old_fragment text := 'select 1 from public.task_evidence e join public.tasks t on t.id=e.task_id where e.id=rid and public.manages_employee(e.employee_id) and t.status=''SUBMITTED''';
+  new_fragment text := 'select 1 from public.task_evidence evidence_row join public.tasks task_row on task_row.id=evidence_row.task_id where evidence_row.id=rid and public.manages_employee(evidence_row.employee_id) and task_row.status=''SUBMITTED''';
+begin
+  select pg_get_functiondef('public.command(text,jsonb)'::regprocedure) into definition;
+  if strpos(definition, old_fragment) > 0 then
+    execute replace(definition, old_fragment, new_fragment);
+  elsif strpos(definition, new_fragment) = 0 then
+    raise exception 'La funcion command tiene otra version; no se modifico.';
+  end if;
+end
+$migration$;
+
+-- Datos base de áreas, puestos y cursos. No crea cuentas de acceso; sus inserciones no están diseñadas para ejecutarse repetidamente sobre la misma base.
 insert into public.departments(id,name) values
 ('10000000-0000-4000-8000-000000000001','Tecnología'),('10000000-0000-4000-8000-000000000002','Personas'),('10000000-0000-4000-8000-000000000003','Operaciones');
 insert into public.positions(id,name,department_id) values

@@ -1,6 +1,4 @@
-# PRD --- Sistema Integral de Gestión de Talento Humano con IA
-
-> Actualización del alcance: [Ideas para el sistema](IDEAS_PARA_EL_SISTEMA.md) reúne las solicitudes posteriores. En particular, la auditoría queda exclusiva de SUPERUSER y el rol JEFE, la jerarquía multinivel y el ambiente laboral forman parte del alcance solicitado. El contenido siguiente conserva la planificación original.
+# PRD --- Sistema Integral de Gestión de Talento Humano con IA.
 
 **Versión:** 1.0\
 **Fecha:** 10 de septiembre de 2026\
@@ -8,7 +6,7 @@
 **Tipo de entrega:** MVP funcional académico / prototipo demostrable\
 **Base:** Documento "IDEAS PARA EL SISTEMA"
 
-------------------------------------------------------------------------
+---
 
 ## 1. Resumen ejecutivo
 
@@ -23,52 +21,44 @@ tendrá autoridad para saltarse permisos**. El acceso a información
 estará determinado primero por autenticación, roles, políticas de base
 de datos y filtros de contexto; posteriormente la IA podrá trabajar
 únicamente con la información que el usuario tenga autorización para
-consultar.
-
-Debido al plazo de **dos semanas**, el producto se plantea como un **MVP
-vertical y demostrable**, priorizando los flujos que conectan los
+consultar. Se priorizan los flujos que conectan los
 módulos principales:
 
 > Usuario → Reclutamiento → Candidato contratado → Onboarding → Empleado
 > → Capacitación/Tareas → Desempeño → Dashboard RH.
 
-Las funcionalidades avanzadas de IA, como predicción de fuga de talento
-o detección de burnout, se implementarán inicialmente como análisis
-asistidos y reglas/indicadores demostrables, evitando construir modelos
-predictivos complejos que comprometan el plazo.
-
-------------------------------------------------------------------------
+---
 
 ## 2. Problema
 
 La información de Recursos Humanos suele encontrarse distribuida entre
 procesos y herramientas independientes. Esto provoca:
 
--   Duplicidad de información.
--   Falta de trazabilidad del ciclo de vida del colaborador.
--   Dificultad para dar seguimiento a candidatos.
--   Procesos manuales de onboarding y capacitación.
--   Poca visibilidad del desempeño.
--   Dificultad para identificar pendientes y riesgos.
--   Reportes que requieren análisis manual.
--   Riesgo de exponer información sensible a usuarios o sistemas de IA
-    sin autorización.
+- Duplicidad de información.
+- Falta de trazabilidad del ciclo de vida del colaborador.
+- Dificultad para dar seguimiento a candidatos.
+- Procesos manuales de onboarding y capacitación.
+- Poca visibilidad del desempeño.
+- Dificultad para identificar pendientes y riesgos.
+- Reportes que requieren análisis manual.
+- Riesgo de exponer información sensible a usuarios o sistemas de IA
+  sin autorización.
 
 El sistema busca resolver estos problemas mediante una fuente
 centralizada de información y flujos automatizados entre módulos.
 
-------------------------------------------------------------------------
+---
 
 ## 3. Objetivo general
 
-Construir en dos semanas un MVP web de Recursos Humanos que permita
+Construir un MVP web de Recursos Humanos que permita
 administrar usuarios, candidatos, vacantes y empleados, automatizar el
 flujo de contratación hacia onboarding, gestionar tareas y capacitación,
 mostrar indicadores de desempeño y utilizar IA para recomendaciones,
 resúmenes y verificación de evidencias, manteniendo control de acceso
 por roles.
 
-------------------------------------------------------------------------
+---
 
 ## 4. Objetivos específicos
 
@@ -80,8 +70,7 @@ por roles.
 5.  Utilizar IA para recomendar candidatos para una vacante.
 6.  Permitir cambiar el estado de una postulación y agendar entrevistas.
 7.  Convertir automáticamente un candidato contratado en empleado.
-8.  Crear un flujo inicial de onboarding con checklist, documentos y
-    buddy.
+8.  Crear un flujo inicial de onboarding con checklist y documentos.
 9.  Administrar cursos y progreso de capacitación.
 10. Permitir asignar tareas y cargar evidencias.
 11. Utilizar IA para verificar evidencias de tareas.
@@ -93,7 +82,7 @@ por roles.
 15. Implementar un Hub de IA mediante API Proxy/BFF.
 16. Registrar eventos críticos mediante auditoría.
 
-------------------------------------------------------------------------
+---
 
 # 5. Alcance del MVP
 
@@ -101,119 +90,116 @@ por roles.
 
 ### Administración
 
--   Login/logout.
--   Gestión de usuarios.
--   Gestión de roles.
--   Gestión básica de puestos.
--   Perfil de usuario.
--   Protección de rutas.
+- Login/logout.
+- Gestión de usuarios.
+- Gestión de roles.
+- Gestión básica de puestos.
+- Perfil de usuario.
+- Protección de rutas.
 
 ### Reclutamiento
 
--   CRUD de vacantes.
--   Publicación/activación de vacantes.
--   Postulación de candidatos.
--   Carga de CV.
--   Listado de candidatos por vacante.
--   Estados de postulación.
--   Recomendación de CV mediante IA.
--   Resumen del candidato mediante IA.
--   Agenda básica de entrevista.
--   Cambio a contratado.
+- CRUD de vacantes.
+- Publicación/activación de vacantes.
+- Postulación de candidatos.
+- Carga de CV.
+- Listado de candidatos por vacante.
+- Estados de postulación.
+- Recomendación de CV mediante IA.
+- Resumen del candidato mediante IA.
+- Agenda básica de entrevista.
+- Cambio a contratado.
 
 ### Empleados
 
--   Alta automática desde contratación.
--   Listado y filtros.
--   Perfil resumido.
--   Puesto y área.
--   Estado de desempeño.
--   Progreso de cursos.
--   Progreso de tareas.
--   Árbol jerárquico básico.
+- Alta automática desde contratación.
+- Listado y filtros.
+- Perfil resumido.
+- Puesto y área.
+- Estado de desempeño.
+- Progreso de cursos.
+- Progreso de tareas.
+- Árbol jerárquico básico.
 
 ### Onboarding
 
--   Checklist.
--   Asignación de buddy.
--   Carga segura de documentos.
--   Cursos iniciales.
--   Visualización del progreso.
+- Checklist.
+- Carga segura de documentos.
+- Cursos iniciales.
+- Visualización del progreso.
 
 ### Capacitación
 
--   Catálogo de cursos.
--   Inscripción/asignación.
--   Progreso.
--   Estado de completado.
--   Recomendaciones de cursos mediante IA.
--   Tutor IA básico.
--   Evaluaciones/cuestionarios simples.
+- Catálogo de cursos.
+- Inscripción/asignación.
+- Progreso.
+- Estado de completado.
+- Recomendaciones de cursos mediante IA.
+- Tutor IA básico.
+- Evaluaciones/cuestionarios simples.
 
 ### Tareas y desempeño
 
--   Crear tareas.
--   Asignar tareas.
--   Fecha límite.
--   Subida de evidencia.
--   Verificación IA.
--   Estado aprobado/rechazado.
--   Indicadores de cumplimiento.
--   Autoevaluación asistida por IA.
--   Resumen de desempeño para RH/jefe.
+- Crear tareas.
+- Asignar tareas.
+- Fecha límite.
+- Subida de evidencia.
+- Verificación IA.
+- Estado aprobado/rechazado.
+- Indicadores de cumplimiento.
+- Autoevaluación asistida por IA.
+- Resumen de desempeño para RH/jefe.
 
 ### Clima laboral
 
--   Encuestas tipo pulse.
--   Respuestas.
--   Buzón de sugerencias.
--   Análisis de sentimiento básico mediante IA.
--   Resultados agregados.
+- Encuestas tipo pulse.
+- Respuestas.
+- Buzón de sugerencias.
+- Análisis de sentimiento básico mediante IA.
+- Resultados agregados.
 
 ### People Analytics
 
--   Dashboard de KPIs.
--   Rotación.
--   Tiempo de contratación.
--   Cursos completados.
--   Tareas completadas.
--   Estado general de desempeño.
--   Reporte ejecutivo generado mediante IA a partir de datos
-    autorizados.
+- Rotación.
+- Cursos completados.
+- Tareas completadas.
+- Estado general de desempeño.
+- Reporte ejecutivo generado mediante IA a partir de datos
+  autorizados.
 
 ### Orquestación
 
--   Eventos entre módulos.
--   Contratación → onboarding.
--   Contratación → cursos iniciales.
--   Contratación → empleado.
--   Contratación → metas/tareas iniciales.
--   Auditoría.
--   Hub IA.
+- Eventos entre módulos.
+- Contratación → onboarding.
+- Contratación → cursos iniciales.
+- Contratación → empleado.
+- Contratación → metas/tareas iniciales.
+- Auditoría.
+- Hub IA.
 
-------------------------------------------------------------------------
+---
 
-# 6. Fuera de alcance para las dos semanas
+# 6. Fuera de alcance
 
 Estas funciones podrán quedar como extensiones posteriores:
 
--   Nómina.
--   Control de asistencia biométrico.
--   Integraciones con ERP.
--   Integraciones con bolsas de trabajo externas.
--   Videollamadas integradas.
--   Firma electrónica legal.
--   Motor avanzado de predicción de rotación.
--   Modelo ML propio para burnout.
--   Sistema avanzado de compensaciones.
--   Evaluación 360° completa.
--   Automatizaciones empresariales complejas.
--   Aplicación móvil nativa.
--   Multiempresa/multitenant completo.
--   Integraciones corporativas SSO.
--   Entrenamiento de modelos de IA propios.
+- Nómina.
+- Control de asistencia biométrico.
+- Integraciones con ERP.
+- Integraciones con bolsas de trabajo externas.
+- Videollamadas integradas.
+- Firma electrónica legal.
+- Motor avanzado de predicción de rotación.
+- Modelo ML propio para burnout.
+- Sistema avanzado de compensaciones.
+- Evaluación 360° completa.
+- Automatizaciones empresariales complejas.
+- Aplicación móvil nativa.
+- Multiempresa/multitenant completo.
+- Integraciones corporativas SSO.
+- Entrenamiento de modelos de IA propios.
 
-------------------------------------------------------------------------
+---
 
 # 7. Usuarios y roles
 
@@ -223,13 +209,13 @@ Responsable de administración global.
 
 Permisos principales:
 
--   Crear usuarios.
--   Editar usuarios.
--   Desactivar usuarios.
--   Asignar roles.
--   Gestionar puestos.
--   Consultar configuración global.
--   Consultar auditoría.
+- Crear usuarios.
+- Editar usuarios.
+- Desactivar usuarios.
+- Asignar roles.
+- Gestionar puestos.
+- Consultar configuración global.
+- Consultar auditoría.
 
 No debe utilizarse como rol cotidiano para operaciones de RH.
 
@@ -239,29 +225,29 @@ Responsable de procesos de Recursos Humanos.
 
 Puede:
 
--   Crear y gestionar vacantes.
--   Consultar postulantes.
--   Revisar recomendaciones de IA.
--   Gestionar entrevistas.
--   Contratar candidatos.
--   Gestionar empleados.
--   Gestionar onboarding.
--   Gestionar cursos.
--   Gestionar encuestas.
--   Consultar dashboards.
--   Generar reportes.
--   Consultar información agregada de desempeño.
+- Crear y gestionar vacantes.
+- Consultar postulantes.
+- Revisar recomendaciones de IA.
+- Gestionar entrevistas.
+- Contratar candidatos.
+- Gestionar empleados.
+- Gestionar onboarding.
+- Gestionar cursos.
+- Gestionar encuestas.
+- Consultar dashboards.
+- Generar reportes.
+- Consultar información agregada de desempeño.
 
 ## 7.3 Jefe / Administrador de área
 
 Puede:
 
--   Consultar colaboradores de su área.
--   Crear tareas.
--   Consultar desempeño de su equipo.
--   Revisar evidencias.
--   Consultar progreso de cursos.
--   Generar feedback asistido por IA.
+- Consultar colaboradores de su área.
+- Crear tareas.
+- Consultar desempeño de su equipo.
+- Revisar evidencias.
+- Consultar progreso de cursos.
+- Generar feedback asistido por IA.
 
 **Nota:** el documento base define explícitamente Superusuario,
 RH_Admin, Empleado y Candidato. Para cumplir las necesidades de tareas,
@@ -273,15 +259,15 @@ Si el tiempo es crítico, puede resolverse inicialmente con permisos de
 
 Puede:
 
--   Ver su dashboard.
--   Consultar onboarding.
--   Consultar cursos.
--   Realizar capacitaciones.
--   Consultar tareas.
--   Subir evidencias.
--   Consultar encuestas.
--   Completar autoevaluación.
--   Consultar feedback privado.
+- Ver su dashboard.
+- Consultar onboarding.
+- Consultar cursos.
+- Realizar capacitaciones.
+- Consultar tareas.
+- Subir evidencias.
+- Consultar encuestas.
+- Completar autoevaluación.
+- Consultar feedback privado.
 
 No puede consultar información privada de otros empleados.
 
@@ -289,18 +275,18 @@ No puede consultar información privada de otros empleados.
 
 Puede:
 
--   Crear/usar su cuenta.
--   Completar perfil.
--   Subir CV.
--   Consultar vacantes.
--   Postularse.
--   Consultar estado de sus postulaciones.
--   Consultar entrevistas agendadas.
--   Recibir notificaciones.
+- Crear/usar su cuenta.
+- Completar perfil.
+- Subir CV.
+- Consultar vacantes.
+- Postularse.
+- Consultar estado de sus postulaciones.
+- Consultar entrevistas agendadas.
+- Recibir notificaciones.
 
 No puede consultar información de otros candidatos.
 
-------------------------------------------------------------------------
+---
 
 # 8. Requisitos funcionales
 
@@ -308,15 +294,15 @@ No puede consultar información de otros candidatos.
 
 El sistema deberá permitir:
 
--   Inicio de sesión.
--   Cierre de sesión.
--   Recuperación de sesión.
--   Identificación del usuario mediante Supabase Auth.
--   Asociación del usuario autenticado con su perfil y rol.
+- Inicio de sesión.
+- Cierre de sesión.
+- Recuperación de sesión.
+- Identificación del usuario mediante Supabase Auth.
+- Asociación del usuario autenticado con su perfil y rol.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
 ## RF-02 --- Control de acceso
 
@@ -335,56 +321,56 @@ datos.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
 ## RF-03 --- Gestión de usuarios
 
 El Superusuario podrá:
 
--   Crear usuario.
--   Asignar rol.
--   Activar/desactivar usuario.
--   Consultar información básica.
--   Asociar empleado/candidato con cuenta.
+- Crear usuario.
+- Asignar rol.
+- Activar/desactivar usuario.
+- Consultar información básica.
+- Asociar empleado/candidato con cuenta.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
 ## RF-04 --- Gestión de vacantes
 
 RH podrá:
 
--   Crear vacante.
--   Editar vacante.
--   Activar/desactivar vacante.
--   Definir:
-    -   Puesto.
-    -   Área.
-    -   Descripción.
-    -   Requisitos.
-    -   Habilidades.
-    -   Experiencia.
-    -   Estado.
--   Consultar cantidad de postulantes.
+- Crear vacante.
+- Editar vacante.
+- Activar/desactivar vacante.
+- Definir:
+  - Puesto.
+  - Área.
+  - Descripción.
+  - Requisitos.
+  - Habilidades.
+  - Experiencia.
+  - Estado.
+- Consultar cantidad de postulantes.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
 ## RF-05 --- Postulación
 
 Un candidato podrá:
 
--   Ver vacantes disponibles.
--   Consultar detalles.
--   Adjuntar CV.
--   Enviar postulación.
--   Consultar estado.
+- Ver vacantes disponibles.
+- Consultar detalles.
+- Adjuntar CV.
+- Enviar postulación.
+- Consultar estado.
 
 Estados mínimos:
 
-``` text
+```text
 POSTULADO
 EN_REVISION
 PRESELECCIONADO
@@ -395,7 +381,7 @@ RECHAZADO
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
 ## RF-06 --- Recomendación IA de candidatos
 
@@ -403,28 +389,23 @@ RH podrá solicitar una recomendación de candidatos.
 
 La IA deberá recibir únicamente:
 
--   Información de la vacante.
--   Requisitos.
--   Habilidades.
--   Experiencia relevante.
--   Información autorizada del CV.
+- Información de la vacante.
+- Requisitos.
+- Habilidades.
+- Experiencia relevante.
+- Información autorizada del CV.
 
 La respuesta deberá estructurarse como JSON.
 
 Ejemplo conceptual:
 
-``` json
+```json
 {
   "candidate_id": "uuid",
   "score": 87,
   "match_level": "alto",
-  "strengths": [
-    "Experiencia en React",
-    "Experiencia en PostgreSQL"
-  ],
-  "gaps": [
-    "Poca experiencia en liderazgo"
-  ],
+  "strengths": ["Experiencia en React", "Experiencia en PostgreSQL"],
+  "gaps": ["Poca experiencia en liderazgo"],
   "summary": "Perfil altamente compatible con los requisitos principales."
 }
 ```
@@ -434,7 +415,7 @@ contratación.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
 ## RF-07 --- Visualizador de candidatos
 
@@ -452,23 +433,23 @@ El CV deberá utilizar URL firmada temporal.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
 ## RF-08 --- Entrevistas
 
 RH podrá:
 
--   Agendar entrevista.
--   Definir fecha/hora.
--   Agregar notas.
--   Asociar entrevista a candidato.
--   Cambiar estado a entrevista.
+- Agendar entrevista.
+- Definir fecha/hora.
+- Agregar notas.
+- Asociar entrevista a candidato.
+- Cambiar estado a entrevista.
 
 El candidato deberá visualizar que tiene una entrevista agendada.
 
 **Prioridad:** P1.
 
-------------------------------------------------------------------------
+---
 
 ## RF-09 --- Contratación
 
@@ -479,15 +460,14 @@ Al marcar un candidato como `CONTRATADO`:
 3.  Asociar área.
 4.  Crear onboarding.
 5.  Asignar checklist inicial.
-6.  Asignar buddy.
-7.  Asignar cursos iniciales.
-8.  Crear tareas iniciales.
+6.  Asignar cursos iniciales.
+7.  Crear tareas iniciales.
 
 Este flujo deberá ejecutarse mediante el orquestador de eventos.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
 # 9. Onboarding
 
@@ -495,16 +475,15 @@ Este flujo deberá ejecutarse mediante el orquestador de eventos.
 
 El empleado deberá visualizar una lista de tareas:
 
--   Documentación.
--   Presentación con equipo.
--   Lectura de reglamentos.
--   Curso inicial.
--   Configuración inicial.
--   Reunión con buddy.
+- Documentación.
+- Presentación con equipo.
+- Lectura de reglamentos.
+- Curso inicial.
+- Configuración inicial.
 
 Cada elemento tendrá:
 
-``` text
+```text
 PENDIENTE
 EN_PROGRESO
 COMPLETADO
@@ -512,69 +491,54 @@ COMPLETADO
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
 ## RF-11 --- Documentos
 
 Los documentos sensibles deberán:
 
--   Guardarse en bucket privado.
--   No ser accesibles mediante URL pública.
--   Generar URL firmada.
--   Expirar después de un periodo corto.
+- Guardarse en bucket privado.
+- No ser accesibles mediante URL pública.
+- Generar URL firmada.
+- Expirar después de un periodo corto.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
-
-## RF-12 --- Buddy
-
-RH podrá asignar un buddy/mentor a un empleado.
-
-El empleado podrá consultar:
-
--   Nombre del buddy.
--   Área.
--   Puesto.
--   Información de contacto autorizada.
-
-**Prioridad:** P1.
-
-------------------------------------------------------------------------
+---
 
 # 10. Capacitación
 
-## RF-13 --- Cursos
+## RF-12 --- Cursos
 
 RH podrá crear:
 
--   Nombre.
--   Descripción.
--   Contenido.
--   Duración.
--   Área.
--   Nivel.
--   Curso obligatorio/opcional.
+- Nombre.
+- Descripción.
+- Contenido.
+- Duración.
+- Área.
+- Nivel.
+- Curso obligatorio/opcional.
 
 El empleado podrá consultar sus cursos asignados.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
-## RF-14 --- Ruta de aprendizaje IA
+## RF-13 --- Ruta de aprendizaje IA
 
 La IA podrá recomendar cursos utilizando:
 
--   Puesto.
--   Perfil.
--   Cursos completados.
--   Habilidades.
--   Brechas detectadas.
+- Puesto.
+- Perfil.
+- Cursos completados.
+- Habilidades.
+- Brechas detectadas.
 
 Resultado esperado:
 
-``` json
+```json
 {
   "recommendations": [
     {
@@ -588,82 +552,79 @@ Resultado esperado:
 
 **Prioridad:** P1.
 
-------------------------------------------------------------------------
-
-## RF-15 --- Tutor IA
+## RF-14 --- Tutor IA
 
 El empleado podrá realizar preguntas relacionadas con el contenido de
 capacitación.
 
 El tutor deberá:
 
--   Responder preguntas.
--   Explicar conceptos.
--   Evitar inventar contenido cuando se configure con material
-    específico.
--   Respetar el contexto permitido.
+- Responder preguntas.
+- Explicar conceptos.
+- Evitar inventar contenido cuando se configure con material
+  específico.
+- Respetar el contexto permitido.
 
 **Prioridad:** P1.
-
 ------------------------------------------------------------------------
 
-## RF-16 --- Evaluaciones
+## RF-15 --- Evaluaciones
 
 El sistema podrá generar preguntas utilizando IA a partir del contenido
 de un curso.
 
 El MVP podrá limitarse a:
 
--   Opción múltiple.
--   5 preguntas por evaluación.
--   Calificación automática.
+- Opción múltiple.
+- 5 preguntas por evaluación.
+- Calificación automática.
 
 **Prioridad:** P1.
 
-------------------------------------------------------------------------
+---
 
 # 11. Tareas y evidencias
 
-## RF-17 --- Creación de tareas
+## RF-16 --- Creación de tareas
 
 Jefe/RH podrá crear:
 
--   Título.
--   Descripción.
--   Fecha límite.
--   Prioridad.
--   Empleado asignado.
+- Título.
+- Descripción.
+- Fecha límite.
+- Prioridad.
+- Empleado asignado.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
-## RF-18 --- Evidencia
+## RF-17 --- Evidencia
 
 El empleado podrá cargar:
 
--   PDF.
--   Imagen.
--   Captura.
--   Documento compatible.
+- PDF.
+- Imagen.
+- Captura.
+- Documento compatible.
 
 La evidencia quedará asociada a la tarea.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
-## RF-19 --- Verificación IA
+## RF-18 --- Verificación IA
 
 El backend enviará a la IA:
 
--   Descripción de tarea.
--   Evidencia.
--   Contexto necesario.
+- Descripción de tarea.
+- Evidencia.
+- Contexto necesario.
 
 La IA devolverá JSON:
 
-``` json
+```json
 {
   "status": "approved",
   "confidence": 0.91,
@@ -674,7 +635,7 @@ La IA devolverá JSON:
 
 Estados:
 
-``` text
+```text
 PENDIENTE
 EN_REVISION
 APROBADO
@@ -687,23 +648,23 @@ El backend validará y procesará la respuesta.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
 # 12. Desempeño
 
-## RF-20 --- Indicadores
+## RF-19 --- Indicadores
 
 El sistema deberá calcular indicadores como:
 
--   Porcentaje de tareas completadas.
--   Porcentaje de cursos completados.
--   Tareas vencidas.
--   Cursos pendientes.
--   Cumplimiento general.
+- Porcentaje de tareas completadas.
+- Porcentaje de cursos completados.
+- Tareas vencidas.
+- Cursos pendientes.
+- Cumplimiento general.
 
 Semáforo:
 
-``` text
+```text
 VERDE     = buen desempeño
 AMARILLO  = desempeño normal / requiere seguimiento
 ROJO      = desempeño bajo / requiere atención
@@ -713,13 +674,13 @@ Los umbrales deberán configurarse como constantes del MVP.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
-## RF-21 --- Árbol organizacional
+## RF-20 --- Árbol organizacional
 
 RH/Jefe podrá visualizar una estructura:
 
-``` text
+```text
 Empresa
 ├── Área
 │   ├── Jefe
@@ -732,46 +693,46 @@ Empresa
 
 Cada nodo mostrará:
 
--   Nombre.
--   Puesto.
--   Área.
--   Indicador de desempeño.
+- Nombre.
+- Puesto.
+- Área.
+- Indicador de desempeño.
 
 Al seleccionar un empleado, se mostrará un resumen.
 
 **Prioridad:** P1.
 
-------------------------------------------------------------------------
+---
 
-## RF-22 --- Resumen IA de empleado
+## RF-21 --- Resumen IA de empleado
 
 La IA podrá generar un resumen basado exclusivamente en datos
 autorizados:
 
--   Cursos.
--   Tareas.
--   Cumplimiento.
--   Evaluaciones.
--   Información de desempeño disponible.
+- Cursos.
+- Tareas.
+- Cumplimiento.
+- Evaluaciones.
+- Información de desempeño disponible.
 
 Debe evitar datos sensibles o información fuera del alcance del usuario.
 
 **Prioridad:** P1.
 
-------------------------------------------------------------------------
+---
 
 # 13. Autoevaluación
 
-## RF-23 --- Autoevaluación conversacional
+## RF-22 --- Autoevaluación conversacional
 
 El empleado podrá responder preguntas mediante una interfaz tipo chat.
 
 Preguntas ejemplo:
 
--   ¿Cuáles fueron tus principales logros?
--   ¿Qué retos enfrentaste?
--   ¿Qué objetivos cumpliste?
--   ¿Qué deseas mejorar?
+- ¿Cuáles fueron tus principales logros?
+- ¿Qué retos enfrentaste?
+- ¿Qué objetivos cumpliste?
+- ¿Qué deseas mejorar?
 
 La IA generará un borrador estructurado.
 
@@ -779,52 +740,52 @@ El empleado deberá poder editarlo antes de enviarlo.
 
 **Prioridad:** P1.
 
-------------------------------------------------------------------------
+---
 
 # 14. Alertas y feedback
 
-## RF-24 --- Alertas de tareas
+## RF-23 --- Alertas de tareas
 
 El sistema podrá identificar:
 
--   Tareas próximas a vencer.
--   Tareas vencidas.
--   Alta concentración de pendientes.
+- Tareas próximas a vencer.
+- Tareas vencidas.
+- Alta concentración de pendientes.
 
 Se mostrará una alerta al empleado.
 
 **Prioridad:** P1.
 
-------------------------------------------------------------------------
+---
 
-## RF-25 --- Feedback privado
+## RF-24 --- Feedback privado
 
 El empleado podrá recibir recomendaciones personales generadas por IA
 utilizando únicamente información de su propio desempeño.
 
 **Prioridad:** P2.
 
-------------------------------------------------------------------------
+---
 
 # 15. Clima laboral
 
-## RF-26 --- Pulse Surveys
+## RF-25 --- Pulse Surveys
 
 RH podrá crear encuestas cortas.
 
 Tipos:
 
--   Escala.
--   Opción múltiple.
--   Comentario.
+- Escala.
+- Opción múltiple.
+- Comentario.
 
 El empleado podrá responder desde su dashboard.
 
 **Prioridad:** P1.
 
-------------------------------------------------------------------------
+---
 
-## RF-27 --- Buzón anónimo
+## RF-26 --- Buzón anónimo
 
 El empleado podrá enviar comentarios sin exponer su identidad al resto
 de empleados.
@@ -833,13 +794,13 @@ El sistema deberá proteger la asociación entre comentario e identidad.
 
 **Prioridad:** P1.
 
-------------------------------------------------------------------------
+---
 
-## RF-28 --- Sentiment Analysis
+## RF-27 --- Sentiment Analysis
 
 La IA podrá clasificar comentarios agregados como:
 
-``` text
+```text
 POSITIVO
 NEUTRO
 NEGATIVO
@@ -850,29 +811,28 @@ como una decisión automática sobre una persona.
 
 **Prioridad:** P1.
 
-------------------------------------------------------------------------
+---
 
 # 16. People Analytics
 
-## RF-29 --- Dashboard RH
+## RF-28 --- Dashboard RH
 
 El dashboard deberá mostrar al menos:
 
--   Total de empleados.
--   Total de candidatos.
--   Vacantes activas.
--   Contrataciones.
--   Tiempo promedio de contratación.
--   Cursos completados.
--   Tareas completadas.
--   Distribución de desempeño.
--   Resultados de clima.
+- Total de empleados.
+- Total de candidatos.
+- Vacantes activas.
+- Contrataciones.
+- Cursos completados.
+- Tareas completadas.
+- Distribución de desempeño.
+- Resultados de clima.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
-## RF-30 --- Copiloto de reportes
+## RF-29 --- Copiloto de reportes
 
 RH podrá escribir preguntas como:
 
@@ -883,13 +843,13 @@ controlada y proporcionar a la IA únicamente los datos permitidos.
 
 La IA devolverá:
 
--   Resumen.
--   Hallazgos.
--   Recomendaciones.
+- Resumen.
+- Hallazgos.
+- Recomendaciones.
 
 **Prioridad:** P1.
 
-------------------------------------------------------------------------
+---
 
 # 17. Orquestador
 
@@ -899,7 +859,7 @@ Se propone una arquitectura basada en eventos simples.
 
 Eventos iniciales:
 
-``` text
+```text
 candidate.hired
 onboarding.created
 course.assigned
@@ -911,7 +871,7 @@ survey.completed
 
 Ejemplo:
 
-``` text
+```text
 candidate.hired
        ↓
 crear empleado
@@ -930,7 +890,7 @@ mediante funciones de servicio y transacciones PostgreSQL.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
 # 18. Hub de IA
 
@@ -938,7 +898,7 @@ mediante funciones de servicio y transacciones PostgreSQL.
 
 Todas las llamadas de IA deberán pasar por:
 
-``` text
+```text
 Frontend
    ↓
 Next.js API Route / BFF
@@ -954,41 +914,44 @@ Gemini / Ollama
 
 El frontend **nunca** deberá contener:
 
--   Gemini API Key.
--   Supabase Service Role Key.
+- Gemini API Key.
+- Supabase Service Role Key.
 
 **Prioridad:** P0.
 
-------------------------------------------------------------------------
+---
 
 ## RF-33 --- Casos de uso IA
 
 El Hub deberá centralizar:
 
-  -----------------------------------------------------------------------
-  Caso                    Entrada                 Salida
-  ----------------------- ----------------------- -----------------------
-  Recomendación CV        Vacante + CV autorizado Score + fortalezas +
-                                                  brechas
+---
 
-  Resumen candidato       CV autorizado           Resumen
+Caso Entrada Salida
 
-  Verificación tarea      Descripción + evidencia JSON de aprobación
+---
 
-  Cursos                  Perfil + puesto         Recomendaciones
+Recomendación CV Vacante + CV autorizado Score + fortalezas +
+brechas
 
-  Tutor                   Pregunta + contexto     Respuesta
+Resumen candidato CV autorizado Resumen
 
-  Evaluación              Contenido curso         Preguntas
+Verificación tarea Descripción + evidencia JSON de aprobación
 
-  Desempeño               Datos autorizados       Resumen
+Cursos Perfil + puesto Recomendaciones
 
-  Clima                   Comentarios             Sentimiento
+Tutor Pregunta + contexto Respuesta
 
-  Reporte RH              KPIs autorizados        Análisis
-  -----------------------------------------------------------------------
+Evaluación Contenido curso Preguntas
 
-------------------------------------------------------------------------
+Desempeño Datos autorizados Resumen
+
+Clima Comentarios Sentimiento
+
+Reporte RH KPIs autorizados Análisis
+-----------------------------------------------------------------------
+
+---
 
 # 19. Seguridad
 
@@ -996,13 +959,13 @@ El Hub deberá centralizar:
 
 La seguridad debe funcionar como:
 
-``` text
+```text
 AUTH → ROLE → RESOURCE → POLICY → CONTEXT → AI
 ```
 
 La IA nunca será una fuente de autorización.
 
-------------------------------------------------------------------------
+---
 
 ## 19.2 Supabase Auth
 
@@ -1010,7 +973,7 @@ Se utilizará Supabase Auth para autenticación.
 
 Se asociará cada usuario a un perfil:
 
-``` text
+```text
 auth.users
      │
      └── profiles
@@ -1020,7 +983,7 @@ auth.users
             └── candidate_id
 ```
 
-------------------------------------------------------------------------
+---
 
 ## 19.3 RLS
 
@@ -1028,7 +991,7 @@ Se habilitará Row Level Security en tablas críticas.
 
 Ejemplo conceptual:
 
-``` sql
+```sql
 auth.uid() = user_id
 ```
 
@@ -1038,7 +1001,7 @@ Un candidato solo podrá consultar sus postulaciones.
 
 RH tendrá permisos explícitos sobre información que le corresponda.
 
-------------------------------------------------------------------------
+---
 
 ## 19.4 Middleware
 
@@ -1046,7 +1009,7 @@ Next.js Middleware deberá bloquear rutas según rol.
 
 Ejemplo:
 
-``` text
+```text
 /admin/*      → SUPERUSER
 /rh/*         → RH_ADMIN
 /jefe/*       → JEFE/RH_ADMIN
@@ -1056,13 +1019,13 @@ Ejemplo:
 
 La protección del middleware no reemplaza RLS.
 
-------------------------------------------------------------------------
+---
 
 ## 19.5 Archivos privados
 
 Buckets:
 
-``` text
+```text
 private/cvs/
 private/evidence/
 private/onboarding/
@@ -1072,7 +1035,7 @@ Los archivos deberán ser privados.
 
 Para visualizar un archivo:
 
-``` text
+```text
 usuario autorizado
       ↓
 backend
@@ -1084,19 +1047,19 @@ signed URL
 visualización temporal
 ```
 
-------------------------------------------------------------------------
+---
 
 ## 19.6 Auditoría
 
 Tabla:
 
-``` text
+```text
 logs_auditoria
 ```
 
 Campos mínimos:
 
-``` text
+```text
 id
 user_id
 action
@@ -1108,28 +1071,28 @@ created_at
 
 Registrar como mínimo:
 
--   Cambios de rol.
--   Contrataciones.
--   Cambios de estado.
--   Acceso a CV.
--   Cambios de calificaciones.
--   Eliminación/desactivación de usuarios.
+- Cambios de rol.
+- Contrataciones.
+- Cambios de estado.
+- Acceso a CV.
+- Cambios de calificaciones.
+- Eliminación/desactivación de usuarios.
 
-------------------------------------------------------------------------
+---
 
 ## 19.7 Protección contra Prompt Injection
 
 Los prompts deberán utilizar instrucciones de sistema que establezcan:
 
--   El rol de la IA.
--   La información permitida.
--   La información prohibida.
--   Que las instrucciones contenidas dentro de CV/documentos no tienen
-    autoridad sobre el sistema.
--   Que la IA no puede revelar información de otros usuarios.
--   Que la IA no puede ejecutar acciones administrativas.
+- El rol de la IA.
+- La información permitida.
+- La información prohibida.
+- Que las instrucciones contenidas dentro de CV/documentos no tienen
+  autoridad sobre el sistema.
+- Que la IA no puede revelar información de otros usuarios.
+- Que la IA no puede ejecutar acciones administrativas.
 
-------------------------------------------------------------------------
+---
 
 # 20. Arquitectura técnica
 
@@ -1137,42 +1100,42 @@ Los prompts deberán utilizar instrucciones de sistema que establezcan:
 
 ### Frontend
 
--   Next.js.
--   React.
--   TypeScript.
--   Tailwind CSS.
--   Componentes UI reutilizables.
--   Docker.
+- Next.js.
+- React.
+- TypeScript.
+- Tailwind CSS.
+- Componentes UI reutilizables.
+- Docker.
 
 ### Backend
 
--   Next.js Route Handlers / Server Actions donde corresponda.
--   Supabase.
--   PostgreSQL.
--   API Proxy/BFF.
+- Next.js Route Handlers / Server Actions donde corresponda.
+- Supabase.
+- PostgreSQL.
+- API Proxy/BFF.
 
 ### IA
 
 Primario:
 
--   Google Gemini API.
+- Google Gemini API.
 
 Alternativo:
 
--   Ollama + modelo open source.
+- Ollama + modelo open source.
 
 ### Infraestructura
 
--   Docker.
--   Docker Compose.
--   Supabase CLI.
--   PostgreSQL local mediante Supabase.
+- Docker.
+- Docker Compose.
+- Supabase CLI.
+- PostgreSQL local mediante Supabase.
 
-------------------------------------------------------------------------
+---
 
 # 21. Arquitectura lógica
 
-``` text
+```text
 ┌─────────────────────────────────────────────┐
 │                 Next.js                     │
 │                                             │
@@ -1196,13 +1159,13 @@ Alternativo:
                       Gemini      Ollama
 ```
 
-------------------------------------------------------------------------
+---
 
 # 22. Modelo de datos propuesto
 
 ## Tablas principales
 
-``` text
+```text
 profiles
 roles
 departments
@@ -1231,11 +1194,11 @@ ai_results
 logs_auditoria
 ```
 
-------------------------------------------------------------------------
+---
 
 ## 22.1 Relaciones principales
 
-``` text
+```text
 profiles
    │
    ├── candidates
@@ -1262,7 +1225,7 @@ surveys
    └── survey_responses
 ```
 
-------------------------------------------------------------------------
+---
 
 # 23. Pantallas del MVP
 
@@ -1321,7 +1284,7 @@ surveys
 39. Puestos.
 40. Auditoría.
 
-------------------------------------------------------------------------
+---
 
 # 24. Dashboard por rol
 
@@ -1329,7 +1292,7 @@ surveys
 
 Tarjetas:
 
-``` text
+```text
 Vacantes activas
 Postulantes
 Entrevistas
@@ -1341,19 +1304,19 @@ Tareas pendientes
 
 Gráficas:
 
--   Contrataciones por periodo.
--   Candidatos por vacante.
--   Desempeño.
--   Capacitación.
--   Clima.
+- Contrataciones por periodo.
+- Candidatos por vacante.
+- Desempeño.
+- Capacitación.
+- Clima.
 
-------------------------------------------------------------------------
+---
 
 ## Dashboard empleado
 
 Mostrar:
 
-``` text
+```text
 Mi progreso de onboarding
 Cursos pendientes
 Tareas pendientes
@@ -1362,34 +1325,34 @@ Encuestas pendientes
 Indicador de desempeño
 ```
 
-------------------------------------------------------------------------
+---
 
 ## Dashboard candidato
 
 Mostrar:
 
-``` text
+```text
 Postulaciones
 Estado actual
 Próxima entrevista
 Notificaciones
 ```
 
-------------------------------------------------------------------------
+---
 
 # 25. UX/UI
 
 La interfaz deberá priorizar:
 
--   Claridad.
--   Pocas acciones por pantalla.
--   Dashboards con tarjetas.
--   Tablas con filtros.
--   Estados mediante badges.
--   Semáforos de desempeño.
--   Formularios simples.
--   Diseño responsive.
--   Navegación por rol.
+- Claridad.
+- Pocas acciones por pantalla.
+- Dashboards con tarjetas.
+- Tablas con filtros.
+- Estados mediante badges.
+- Semáforos de desempeño.
+- Formularios simples.
+- Diseño responsive.
+- Navegación por rol.
 
 Las funciones de IA deberán distinguirse visualmente de los datos
 originales.
@@ -1400,28 +1363,28 @@ Ejemplo:
 
 Debe aclararse que es una recomendación y no una decisión automática.
 
-------------------------------------------------------------------------
+---
 
 # 26. Notificaciones
 
 MVP:
 
--   Notificaciones internas.
+- Notificaciones internas.
 
 Eventos:
 
--   Entrevista agendada.
--   Cambio de estado de postulación.
--   Nueva tarea.
--   Tarea próxima a vencer.
--   Curso pendiente.
--   Curso asignado.
--   Nueva encuesta.
--   Contratación/onboarding.
+- Entrevista agendada.
+- Cambio de estado de postulación.
+- Nueva tarea.
+- Tarea próxima a vencer.
+- Curso pendiente.
+- Curso asignado.
+- Nueva encuesta.
+- Contratación/onboarding.
 
 Correo electrónico queda como extensión.
 
-------------------------------------------------------------------------
+---
 
 # 27. Requisitos no funcionales
 
@@ -1449,15 +1412,15 @@ La capa de IA deberá abstraer el proveedor.
 
 Ejemplo:
 
-``` ts
+```ts
 interface AIProvider {
-  generate(request: AIRequest): Promise<AIResponse>
+  generate(request: AIRequest): Promise<AIResponse>;
 }
 ```
 
 Implementaciones:
 
-``` text
+```text
 GeminiProvider
 OllamaProvider
 ```
@@ -1470,11 +1433,11 @@ Las operaciones críticas deberán generar auditoría.
 
 La IA no deberá recibir información que el usuario no pueda consultar.
 
-------------------------------------------------------------------------
+---
 
 # 28. Estructura de proyecto sugerida
 
-``` text
+```text
 src/
 ├── app/
 │   ├── (auth)/
@@ -1514,7 +1477,7 @@ src/
 └── middleware.ts
 ```
 
-------------------------------------------------------------------------
+---
 
 # 29. Contratos de IA
 
@@ -1522,7 +1485,7 @@ Todas las respuestas críticas deberán utilizar salida estructurada.
 
 Ejemplo:
 
-``` ts
+```ts
 type CandidateRecommendation = {
   candidateId: string;
   score: number;
@@ -1540,7 +1503,7 @@ El backend deberá:
 4.  No ejecutar instrucciones provenientes del contenido analizado.
 5.  Registrar la solicitud si corresponde.
 
-------------------------------------------------------------------------
+---
 
 # 30. Reglas de IA
 
@@ -1559,193 +1522,9 @@ El backend deberá:
 10. Toda información enviada al proveedor externo debe pasar por un
     filtro de contexto.
 
-------------------------------------------------------------------------
+---
 
-# 31. Estrategia para terminar en 2 semanas
-
-El objetivo no es desarrollar todos los módulos a profundidad, sino
-lograr un **flujo end-to-end funcional** y demostrar la arquitectura.
-
-## Semana 1 --- Fundación + reclutamiento
-
-### Día 1 --- Arquitectura
-
--   Crear repositorio.
--   Configurar Next.js + TypeScript.
--   Configurar Docker.
--   Configurar Supabase CLI.
--   Crear variables de entorno.
--   Crear estructura de carpetas.
--   Definir esquema inicial.
-
-### Día 2 --- Auth + RBAC
-
--   Login.
--   Profiles.
--   Roles.
--   Middleware.
--   RLS.
--   Layout por rol.
-
-### Día 3 --- Vacantes
-
--   CRUD.
--   Estados.
--   Puestos.
--   Áreas.
--   Dashboard básico RH.
-
-### Día 4 --- Candidatos
-
--   Registro.
--   Perfil.
--   CV. 
--   Storage privado.
--   Postulación.
--   Estado.
-
-### Día 5 --- IA de reclutamiento
-
--   AI Hub.
--   Gemini provider.
--   Prompt de recomendación.
--   Score.
--   Resumen.
--   Visualización.
-
-### Día 6 --- Entrevistas
-
--   Agenda.
--   Cambio de estado.
--   Notificaciones internas.
-
-### Día 7 --- Contratación + integración
-
--   Marcar contratado.
--   Crear empleado.
--   Evento `candidate.hired`.
--   Crear onboarding.
--   Demo end-to-end.
-
-------------------------------------------------------------------------
-
-# 32. Semana 2 --- Empleados + IA + dashboards
-
-### Día 8 --- Onboarding
-
--   Checklist.
--   Buddy.
--   Documentos.
--   Cursos iniciales.
-
-### Día 9 --- Capacitación
-
--   CRUD cursos.
--   Asignaciones.
--   Progreso.
--   Recomendación IA.
-
-### Día 10 --- Tareas
-
--   Crear tareas.
--   Evidencias.
--   Storage.
--   Verificación IA.
-
-### Día 11 --- Desempeño
-
--   KPIs.
--   Semáforo.
--   Organigrama.
--   Resumen IA.
-
-### Día 12 --- Clima + Analytics
-
--   Pulse survey.
--   Sugerencias.
--   Sentiment analysis.
--   Dashboard KPIs.
-
-### Día 13 --- Seguridad + QA
-
--   Revisar RLS.
--   Revisar permisos.
--   Revisar rutas.
--   Revisar archivos privados.
--   Revisar variables.
--   Auditoría.
--   Pruebas end-to-end.
-
-### Día 14 --- Presentación
-
--   Seed/demo data.
--   Corrección de bugs.
--   Docker Compose.
--   Documentación.
--   README.
--   Guion de demostración.
--   Capturas.
--   Preparar presentación.
-
-------------------------------------------------------------------------
-
-# 33. Priorización MoSCoW
-
-## Must Have
-
--   Auth.
--   RBAC.
--   RLS.
--   Usuarios.
--   Vacantes.
--   Candidatos.
--   CV. 
--   Postulación.
--   IA de recomendación.
--   Cambio de estados.
--   Contratación.
--   Creación de empleado.
--   Onboarding básico.
--   Cursos básicos.
--   Tareas.
--   Evidencias.
--   Verificación IA.
--   Dashboard RH.
--   Auditoría.
--   Docker.
-
-## Should Have
-
--   Entrevistas.
--   Buddy.
--   Recomendación de cursos.
--   Tutor IA.
--   Organigrama.
--   Autoevaluación.
--   Encuestas.
--   Sentiment analysis.
--   Reportes IA.
-
-## Could Have
-
--   Alertas avanzadas de burnout.
--   Predicción de fuga.
--   Evaluaciones IA avanzadas.
--   Notificaciones por email.
--   Reportes exportables.
-
-## Won't Have Now
-
--   Nómina.
--   Asistencia.
--   App móvil.
--   Integraciones externas.
--   ML propio.
--   SSO empresarial.
-
-------------------------------------------------------------------------
-
-# 34. Criterios de aceptación principales
+# 31. Criterios de aceptación principales
 
 ## CA-01 Seguridad
 
@@ -1805,28 +1584,28 @@ resultado.
 **entonces** la capa de contexto deberá impedir que esa información sea
 enviada al modelo.
 
-------------------------------------------------------------------------
+---
 
 # 35. Datos de demostración
 
 Para facilitar la presentación se deberá incluir un seed con:
 
--   1 Superusuario.
--   2 usuarios RH.
--   2 jefes.
--   5 empleados.
--   5 candidatos.
--   3 vacantes.
--   2 entrevistas.
--   5 cursos.
--   10 tareas.
--   Evidencias.
--   2 encuestas.
--   Respuestas de clima.
+- 1 Superusuario.
+- 2 usuarios RH.
+- 2 jefes.
+- 5 empleados.
+- 5 candidatos.
+- 3 vacantes.
+- 2 entrevistas.
+- 5 cursos.
+- 10 tareas.
+- Evidencias.
+- 2 encuestas.
+- Respuestas de clima.
 
 El seed debe permitir demostrar:
 
-``` text
+```text
 Candidato
    ↓
 Postulación
@@ -1854,7 +1633,7 @@ Desempeño
 Dashboard RH
 ```
 
-------------------------------------------------------------------------
+---
 
 # 36. Estrategia de pruebas
 
@@ -1862,30 +1641,30 @@ Dashboard RH
 
 Probar:
 
--   Funciones de permisos.
--   Cálculo de KPIs.
--   Cálculo de semáforo.
--   Validación de respuestas IA.
--   Transiciones de estados.
+- Funciones de permisos.
+- Cálculo de KPIs.
+- Cálculo de semáforo.
+- Validación de respuestas IA.
+- Transiciones de estados.
 
 ## Integración
 
 Probar:
 
--   Auth + perfiles.
--   RLS.
--   Storage.
--   Postulación.
--   Contratación.
--   Onboarding.
--   Tareas + evidencias.
--   AI Hub.
+- Auth + perfiles.
+- RLS.
+- Storage.
+- Postulación.
+- Contratación.
+- Onboarding.
+- Tareas + evidencias.
+- AI Hub.
 
 ## End-to-end
 
 Escenario principal:
 
-``` text
+```text
 1. Login RH
 2. Crear vacante
 3. Login candidato
@@ -1905,47 +1684,50 @@ Escenario principal:
 17. RH consulta desempeño
 ```
 
-------------------------------------------------------------------------
+---
 
 # 37. Riesgos
 
-  -----------------------------------------------------------------------
-  Riesgo                  Impacto                 Mitigación
-  ----------------------- ----------------------- -----------------------
-  IA tarda o falla        Alto                    Mock/fallback + Ollama
+---
 
-  Gemini free tier        Medio                   Cachear resultados y
-  limitado                                        reducir llamadas
+Riesgo Impacto Mitigación
 
-  RLS mal configurado     Crítico                 Pruebas por rol
+---
 
-  Scope demasiado grande  Crítico                 Priorizar P0
+IA tarda o falla Alto Mock/fallback + Ollama
 
-  UI consume demasiado    Alto                    Componentes
-  tiempo                                          reutilizables
+Gemini free tier Medio Cachear resultados y
+limitado reducir llamadas
 
-  CV complejo             Medio                   Soportar PDF primero
+RLS mal configurado Crítico Pruebas por rol
 
-  IA genera JSON inválido Medio                   Validación con schema
+Scope demasiado grande Crítico Priorizar P0
 
-  Prompt injection        Alto                    Context filtering +
-                                                  system instructions
+UI consume demasiado Alto Componentes
+tiempo reutilizables
 
-  Datos demo              Medio                   Seed desde la primera
-  insuficientes                                   semana
+CV complejo Medio Soportar PDF primero
 
-  Docker falla al final   Alto                    Probar desde día 1
-  -----------------------------------------------------------------------
+IA genera JSON inválido Medio Validación con schema
 
-------------------------------------------------------------------------
+Prompt injection Alto Context filtering +
+system instructions
+
+Datos demo Medio Seed desde la primera
+insuficientes semana
+
+Docker falla al final Alto Probar desde día 1
+-----------------------------------------------------------------------
+
+---
 
 # 38. Decisiones técnicas importantes
 
 ## 38.1 No construir microservicios
 
-Para dos semanas, utilizar un monolito modular:
+Se utilizara un monolito modular:
 
-``` text
+```text
 Next.js
  ├── UI
  ├── API
@@ -1969,7 +1751,7 @@ Nunca llamar Gemini directamente desde componentes React.
 
 Usar:
 
-``` text
+```text
 AIService
    └── AIProvider
           ├── Gemini
@@ -1980,7 +1762,7 @@ AIService
 
 Primero:
 
-``` text
+```text
 Auth
 RBAC
 RLS
@@ -1989,30 +1771,30 @@ Context filtering
 
 Después:
 
-``` text
+```text
 AI
 ```
 
-------------------------------------------------------------------------
+---
 
 # 39. Definition of Done
 
 Una funcionalidad se considera terminada cuando:
 
--   [ ] Funciona en frontend.
--   [ ] Tiene validación.
--   [ ] Tiene autorización.
--   [ ] Tiene RLS cuando aplica.
--   [ ] Maneja errores.
--   [ ] Tiene estado de loading.
--   [ ] Tiene estado vacío.
--   [ ] No expone secretos.
--   [ ] Tiene datos de prueba.
--   [ ] Puede ejecutarse con Docker.
--   [ ] Está documentada.
--   [ ] No rompe los flujos existentes.
+- [ ] Funciona en frontend.
+- [ ] Tiene validación.
+- [ ] Tiene autorización.
+- [ ] Tiene RLS cuando aplica.
+- [ ] Maneja errores.
+- [ ] Tiene estado de loading.
+- [ ] Tiene estado vacío.
+- [ ] No expone secretos.
+- [ ] Tiene datos de prueba.
+- [ ] Puede ejecutarse con Docker.
+- [ ] Está documentada.
+- [ ] No rompe los flujos existentes.
 
-------------------------------------------------------------------------
+---
 
 # 40. Definition of Done del MVP
 
@@ -2029,7 +1811,7 @@ siguiente escenario:
 > verificarla. RH puede consultar el progreso, el desempeño y los KPIs
 > desde un dashboard protegido por roles.
 
-------------------------------------------------------------------------
+---
 
 # 41. Guion de demostración recomendado
 
@@ -2043,7 +1825,7 @@ Después entrar como RH y mostrar el dashboard.
 
 Crear una vacante:
 
-``` text
+```text
 Desarrollador Full Stack
 ```
 
@@ -2053,10 +1835,10 @@ Ejecutar IA.
 
 Mostrar:
 
--   Score.
--   Fortalezas.
--   Brechas.
--   Resumen.
+- Score.
+- Fortalezas.
+- Brechas.
+- Resumen.
 
 ## Escena 3 --- Contratación
 
@@ -2074,10 +1856,10 @@ Entrar como empleado.
 
 Mostrar:
 
--   Checklist.
--   Buddy.
--   Cursos.
--   Documentos.
+- Checklist.
+- Buddy.
+- Cursos.
+- Documentos.
 
 ## Escena 5 --- Capacitación
 
@@ -2097,7 +1879,7 @@ Ejecutar verificación IA.
 
 Mostrar:
 
-``` text
+```text
 APROBADO
 ```
 
@@ -2107,11 +1889,11 @@ Regresar a RH.
 
 Mostrar:
 
--   Progreso.
--   Desempeño.
--   Semáforo.
--   KPIs.
--   Resumen IA.
+- Progreso.
+- Desempeño.
+- Semáforo.
+- KPIs.
+- Resumen IA.
 
 ## Escena 8 --- Seguridad IA
 
@@ -2119,7 +1901,7 @@ Realizar una petición intentando obtener información no autorizada y
 demostrar que el Hub IA no proporciona datos fuera del contexto
 permitido.
 
-------------------------------------------------------------------------
+---
 
 # 42. Entregables
 
@@ -2138,13 +1920,13 @@ permitido.
 13. Guion de demostración.
 14. Presentación técnica.
 
-------------------------------------------------------------------------
+---
 
 # 43. README mínimo requerido
 
 El proyecto deberá incluir instrucciones equivalentes a:
 
-``` bash
+```bash
 git clone <repo>
 cd <project>
 
@@ -2161,36 +1943,38 @@ npm run dev
 
 El README deberá explicar:
 
--   Requisitos.
--   Instalación.
--   Variables de entorno.
--   Supabase.
--   Gemini.
--   Ollama opcional.
--   Seed.
--   Usuarios demo.
--   Roles.
--   Ejecución con Docker.
--   Pruebas.
+- Requisitos.
+- Instalación.
+- Variables de entorno.
+- Supabase.
+- Gemini.
+- Ollama opcional.
+- Seed.
+- Usuarios demo.
+- Roles.
+- Ejecución con Docker.
+- Pruebas.
 
-------------------------------------------------------------------------
+---
 
 # 44. Métricas de éxito del MVP
 
-  Métrica                            Objetivo
-  ------------------------------- -----------
-  Flujos críticos funcionales            100%
-  Roles principales                        4+
-  Módulos conectados                       6+
-  Casos de uso IA                          4+
-  Datos sensibles protegidos             100%
-  Rutas críticas protegidas              100%
-  Flujo contratación → empleado     Funcional
-  Flujo tarea → evidencia → IA      Funcional
-  Ejecución local Docker            Funcional
-  Seed reproducible                 Funcional
+Métrica Objetivo
 
-------------------------------------------------------------------------
+---
+
+Flujos críticos funcionales 100%
+Roles principales 4+
+Módulos conectados 6+
+Casos de uso IA 4+
+Datos sensibles protegidos 100%
+Rutas críticas protegidas 100%
+Flujo contratación → empleado Funcional
+Flujo tarea → evidencia → IA Funcional
+Ejecución local Docker Funcional
+Seed reproducible Funcional
+
+---
 
 # 45. Backlog posterior a la entrega
 
@@ -2212,13 +1996,13 @@ Después del MVP:
 14. Automatización de encuestas por antigüedad.
 15. Motor avanzado de workflows.
 
-------------------------------------------------------------------------
+---
 
 # 46. Resumen técnico para desarrollo
 
-La prioridad absoluta durante las dos semanas debe ser:
+La prioridad absoluta debe ser:
 
-``` text
+```text
 1. Seguridad
 2. Datos
 3. Flujo end-to-end
@@ -2239,7 +2023,7 @@ controlada.
 
 La decisión arquitectónica clave es:
 
-``` text
+```text
                  ┌───────────────┐
                  │    Next.js    │
                  │ UI + BFF/API  │
@@ -2267,24 +2051,3 @@ La decisión arquitectónica clave es:
 **Resultado esperado:** un MVP funcional, seguro, ejecutable localmente,
 demostrable en una presentación y preparado para crecer después de las
 dos semanas.
-
-------------------------------------------------------------------------
-
-## Fuente del requerimiento
-
-Este PRD se elaboró a partir del documento proporcionado, que define el
-sistema como una plataforma con superusuario, roles diferenciados,
-reclutamiento asistido por IA, gestión de empleados, onboarding,
-capacitación, desempeño, clima laboral, People Analytics, orquestación,
-Hub de IA y seguridad mediante RBAC, RLS, almacenamiento privado y
-auditoría. fileciteturn0file0L2-L20 fileciteturn0file0L118-L137
-
-La propuesta técnica mantiene el stack planteado en la fuente:
-Next.js/React, Docker, Supabase/PostgreSQL, Gemini mediante API
-Proxy/BFF y alternativa local con Ollama.
-fileciteturn0file0L138-L167
-
-La estrategia de seguridad mantiene las decisiones indicadas en la
-fuente: RBAC, Middleware, RLS, API Proxy para IA, filtros de contexto,
-almacenamiento privado con Signed URLs, auditoría y protección de
-secretos. fileciteturn0file0L168-L226

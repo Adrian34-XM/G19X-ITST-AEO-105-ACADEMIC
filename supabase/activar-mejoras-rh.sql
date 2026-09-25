@@ -1,6 +1,17 @@
 -- Activación repetible. Ejecutar completo en SQL Editor del proyecto existente.
 -- Requiere las migraciones iniciales del 14 y 15 de septiembre.
 begin;
+
+-- Detiene la actualización antes de cualquier cambio si falta la instalación base.
+do $prerequisites$
+begin
+ if to_regclass('public.audit_logs') is null
+    or to_regclass('public.profiles') is null
+    or to_regclass('public.courses') is null
+    or to_regprocedure('public.command(text,jsonb)') is null then
+  raise exception 'BASE_RH_INCOMPLETA: verifica que este sea el proyecto Supabase configurado en .env.local. Este archivo solo actualiza una instalación existente. Si el proyecto está vacío, ejecuta primero supabase/instalar-proyecto.sql. Si ya contiene datos o tablas del sistema, no reinstales: revisa las migraciones base pendientes.';
+ end if;
+end $prerequisites$;
 do $activation$
 begin
  if to_regclass('public.orchestration_runs') is null then
@@ -803,6 +814,71 @@ create trigger guard_hr_hierarchy before insert or update on public.employees fo
 create function public.hr_hierarchy_ready() returns boolean language sql stable as $$ select true $$;
 revoke all on function public.hr_hierarchy_ready() from public,anon;
 grant execute on function public.hr_hierarchy_ready() to authenticated;
+
+$migration$;
+ end if;
+end $activation$;
+commit;
+
+begin;
+do $activation$ begin
+ if not exists(select 1 from pg_trigger where tgrelid='public.course_evidence'::regclass and tgname='audit') then
+ execute $migration$
+-- Solo se conservan valores operativos permitidos. Documentos, prompts y comentarios quedan fuera.
+create or replace function public.audit_change() returns trigger language plpgsql security definer set search_path='' as $$
+declare b jsonb; a jsonb; changed jsonb; changes jsonb; actor text;
+begin
+ if TG_OP <> 'INSERT' then b:=to_jsonb(old); end if;
+ if TG_OP <> 'DELETE' then a:=to_jsonb(new); end if;
+ if TG_OP='UPDATE' and a=b then return new; end if;
+ select coalesce(jsonb_agg(k order by k),'[]'::jsonb) into changed
+ from jsonb_object_keys(coalesce(a,b)) k where (b->k) is distinct from (a->k);
+ select coalesce(jsonb_object_agg(k,jsonb_build_object('before',b->k,'after',a->k)),'{}'::jsonb) into changes
+ from jsonb_object_keys(coalesce(a,b)) k where (b->k) is distinct from (a->k)
+ and k=any(array['name','full_name','title','status','role','active','priority','due_date','scheduled_at','progress','position_id','department_id','manager_id','employee_id','course_id','owner_role','requires_document','required','hire_date']);
+ select full_name into actor from public.profiles where id=auth.uid();
+ insert into public.audit_logs(user_id,action,resource_type,resource_id,metadata)
+ values(auth.uid(),TG_OP,TG_TABLE_NAME,coalesce(new.id,old.id),jsonb_build_object(
+ 'changed_fields',changed,'changes',changes,'actor_name',actor,'actor_role',public.current_role(),
+ 'resource_name',coalesce(a->>'title',a->>'full_name',a->>'name',b->>'title',b->>'full_name',b->>'name'),
+ 'previous_status',b->>'status','new_status',a->>'status'));
+ if TG_OP='DELETE' then return old; end if; return new;
+end $$;
+-- No auditar respuestas ni recibos de participación: se preserva el anonimato.
+create trigger audit after insert or update or delete on public.course_evidence for each row execute function public.audit_change();
+create trigger audit after insert or update or delete on public.climate_surveys for each row execute function public.audit_change();
+
+$migration$;
+ end if;
+end $activation$;
+commit;
+
+begin;
+do $activation$ begin
+ if to_regprocedure('public.complete_hiring_assignment(uuid,uuid,uuid,uuid)') is null then
+ execute $migration$
+alter table public.employees add column assignment_pending boolean not null default false;
+-- Solo las contrataciones nuevas generan pendientes; no altera expedientes anteriores.
+create function public.notify_hired_assignment() returns trigger language plpgsql security definer set search_path='' as $$
+begin
+ if new.status='CONTRATADO' and old.status is distinct from new.status then
+  update public.employees set assignment_pending=true where profile_id=(select profile_id from public.candidates where id=new.candidate_id);
+ end if;
+ return new;
+end $$;
+create trigger hired_assignment after update on public.applications for each row execute function public.notify_hired_assignment();
+create function public.complete_hiring_assignment(employee uuid, department uuid, target_position uuid, manager uuid default null) returns void
+language plpgsql security definer set search_path='' as $$
+begin
+ if not coalesce(public.is_hr(),false) then raise insufficient_privilege; end if;
+ perform 1 from public.employees where id=employee and assignment_pending and status='ACTIVE' for update;
+ if not found then raise exception 'ASSIGNMENT_NOT_PENDING' using errcode='22023'; end if;
+ if not exists(select 1 from public.positions where id=target_position and department_id=department) then raise exception 'INVALID_HIRING_AREA' using errcode='22023'; end if;
+ perform public.command('employee.save',jsonb_build_object('id',employee,'position_id',target_position,'manager_id',coalesce(manager::text,''),'status','ACTIVE'));
+ update public.employees set assignment_pending=false where id=employee;
+end $$;
+revoke all on function public.complete_hiring_assignment(uuid,uuid,uuid,uuid) from public,anon;
+grant execute on function public.complete_hiring_assignment(uuid,uuid,uuid,uuid) to authenticated;
 
 $migration$;
  end if;

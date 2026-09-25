@@ -102,13 +102,13 @@ La IA nunca decide permisos.
 
 ## 5. Roles
 
-| Rol | Acceso principal |
-|---|---|
-| `SUPERUSER` | usuarios, roles, puestos, auditoría |
-| `RH_ADMIN` | reclutamiento, empleados, onboarding, cursos, tareas, analytics |
-| `JEFE` | equipo, tareas y desempeño |
-| `EMPLEADO` | perfil, onboarding, cursos, tareas, evidencias, desempeño propio |
-| `CANDIDATO` | vacantes, CV, postulaciones e entrevistas propias |
+| Rol         | Acceso principal                                                 |
+| ----------- | ---------------------------------------------------------------- |
+| `SUPERUSER` | usuarios, roles, puestos, auditoría                              |
+| `RH_ADMIN`  | reclutamiento, empleados, onboarding, cursos, tareas, analytics  |
+| `JEFE`      | equipo, tareas y desempeño                                       |
+| `EMPLEADO`  | perfil, onboarding, cursos, tareas, evidencias, desempeño propio |
+| `CANDIDATO` | vacantes, CV, postulaciones e entrevistas propias                |
 
 ## 6. Modelo de datos mínimo
 
@@ -515,149 +515,7 @@ supabase/
 └── config.toml
 ```
 
-## 16. Plan de 14 días
-
-### Día 1 — Fundación
-
-- [ ] Repositorio.
-- [ ] Next.js/TypeScript/Tailwind.
-- [ ] Docker.
-- [ ] Supabase local.
-- [ ] Variables de entorno.
-- [ ] Estructura del proyecto.
-
-### Día 2 — Seguridad
-
-- [ ] Auth.
-- [ ] Profiles.
-- [ ] Roles.
-- [ ] Middleware.
-- [ ] RLS.
-- [ ] Layout por rol.
-
-### Día 3 — Reclutamiento I
-
-- [ ] Departments.
-- [ ] Positions.
-- [ ] Vacancies.
-- [ ] CRUD.
-- [ ] Dashboard inicial.
-
-### Día 4 — Reclutamiento II
-
-- [ ] Candidate profile.
-- [ ] CV upload.
-- [ ] Storage privado.
-- [ ] Applications.
-- [ ] Estados.
-
-### Día 5 — IA reclutamiento
-
-- [ ] AI Hub.
-- [ ] Gemini provider.
-- [ ] Prompt.
-- [ ] JSON schema.
-- [ ] Score.
-- [ ] Resumen.
-
-### Día 6 — Entrevistas + auditoría
-
-- [ ] Agenda.
-- [ ] Cambio de estados.
-- [ ] Candidate detail.
-- [ ] Audit logs.
-
-### Día 7 — Contratación
-
-- [ ] Hire endpoint.
-- [ ] Employee.
-- [ ] Onboarding.
-- [ ] Cursos iniciales.
-- [ ] Tareas iniciales.
-- [ ] Demo end-to-end.
-
-### Día 8 — Onboarding
-
-- [ ] Employee dashboard.
-- [ ] Checklist.
-- [ ] Buddy.
-- [ ] Documentos.
-
-### Día 9 — Cursos
-
-- [ ] CRUD.
-- [ ] Assignments.
-- [ ] Progreso.
-- [ ] Recomendación IA.
-
-### Día 10 — Tareas
-
-- [ ] CRUD.
-- [ ] Evidencias.
-- [ ] Storage.
-- [ ] Verificación IA.
-
-### Día 11 — Desempeño
-
-- [ ] KPIs.
-- [ ] Semáforo.
-- [ ] Resumen.
-- [ ] Organigrama si hay tiempo.
-
-### Día 12 — Clima + Analytics
-
-- [ ] Pulse survey.
-- [ ] Sugerencias.
-- [ ] Sentiment IA.
-- [ ] Dashboard.
-
-### Día 13 — QA y seguridad
-
-- [ ] RLS.
-- [ ] RBAC.
-- [ ] Storage.
-- [ ] Prompt injection.
-- [ ] Errores.
-- [ ] Seed.
-- [ ] E2E.
-
-### Día 14 — Entrega
-
-- [ ] Build.
-- [ ] Docker.
-- [ ] README.
-- [ ] Datos demo.
-- [ ] Corrección de bugs.
-- [ ] Guion de demo.
-- [ ] Presentación.
-
-## 17. Seed demo
-
-Crear como mínimo:
-
-```text
-1 SUPERUSER
-1 RH_ADMIN
-1 JEFE
-1 EMPLEADO
-1 CANDIDATO
-
-3 departamentos
-5 puestos
-3 vacantes
-5 candidatos
-5 aplicaciones
-2 entrevistas
-5 empleados
-5 cursos
-10 tareas
-10 evidencias
-2 encuestas
-```
-
-Usuario candidato de demo debe poder completar el flujo completo.
-
-## 18. Pruebas obligatorias
+## 16. Pruebas obligatorias
 
 ### Auth
 
@@ -704,7 +562,7 @@ Usuario candidato de demo debe poder completar el flujo completo.
 - [ ] IA verifica.
 - [ ] Dashboard RH.
 
-## 19. Criterios de aceptación
+## 17. Criterios de aceptación
 
 El MVP se considera funcional cuando:
 
@@ -729,7 +587,7 @@ El MVP se considera funcional cuando:
 19. Los permisos se respetan.
 20. Las operaciones críticas se auditan.
 
-## 20. Definition of Done
+## 18. Definition of Done
 
 Cada funcionalidad debe tener:
 
@@ -748,7 +606,7 @@ Cada funcionalidad debe tener:
 [ ] Documentación
 ```
 
-## 21. Regla de alcance
+## 19. Regla de alcance
 
 Si durante el desarrollo una nueva funcionalidad amenaza el flujo principal, se pospone.
 

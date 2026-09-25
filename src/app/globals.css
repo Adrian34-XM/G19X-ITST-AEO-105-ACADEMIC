@@ -1891,3 +1891,12 @@ summary:focus-visible {
 .person-select-options button {
   text-align: left;
 }
+
+.audit-change {
+  padding: 12px 0;
+  border-bottom: 1px solid #dde5e0;
+}
+.audit-change p {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
