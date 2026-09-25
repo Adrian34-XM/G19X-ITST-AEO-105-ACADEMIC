@@ -1,4 +1,5 @@
 "use client";
+import { TaskCalendar } from "./task-calendar";
 import { canEditStaff } from "@/modules/workspace/organization";
 /**
  * Interfaz principal por rol: navegación, listados, formularios y acciones de RRHH. Recibe datos filtrados por RLS; los botones no sustituyen los controles del servidor. Tras escribir, refresca los datos desde Next.js.
@@ -1297,6 +1298,7 @@ export function Workspace({
 
               {view === "applications" && !detail && (
                 <section aria-label="Postulaciones por estado">
+                  <TaskCalendar tasks={tableRows} basePath={href("tasks")} />
                   <div className="actions task-history-controls">
                     {Object.entries(applicationSections).map(
                       ([status, title]) => (
