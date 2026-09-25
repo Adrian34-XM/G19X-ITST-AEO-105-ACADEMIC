@@ -1631,10 +1631,32 @@ it("solo el superior de RH más alto o superusuario modifica la jerarquía de RH
     );
     staff.push(result.rows[0].id);
   }
-  const department = (await db.query<{department_id:string}>("select department_id from positions where id=$1",[pos])).rows[0].department_id;
-  const promoted = await command(ids.admin,"position.save",{name:"Dirección RH de prueba",department_id:department});
-  await expect(command(users[1],"employee.save",{id:staff[0],position_id:promoted,manager_id:"",status:"ACTIVE"})).rejects.toThrow("HR_HIERARCHY_FORBIDDEN");
-  await expect(command(users[0],"employee.save",{id:staff[2],position_id:promoted,manager_id:staff[1],status:"ACTIVE"})).resolves.toBe(staff[2]);
+  const department = (
+    await db.query<{ department_id: string }>(
+      "select department_id from positions where id=$1",
+      [pos],
+    )
+  ).rows[0].department_id;
+  const promoted = await command(ids.admin, "position.save", {
+    name: "Dirección RH de prueba",
+    department_id: department,
+  });
+  await expect(
+    command(users[1], "employee.save", {
+      id: staff[0],
+      position_id: promoted,
+      manager_id: "",
+      status: "ACTIVE",
+    }),
+  ).rejects.toThrow("HR_HIERARCHY_FORBIDDEN");
+  await expect(
+    command(users[0], "employee.save", {
+      id: staff[2],
+      position_id: promoted,
+      manager_id: staff[1],
+      status: "ACTIVE",
+    }),
+  ).resolves.toBe(staff[2]);
   const save = (id: string) => ({
     id,
     position_id: pos,
@@ -1677,34 +1699,162 @@ it("solo el superior de RH más alto o superusuario modifica la jerarquía de RH
   ).resolves.toBeDefined();
 });
 
-it("auditoría detalla cambios operativos solo para superusuario",async()=>{
- const id=await command(ids.admin,"department.save",{name:"Área auditoría inicial"});
- await command(ids.admin,"department.save",{id,name:"Área auditoría actualizada"});
- const logs=await as(ids.admin,"select metadata from audit_logs where resource_id=$1 and action='UPDATE' order by created_at desc",[id]);
- const meta=(logs.rows[0] as {metadata:unknown}).metadata as {changes:Record<string,{before:unknown;after:unknown}>;actor_name:string};
- expect(meta.changes.name).toEqual({before:"Área auditoría inicial",after:"Área auditoría actualizada"});
- expect(meta.actor_name).toBeTruthy();
- expect((await as(ids.hr,"select * from audit_logs where resource_id=$1",[id])).rows).toHaveLength(0);
- expect((await as(ids.manager,"select * from audit_logs where resource_id=$1",[id])).rows).toHaveLength(0);
- await db.exec("reset role");
- const triggers=await db.query<{name:string}>("select c.relname as name from pg_trigger t join pg_class c on c.oid=t.tgrelid where t.tgname='audit'");
- expect(triggers.rows.map(r=>r.name)).toContain("course_evidence");
- expect(triggers.rows.map(r=>r.name)).toContain("climate_surveys");
- expect(triggers.rows.map(r=>r.name)).not.toContain("climate_answers");
- expect(triggers.rows.map(r=>r.name)).not.toContain("climate_feedback");
+it("auditoría detalla cambios operativos solo para superusuario", async () => {
+  const id = await command(ids.admin, "department.save", {
+    name: "Área auditoría inicial",
+  });
+  await command(ids.admin, "department.save", {
+    id,
+    name: "Área auditoría actualizada",
+  });
+  const logs = await as(
+    ids.admin,
+    "select metadata from audit_logs where resource_id=$1 and action='UPDATE' order by created_at desc",
+    [id],
+  );
+  const meta = (logs.rows[0] as { metadata: unknown }).metadata as {
+    changes: Record<string, { before: unknown; after: unknown }>;
+    actor_name: string;
+  };
+  expect(meta.changes.name).toEqual({
+    before: "Área auditoría inicial",
+    after: "Área auditoría actualizada",
+  });
+  expect(meta.actor_name).toBeTruthy();
+  expect(
+    (await as(ids.hr, "select * from audit_logs where resource_id=$1", [id]))
+      .rows,
+  ).toHaveLength(0);
+  expect(
+    (
+      await as(ids.manager, "select * from audit_logs where resource_id=$1", [
+        id,
+      ])
+    ).rows,
+  ).toHaveLength(0);
+  await db.exec("reset role");
+  const triggers = await db.query<{ name: string }>(
+    "select c.relname as name from pg_trigger t join pg_class c on c.oid=t.tgrelid where t.tgname='audit'",
+  );
+  expect(triggers.rows.map((r) => r.name)).toContain("course_evidence");
+  expect(triggers.rows.map((r) => r.name)).toContain("climate_surveys");
+  expect(triggers.rows.map((r) => r.name)).not.toContain("climate_answers");
+  expect(triggers.rows.map((r) => r.name)).not.toContain("climate_feedback");
 });
 
-it("la contratación genera un aviso persistente y RH confirma la asignación",async()=>{
- await db.exec("reset role");
- const result=await db.query<{id:string;position_id:string;department_id:string;manager_id:string|null}>("select e.id,e.position_id,p.department_id,e.manager_id from employees e join positions p on p.id=e.position_id where e.assignment_pending and e.status='ACTIVE' limit 1");
- expect(result.rows).toHaveLength(1);
- const e=result.rows[0];
- const params=[e.id,e.department_id,e.position_id,e.manager_id];
- const sql="select complete_hiring_assignment($1,$2,$3,$4)";
- await expect(as(ids.manager,sql,params)).rejects.toThrow();
- await expect(as(ids.candidate,sql,params)).rejects.toThrow();
- await expect(as(ids.hr,sql,[e.id,'00000000-0000-4000-8000-000000000000',e.position_id,e.manager_id])).rejects.toThrow('INVALID_HIRING_AREA');
- await expect(as(ids.hr,sql,params)).resolves.toBeDefined();
- expect((await as(ids.admin,"select assignment_pending from employees where id=$1",[e.id])).rows).toEqual([{assignment_pending:false}]);
- await expect(as(ids.hr,sql,params)).rejects.toThrow('ASSIGNMENT_NOT_PENDING');
+it("la contratación genera un aviso persistente y RH confirma la asignación", async () => {
+  await db.exec("reset role");
+  const result = await db.query<{
+    id: string;
+    position_id: string;
+    department_id: string;
+    manager_id: string | null;
+  }>(
+    "select e.id,e.position_id,p.department_id,e.manager_id from employees e join positions p on p.id=e.position_id where e.assignment_pending and e.status='ACTIVE' limit 1",
+  );
+  expect(result.rows).toHaveLength(1);
+  const e = result.rows[0];
+  const params = [e.id, e.department_id, e.position_id, e.manager_id];
+  const sql = "select complete_hiring_assignment($1,$2,$3,$4)";
+  await expect(as(ids.manager, sql, params)).rejects.toThrow();
+  await expect(as(ids.candidate, sql, params)).rejects.toThrow();
+  await expect(
+    as(ids.hr, sql, [
+      e.id,
+      "00000000-0000-4000-8000-000000000000",
+      e.position_id,
+      e.manager_id,
+    ]),
+  ).rejects.toThrow("INVALID_HIRING_AREA");
+  await expect(as(ids.hr, sql, params)).resolves.toBeDefined();
+  expect(
+    (
+      await as(
+        ids.admin,
+        "select assignment_pending from employees where id=$1",
+        [e.id],
+      )
+    ).rows,
+  ).toEqual([{ assignment_pending: false }]);
+  await expect(as(ids.hr, sql, params)).rejects.toThrow(
+    "ASSIGNMENT_NOT_PENDING",
+  );
+});
+
+it("conversaciones de tarea: acceso, autor, reintentos e historial cerrado", async () => {
+  await db.exec("reset role");
+  const user = "70000000-0000-4000-8000-000000000001";
+  await db.query(
+    "insert into auth.users(id,email) values($1,'chat@test.local')",
+    [user],
+  );
+  await db.query("update profiles set role='EMPLEADO' where id=$1", [user]);
+  const boss = (
+    await db.query<{ id: string }>(
+      "select id from employees where profile_id=$1",
+      [ids.manager],
+    )
+  ).rows[0];
+  const eid = await command(ids.admin, "employee.enroll", {
+    profile_id: user,
+    position_id: pos,
+    manager_id: boss.id,
+  });
+  const task = await command(ids.hr, "task.save", {
+    title: "Conversación de prueba",
+    description: "Prueba de permisos",
+    employee_id: eid,
+    priority: "MEDIUM",
+    due_date: "2026-12-31",
+  });
+  const mid = "71000000-0000-4000-8000-000000000001";
+  const send = (who: string, message: string, id = mid) =>
+    as(who, "select send_task_message($1,$2,$3)", [task, message, id]);
+  await expect(send(user, "¿Qué debo entregar?")).resolves.toBeDefined();
+  await expect(send(user, "¿Qué debo entregar?")).resolves.toBeDefined();
+  const rows = await as(
+    ids.manager,
+    "select author_id,body from task_messages where task_id=$1",
+    [task],
+  );
+  expect(rows.rows).toEqual([{ author_id: user, body: "¿Qué debo entregar?" }]);
+  await expect(
+    send(
+      ids.manager,
+      "Adjunta un informe PDF.",
+      "71000000-0000-4000-8000-000000000002",
+    ),
+  ).resolves.toBeDefined();
+  await expect(
+    send(
+      ids.hr,
+      "RH confirma la instrucción.",
+      "71000000-0000-4000-8000-000000000003",
+    ),
+  ).resolves.toBeDefined();
+  await expect(
+    send(ids.other, "Mensaje ajeno", "71000000-0000-4000-8000-000000000004"),
+  ).rejects.toThrow();
+  expect(
+    (
+      await as(ids.other, "select * from task_messages where task_id=$1", [
+        task,
+      ])
+    ).rows,
+  ).toHaveLength(0);
+  await expect(
+    send(user, "   ", "71000000-0000-4000-8000-000000000005"),
+  ).rejects.toThrow();
+  await expect(
+    as(user, "update task_messages set body='alterado' where id=$1", [mid]),
+  ).rejects.toThrow();
+  await db.exec("reset role");
+  await db.query("update tasks set status='APPROVED' where id=$1", [task]);
+  await expect(
+    send(user, "Otro mensaje", "71000000-0000-4000-8000-000000000006"),
+  ).rejects.toThrow("TASK_CHAT_CLOSED");
+  expect(
+    (await as(user, "select * from task_messages where task_id=$1", [task]))
+      .rows,
+  ).toHaveLength(3);
 });

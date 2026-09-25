@@ -1,4 +1,5 @@
 "use client";
+import { TaskConversation } from "./task-conversation";
 import { TaskCalendar } from "./task-calendar";
 import { canEditStaff } from "@/modules/workspace/organization";
 /**
@@ -534,6 +535,7 @@ export function Workspace({
           <Badge status={value(t, "status")} />
         </div>
         <small>Fecha límite: {value(t, "due_date")}</small>
+        {profile && <TaskConversation taskId={t.id} userId={profile.id} />}
         <details open={!!detail}>
           <summary>Ver instrucciones, entrega y revisión</summary>
           <p>{value(t, "description")}</p>
@@ -1597,7 +1599,9 @@ export function Workspace({
               )}
               {view === "tasks" && (
                 <section>
-                  {!detail && <TaskCalendar tasks={tableRows} basePath={href("tasks")} />}
+                  {!detail && (
+                    <TaskCalendar tasks={tableRows} basePath={href("tasks")} />
+                  )}
                   {detail ? (
                     <>
                       <Link className="secondary" href={href("tasks")}>
