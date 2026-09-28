@@ -1,6 +1,7 @@
 "use client";
 /** Planes y documentos sobre el conjunto ya autorizado por RLS y los filtros de la vista. */
 import { WorkforceAI } from "./workforce-tools";
+import { OnboardingLearning } from "./onboarding-learning";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { request, Upload } from "./forms";
@@ -664,6 +665,23 @@ export function OnboardingPanel({
                           <div className="record" key={i.id}>
                             <h3>{value(i, "title")}</h3>
                             <p>{value(i, "description")}</p>
+                            {owner === "EMPLOYEE" && (
+                              <OnboardingLearning
+                                id={i.id}
+                                manage={
+                                  manages &&
+                                  ["PENDING", "IN_PROGRESS"].includes(
+                                    value(i, "status"),
+                                  )
+                                }
+                                own={
+                                  own &&
+                                  ["PENDING", "IN_PROGRESS"].includes(
+                                    value(i, "status"),
+                                  )
+                                }
+                              />
+                            )}
                             <p>
                               {owners[owner]}
                               {owner === "EMPLOYEE"

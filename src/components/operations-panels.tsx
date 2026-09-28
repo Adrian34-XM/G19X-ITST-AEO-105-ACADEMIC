@@ -831,6 +831,7 @@ function AnalyticsChart({ data, metric }: { data: Snapshot; metric: string }) {
 
 /** Vista exclusiva del superusuario; RLS y rutas también restringen el acceso. */
 export function AuditPanel({ data }: { data: Snapshot }) {
+  const [page, setPage] = useState(1);
   const [filter, setFilter] = useState(""),
     [module, setModule] = useState(""),
     [action, setAction] = useState("");
@@ -954,6 +955,10 @@ export function AuditPanel({ data }: { data: Snapshot }) {
     .sort((a, b) =>
       String(b.r.created_at).localeCompare(String(a.r.created_at)),
     );
+  const pages = Math.max(1, Math.ceil(rows.length / 30));
+  const currentPage = Math.min(page, pages);
+  const offset = (currentPage - 1) * 30;
+  const visibleRows = rows.slice(offset, offset + 30);
   return (
     <section className="panel">
       <h2>Historial de cambios de la plataforma</h2>
@@ -966,13 +971,22 @@ export function AuditPanel({ data }: { data: Snapshot }) {
           Buscar persona o registro
           <input
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              setPage(1);
+            }}
             placeholder="Nombre, título o identificador"
           />
         </label>
         <label>
           Módulo
-          <select value={module} onChange={(e) => setModule(e.target.value)}>
+          <select
+            value={module}
+            onChange={(e) => {
+              setModule(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">Todos los módulos</option>
             {Array.from(new Set(all.map(({ r }) => String(r.resource_type))))
               .sort()
@@ -985,7 +999,13 @@ export function AuditPanel({ data }: { data: Snapshot }) {
         </label>
         <label>
           Tipo de cambio
-          <select value={action} onChange={(e) => setAction(e.target.value)}>
+          <select
+            value={action}
+            onChange={(e) => {
+              setAction(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">Todos los cambios</option>
             {Array.from(new Set(all.map(({ r }) => String(r.action))))
               .sort()
@@ -1003,7 +1023,7 @@ export function AuditPanel({ data }: { data: Snapshot }) {
         registros antiguos pueden no contener valores anteriores.
       </p>
       <div className="record-grid">
-        {rows.map(({ r, m, actor, title }) => {
+        {visibleRows.map(({ r, m, actor, title }) => {
           const changes =
             m.changes && typeof m.changes === "object"
               ? (m.changes as Record<
@@ -1068,6 +1088,28 @@ export function AuditPanel({ data }: { data: Snapshot }) {
         })}
       </div>
       {!rows.length && <p>No hay eventos que coincidan con los filtros.</p>}
+      {rows.length > 0 && (
+        <nav aria-label="Paginación de auditoría" className="chart-filters">
+          <button
+            className="secondary"
+            disabled={currentPage === 1}
+            onClick={() => setPage(currentPage - 1)}
+          >
+            Anterior
+          </button>
+          <p role="status">
+            Página {currentPage} de {pages} · Cambios {offset + 1}–
+            {Math.min(offset + 30, rows.length)} de {rows.length}
+          </p>
+          <button
+            className="secondary"
+            disabled={currentPage === pages}
+            onClick={() => setPage(currentPage + 1)}
+          >
+            Siguiente
+          </button>
+        </nav>
+      )}
     </section>
   );
 }

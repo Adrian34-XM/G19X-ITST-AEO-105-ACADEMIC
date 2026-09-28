@@ -42,6 +42,11 @@ export async function POST(req: Request) {
         payload: body.payload,
       });
       if (error) {
+        if (error.message === "LEARNING_REQUIRED")
+          throw new ApiError(
+            422,
+            "Aprueba la evaluación del documento antes de enviar o completar esta actividad. Puedes repetirla.",
+          );
         if (error.code === "PGRST202")
           throw new ApiError(
             503,

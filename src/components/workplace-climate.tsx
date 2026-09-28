@@ -72,8 +72,23 @@ export function WorkplaceClimate({
     [loading, setLoading] = useState(true);
   const [surveyQuery, setSurveyQuery] = useState(""),
     [surveyStatus, setSurveyStatus] = useState("");
+  const myEmployee = (data.employees ?? []).find(
+    (e) => e.profile_id === profile.id,
+  );
+  const pendingSurveys = loaded.surveys.filter(
+    (s) =>
+      s.status === "OPEN" &&
+      !!myEmployee &&
+      loaded.assignments.some(
+        (a) => a.survey_id === s.id && a.employee_id === myEmployee.id,
+      ) &&
+      !loaded.participation.some(
+        (a) => a.survey_id === s.id && a.employee_id === myEmployee.id,
+      ),
+  );
   const visibleSurveys = loaded.surveys.filter(
     (s) =>
+      !pendingSurveys.some((p) => p.id === s.id) &&
       (!surveyStatus || s.status === surveyStatus) &&
       s.title.toLocaleLowerCase().includes(surveyQuery.toLocaleLowerCase()),
   );
@@ -349,6 +364,37 @@ export function WorkplaceClimate({
           </div>
         </section>
       )}
+      <section className="panel" aria-label="Mis encuestas pendientes">
+        <h3>Mis encuestas pendientes ({pendingSurveys.length})</h3>
+        <p>
+          Encuestas dirigidas a ti que aún no has respondido. Esta sección es
+          independiente de las encuestas que administras.
+        </p>
+        {loading ? (
+          <p role="status">Consultando tus asignaciones…</p>
+        ) : error ? (
+          <p>No se pudieron verificar tus encuestas pendientes.</p>
+        ) : !pendingSurveys.length ? (
+          <p>No tienes encuestas pendientes de responder.</p>
+        ) : (
+          pendingSurveys.map((s) => (
+            <details key={s.id} className="record">
+              <summary>Responder: {s.title}</summary>
+              <SurveyCard
+                survey={s}
+                assignments={loaded.assignments}
+                participation={loaded.participation}
+                data={data}
+                profile={profile}
+                reload={load}
+                respondentOnly
+                edit={() => {}}
+              />
+            </details>
+          ))
+        )}
+      </section>
+      <h3>Otras encuestas y seguimiento</h3>
       <div className="chart-filters">
         <label>
           Buscar encuesta
@@ -429,6 +475,7 @@ function SurveyCard({
   profile,
   reload,
   edit,
+  respondentOnly = false,
 }: {
   survey: Survey;
   assignments: Assignment[];
@@ -437,7 +484,9 @@ function SurveyCard({
   profile: Profile;
   reload: () => Promise<void>;
   edit: () => void;
+  respondentOnly?: boolean;
 }) {
+  const [recipientSearch, setRecipientSearch] = useState("");
   const [recipients, setRecipients] = useState<string[]>([]),
     [ratings, setRatings] = useState<Record<number, number>>({}),
     [comment, setComment] = useState(""),
@@ -445,8 +494,9 @@ function SurveyCard({
     [error, setError] = useState(""),
     [sent, setSent] = useState(false);
   const manages =
-    isHR(profile.role) ||
-    (profile.role === "JEFE" && s.created_by === profile.id);
+    !respondentOnly &&
+    (isHR(profile.role) ||
+      (profile.role === "JEFE" && s.created_by === profile.id));
   const mine = (data.employees ?? []).find((e) => e.profile_id === profile.id);
   const assigned = assignments.some(
     (a) => a.survey_id === s.id && a.employee_id === mine?.id,
@@ -472,6 +522,14 @@ function SurveyCard({
       (data.profiles ?? []).find((p) => p.id === id) ?? { id: "" },
       "full_name",
     );
+  const normalize = (text: string) =>
+    text
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  const visibleRecipients = eligible.filter((e) =>
+    normalize(name(e.profile_id)).includes(normalize(recipientSearch)),
+  );
   async function action(op: string, payload: unknown) {
     setBusy(true);
     setError("");
@@ -495,7 +553,7 @@ function SurveyCard({
         {{ DRAFT: "Borrador", OPEN: "Abierta", CLOSED: "Cerrada" }[s.status]}
       </span>
       <h3>{s.title}</h3>
-      {manages && (
+      {manages && s.status !== "DRAFT" && (
         <ClimateResults
           key={`${s.id}-${s.status}`}
           id={s.id}
@@ -513,32 +571,102 @@ function SurveyCard({
           <button className="secondary" disabled={busy} onClick={edit}>
             Editar preguntas
           </button>
-          <fieldset>
-            <legend>Asignar a personas de tu jerarquía</legend>
-            <button
-              className="secondary"
-              type="button"
-              onClick={() => setRecipients(eligible.map((e) => e.id))}
-            >
-              Seleccionar equipo visible
-            </button>
-            {eligible.map((e) => (
-              <label className="climate-recipient" key={e.id}>
-                <input
-                  type="checkbox"
-                  checked={recipients.includes(e.id)}
-                  onChange={(event) =>
-                    setRecipients((old) =>
-                      event.target.checked
-                        ? [...old, e.id]
-                        : old.filter((id) => id !== e.id),
-                    )
+          <details className="survey-assignment" open>
+            <summary>
+              Asignar destinatarios · {recipients.length} seleccionados
+            </summary>
+            <p className="muted">
+              Busca personas y revisa la selección antes de publicar.
+            </p>
+            <div className="survey-assignment-grid">
+              <fieldset disabled={busy}>
+                <legend>1. Elegir personas de tu jerarquía</legend>
+                <label>
+                  Buscar por nombre
+                  <input
+                    value={recipientSearch}
+                    onChange={(e) => setRecipientSearch(e.target.value)}
+                    placeholder="Escribe un nombre…"
+                  />
+                </label>
+                <button
+                  className="secondary"
+                  type="button"
+                  disabled={!visibleRecipients.length}
+                  onClick={() =>
+                    setRecipients((old) => [
+                      ...new Set([
+                        ...old,
+                        ...visibleRecipients.map((e) => e.id),
+                      ]),
+                    ])
                   }
-                />
-                {name(e.profile_id)}
-              </label>
-            ))}
-          </fieldset>
+                >
+                  Agregar resultados ({visibleRecipients.length})
+                </button>
+                <div className="survey-recipient-list">
+                  {visibleRecipients.map((e) => (
+                    <label className="climate-recipient" key={e.id}>
+                      <input
+                        type="checkbox"
+                        checked={recipients.includes(e.id)}
+                        onChange={(event) =>
+                          setRecipients((old) =>
+                            event.target.checked
+                              ? [...new Set([...old, e.id])]
+                              : old.filter((id) => id !== e.id),
+                          )
+                        }
+                      />
+                      <span>{name(e.profile_id)}</span>
+                    </label>
+                  ))}
+                  {!visibleRecipients.length && <p>No hay coincidencias.</p>}
+                </div>
+              </fieldset>
+              <section
+                className="survey-selected"
+                aria-label="Destinatarios seleccionados"
+              >
+                <h4>2. Revisar selección ({recipients.length})</h4>
+                {!recipients.length && (
+                  <p>Las personas que elijas aparecerán aquí.</p>
+                )}
+                <div className="survey-recipient-list">
+                  {eligible
+                    .filter((e) => recipients.includes(e.id))
+                    .map((e) => (
+                      <div className="survey-selected-person" key={e.id}>
+                        <span>{name(e.profile_id)}</span>
+                        <button
+                          className="secondary"
+                          type="button"
+                          disabled={busy}
+                          aria-label={"Quitar a " + name(e.profile_id)}
+                          onClick={() =>
+                            setRecipients((old) =>
+                              old.filter((id) => id !== e.id),
+                            )
+                          }
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    ))}
+                </div>
+                {!!recipients.length && (
+                  <button
+                    className="secondary"
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setRecipients([])}
+                  >
+                    Vaciar selección
+                  </button>
+                )}
+              </section>
+            </div>
+          </details>
           <p>
             {recipients.length} destinatarios seleccionados. Puedes asignar
             desde una persona. Los resultados anónimos y el análisis requieren
