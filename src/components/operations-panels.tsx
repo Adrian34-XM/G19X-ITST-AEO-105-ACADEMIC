@@ -71,6 +71,7 @@ export function OperationsPanel({
     [advice, setAdvice] = useState<Advice | null>(null),
     [generated, setGenerated] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [suggestion, setSuggestion] = useState("");
   const personalPerformance =
     area === "performance" && !canReviewTeamPerformance(data, profile);
   const [notificationKind, setNotificationKind] = useState("");
@@ -168,7 +169,8 @@ export function OperationsPanel({
   async function run(mode: "analyze" | "prompt" = "analyze") {
     setBusy(true);
     setError("");
-    setAdvice(null);
+    if (mode === "analyze") setAdvice(null);
+    else setSuggestion("");
     try {
       const r = await request("/api/ai/orchestrate", {
         area,
@@ -177,7 +179,7 @@ export function OperationsPanel({
         mode,
       });
       if (mode === "prompt") {
-        setPrompt(r.prompt);
+        setSuggestion(r.prompt);
         return;
       }
       setAdvice(r.result);
@@ -253,6 +255,23 @@ export function OperationsPanel({
           >
             ✧ Proponer instrucciones con IA
           </button>
+          {suggestion && (
+            <article className="ai-result" aria-live="polite">
+              <h3>Propuesta de instrucciones</h3>
+              <p style={{ whiteSpace: "pre-wrap" }}>{suggestion}</p>
+              <p className="muted">
+                Esta propuesta todavía no es un análisis de los datos. Puedes
+                usarla y editarla antes de generar las recomendaciones.
+              </p>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => setPrompt(suggestion)}
+              >
+                Usar estas instrucciones
+              </button>
+            </article>
+          )}
           <p className="muted">
             Se usan los filtros de esta vista. El servidor excluye nombres,
             correos, CV, evidencias y comentarios privados; envía

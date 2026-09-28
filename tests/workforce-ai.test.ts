@@ -166,3 +166,74 @@ it("la instrucción explícita prevalece sobre una gráfica incorrecta sugerida 
     },
   ]);
 });
+
+it("el prompt de tareas por fechas produce una sola gráfica cronológica", () => {
+  const proposed = [
+    {
+      title: "Duplicado",
+      dataset: "onboarding" as const,
+      group: "status" as const,
+      kind: "pie" as const,
+    },
+    {
+      title: "Duplicado",
+      dataset: "tasks" as const,
+      group: "department" as const,
+      kind: "bars" as const,
+    },
+  ];
+  const result = requestedCharts(
+    "hasta la actualidad como va el desempeño general de tareas del area de tecnologia en foma de barras que se organizen por fehcas hasta la actualidad",
+    proposed,
+  );
+  expect(result).toEqual([
+    {
+      title: "Tareas por fecha de creación",
+      dataset: "tasks",
+      group: "day",
+      kind: "bars",
+    },
+  ]);
+});
+it("elimina gráficas repetidas por configuración y distingue títulos", () => {
+  const base = {
+    title: "Igual",
+    dataset: "tasks" as const,
+    group: "status" as const,
+    kind: "bars" as const,
+  };
+  const result = requestedCharts("Resumen general", [
+    base,
+    base,
+    { ...base, kind: "pie" },
+  ]);
+  expect(result).toHaveLength(2);
+  expect(result[0].title).not.toBe(result[1].title);
+});
+it("ordena las fechas cronológicamente y excluye fechas ausentes o futuras", () => {
+  const data = {
+    tasks: [
+      { id: "1", created_at: "2026-09-20T12:00:00Z" },
+      { id: "2", created_at: "2026-09-01T12:00:00Z" },
+      { id: "3", created_at: "2026-10-01T12:00:00Z" },
+      { id: "4" },
+    ],
+  };
+  expect(
+    chartValues(
+      data,
+      { title: "", dataset: "tasks", group: "day", kind: "line" },
+      "2026-09-28",
+    ),
+  ).toEqual([
+    { label: "2026-09-01", count: 1 },
+    { label: "2026-09-20", count: 1 },
+  ]);
+  expect(
+    chartValues(
+      data,
+      { title: "", dataset: "tasks", group: "month", kind: "columns" },
+      "2026-09-28",
+    ),
+  ).toEqual([{ label: "2026-09", count: 2 }]);
+});

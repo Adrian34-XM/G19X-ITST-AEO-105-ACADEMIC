@@ -6,8 +6,8 @@ export const chartSchema = z
   .object({
     title: z.string().min(1).max(160),
     dataset: z.enum(["tasks", "course_assignments", "onboarding"]),
-    group: z.enum(["status", "department"]),
-    kind: z.enum(["bars", "pie"]),
+    group: z.enum(["status", "department", "day", "month"]),
+    kind: z.enum(["bars", "columns", "line", "pie", "donut"]),
   })
   .strict();
 export const chartAdvice = z
@@ -52,32 +52,97 @@ export function requestedCharts(prompt: string, proposed: Chart[]): Chart[] {
       ],
     ] as const
   ).filter(([, pattern]) => pattern.test(text));
-  const group = /por estados?/.test(text)
-    ? "status"
-    : /por (areas?|departamentos?)/.test(text)
-      ? "department"
-      : null;
-  const kind = /barras?/.test(text)
-    ? "bars"
-    : /circular|pastel|torta/.test(text)
-      ? "pie"
-      : null;
-  if (datasets.length === 1 && group && !/\bno\b/.test(text)) {
-    const [dataset, , label] = datasets[0];
-    return [
-      {
-        title: `${label} por ${group === "status" ? "estado" : "área"}`,
-        dataset,
-        group,
-        kind: kind ?? proposed[0]?.kind ?? "bars",
-      },
-    ];
-  }
-  return proposed;
+  const group: Chart["group"] | null = /por meses|mensual/.test(text)
+    ? "month"
+    : /fechas?|fehcas|por dias|diari|cronologic/.test(text)
+      ? "day"
+      : /por estados?/.test(text)
+        ? "status"
+        : /por (areas?|departamentos?)/.test(text)
+          ? "department"
+          : null;
+  const kind: Chart["kind"] | null = /lineas?|lineal/.test(text)
+    ? "line"
+    : /dona|anillo/.test(text)
+      ? "donut"
+      : /columnas?|barras? vertical/.test(text)
+        ? "columns"
+        : /barras?/.test(text)
+          ? "bars"
+          : /circular|pastel|torta/.test(text)
+            ? "pie"
+            : null;
+  const chosen: Chart[] =
+    datasets.length === 1 && !/\bno\b/.test(text)
+      ? [
+          {
+            title: "",
+            dataset: datasets[0][0],
+            group: group ?? proposed[0]?.group ?? "status",
+            kind: kind ?? proposed[0]?.kind ?? "bars",
+          },
+        ]
+      : proposed.map((c) => ({
+          ...c,
+          group: group ?? c.group,
+          kind: kind ?? c.kind,
+        }));
+  const names = {
+    tasks: "Tareas",
+    course_assignments: "Capacitaciones",
+    onboarding: "Incorporaciones",
+  };
+  const groups = {
+    status: "estado",
+    department: "área",
+    day: "fecha de creación",
+    month: "mes de creación",
+  };
+  const seen = new Set<string>();
+  return chosen
+    .filter((c) => {
+      const key = c.dataset + ":" + c.group + ":" + c.kind;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((c) => ({ ...c, title: names[c.dataset] + " por " + groups[c.group] }))
+    .map((c, _, all) => ({
+      ...c,
+      title:
+        all.filter((x) => x.title === c.title).length > 1
+          ? c.title +
+            " · " +
+            {
+              bars: "barras",
+              columns: "columnas",
+              line: "líneas",
+              pie: "circular",
+              donut: "dona",
+            }[c.kind]
+          : c.title,
+    }));
 }
-export function chartValues(data: Snapshot, chart: Chart) {
+
+export function chartValues(
+  data: Snapshot,
+  chart: Chart,
+  today = new Date().toISOString().slice(0, 10),
+) {
   const groups = new Map<string, number>();
   for (const row of data[chart.dataset] ?? []) {
+    if (chart.group === "day" || chart.group === "month") {
+      const date = value(row, "created_at").slice(0, 10);
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+        Number.isNaN(Date.parse(date)) ||
+        date > today
+      )
+        continue;
+      const key = chart.group === "month" ? date.slice(0, 7) : date;
+      groups.set(key, (groups.get(key) ?? 0) + 1);
+      continue;
+    }
     const employee = (data.employees ?? []).find(
       (e) => e.id === row.employee_id,
     );
@@ -97,7 +162,11 @@ export function chartValues(data: Snapshot, chart: Chart) {
   }
   return [...groups]
     .map(([label, count]) => ({ label, count }))
-    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+    .sort((a, b) =>
+      chart.group === "day" || chart.group === "month"
+        ? a.label.localeCompare(b.label)
+        : b.count - a.count || a.label.localeCompare(b.label),
+    );
 }
 export function workforceMetrics(data: Snapshot) {
   const metrics = Object.fromEntries(

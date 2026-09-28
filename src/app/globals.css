@@ -2000,3 +2000,7 @@ summary:focus-visible {
   gap: 8px;
   margin-top: 12px;
 }
+.training-review-message { margin: 12px 0; padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc; }
+.training-review-message[data-rejected="true"] { border-color: #e4a38c; background: #fff4ed; color: #71341c; }
+.training-review-message h4 { margin-top: 0; }
+.training-review-comments { white-space: pre-wrap; overflow-wrap: anywhere; }

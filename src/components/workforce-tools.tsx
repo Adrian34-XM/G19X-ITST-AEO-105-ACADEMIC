@@ -13,9 +13,40 @@ import { TrainingEvidence } from "./training-evidence";
 type Graph = {
   title: string;
   kind: string;
+  dataset?: string;
+  group?: string;
   values: { label: string; count: number }[];
 };
 export function DataGraph({ chart }: { chart: Graph }) {
+  const [selectedKind, setSelectedKind] = useState("");
+  const kind = selectedKind || chart.kind;
+  const unit =
+    chart.dataset === "tasks"
+      ? "tareas"
+      : chart.dataset === "course_assignments"
+        ? "capacitaciones"
+        : chart.dataset === "onboarding"
+          ? "incorporaciones"
+          : "registros";
+  const dated =
+    chart.group === "day" ||
+    chart.group === "month" ||
+    chart.values.every((v) => /^\d{4}-\d{2}(-\d{2})?$/.test(v.label));
+  const label = (raw: string) => {
+    if (!/^\d{4}-\d{2}(-\d{2})?$/.test(raw)) {
+      const translated = stateLabel(raw);
+      return translated === "Estado no reconocido" ? raw : translated;
+    }
+    const date = new Date(`${raw.length === 7 ? `${raw}-01` : raw}T12:00:00Z`);
+    return Number.isNaN(date.getTime())
+      ? raw
+      : date.toLocaleDateString("es-MX", {
+          timeZone: "UTC",
+          year: "numeric",
+          month: "long",
+          ...(raw.length === 10 ? { day: "numeric" as const } : {}),
+        });
+  };
   const total = chart.values.reduce((s, v) => s + v.count, 0),
     max = Math.max(1, ...chart.values.map((v) => v.count));
   const colors = [
@@ -38,11 +69,21 @@ export function DataGraph({ chart }: { chart: Graph }) {
   return (
     <article className="record">
       <h3>{chart.title}</h3>
+      <label>
+        Tipo de gráfica
+        <select value={kind} onChange={(e) => setSelectedKind(e.target.value)}>
+          <option value="bars">Barras horizontales</option>
+          <option value="columns">Columnas</option>
+          <option value="line">Líneas</option>
+          <option value="pie">Circular</option>
+          <option value="donut">Dona</option>
+        </select>
+      </label>
       {!total ? (
         <p>Sin datos con estos filtros.</p>
       ) : (
         <>
-          {chart.kind === "pie" && (
+          {["pie", "donut"].includes(kind) && (
             <div
               role="img"
               aria-label={`${chart.title}: ${chart.values.map((v) => `${v.label} ${v.count}`).join(", ")}`}
@@ -52,15 +93,128 @@ export function DataGraph({ chart }: { chart: Graph }) {
                 borderRadius: "50%",
                 background: `conic-gradient(${slices.join(",")})`,
                 margin: "12px auto",
+                ...(kind === "donut"
+                  ? {
+                      maskImage:
+                        "radial-gradient(circle, transparent 38%, black 39%)",
+                    }
+                  : {}),
               }}
             />
           )}
+          {["line", "columns"].includes(kind) && (
+            <div style={{ overflowX: "auto" }}>
+              <svg
+                role="img"
+                aria-label={`${chart.title}: ${chart.values.map((v) => `${v.label}: ${v.count}`).join(", ")}`}
+                viewBox={`0 0 ${Math.max(360, chart.values.length * 65)} 230`}
+                style={{
+                  width: "100%",
+                  minWidth: Math.max(360, chart.values.length * 65),
+                  height: 230,
+                }}
+              >
+                <line
+                  x1={25}
+                  y1={190}
+                  x2={Math.max(360, chart.values.length * 65) - 10}
+                  y2={190}
+                  stroke="currentColor"
+                />
+                {kind === "line" && (
+                  <polyline
+                    fill="none"
+                    stroke="#2761a2"
+                    strokeWidth={3}
+                    points={chart.values
+                      .map(
+                        (v, i) =>
+                          `${40 + i * ((Math.max(360, chart.values.length * 65) - 70) / Math.max(1, chart.values.length - 1))},${190 - (v.count / max) * 150}`,
+                      )
+                      .join(" ")}
+                  />
+                )}
+                {chart.values.map((v, i) => {
+                  const x =
+                    40 +
+                    i *
+                      ((Math.max(360, chart.values.length * 65) - 70) /
+                        Math.max(1, chart.values.length - 1));
+                  const y = 190 - (v.count / max) * 150;
+                  return (
+                    <g key={v.label}>
+                      <title>
+                        {label(v.label)}: {v.count} {unit}
+                      </title>
+                      {kind === "line" ? (
+                        <circle cx={x} cy={y} r={4} fill="#2761a2" />
+                      ) : (
+                        <rect
+                          x={x - 14}
+                          y={y}
+                          width={28}
+                          height={190 - y}
+                          fill={colors[i % colors.length]}
+                        />
+                      )}
+                      <text
+                        x={x}
+                        y={y - 8}
+                        textAnchor="middle"
+                        fontSize={12}
+                        fill="currentColor"
+                      >
+                        {v.count}
+                      </text>
+                      <text
+                        x={x}
+                        y={210}
+                        textAnchor="middle"
+                        fontSize={10}
+                        fill="currentColor"
+                      >
+                        {i + 1}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+              <p className="muted">
+                Los números del eje corresponden a las categorías del listado
+                inferior. Eje vertical: cantidad de {unit}.
+              </p>
+            </div>
+          )}
+          <h4>Leyenda: qué representa cada color</h4>
+          <p className="muted">
+            {kind === "line"
+              ? `La línea azul muestra la cantidad de ${unit} en cada categoría.`
+              : dated
+                ? `Los colores distinguen las fechas de creación de los registros; no indican su estado ni su prioridad.`
+                : `Cada color identifica una categoría del listado.`}
+          </p>
           {chart.values.map((v, i) => (
             <div key={v.label} className="chart-count">
               <span>
-                {v.label}: <strong>{v.count}</strong>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: "inline-block",
+                    width: 14,
+                    height: 14,
+                    borderRadius: 3,
+                    marginRight: 8,
+                    background:
+                      kind === "line" ? colors[0] : colors[i % colors.length],
+                  }}
+                />
+                {["line", "columns"].includes(kind) ? `${i + 1}. ` : ""}
+                {label(v.label)}:{" "}
+                <strong>
+                  {v.count} {unit}
+                </strong>
               </span>
-              {chart.kind === "bars" ? (
+              {kind === "bars" ? (
                 <div
                   style={{
                     height: 12,

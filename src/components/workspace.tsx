@@ -17,7 +17,11 @@ import { OnboardingPanel } from "./onboarding-panel";
 import { EmployeePicker } from "./employee-picker";
 import { labels, stateLabel } from "@/modules/workspace/labels";
 import { sortTasks } from "@/modules/workspace/tasks";
-import { TrainingResources, TrainingEvidence } from "./training-evidence";
+import {
+  TrainingResources,
+  TrainingEvidence,
+  TrainingReviewMessage,
+} from "./training-evidence";
 import { HireCandidate, HiringAssignmentNotices } from "./hire-candidate";
 import { BulkAssignment } from "./bulk-assignment";
 import { EmployeeProfile } from "./employee-profile";
@@ -1798,12 +1802,15 @@ export function Workspace({
                           return (
                             <article className="record" key={a.id}>
                               <Badge status={value(a, "status")} />
-                              {!!a.review_comments && (
-                                <p>
-                                  Observaciones del responsable:{" "}
-                                  {value(a, "review_comments")}
-                                </p>
-                              )}
+                              <TrainingReviewMessage
+                                assignment={a}
+                                reviewer={
+                                  value(
+                                    find("profiles", a.reviewed_by),
+                                    "full_name",
+                                  ) || undefined
+                                }
+                              />
                               {a.progress_review_pending === true && (
                                 <p>Avance o evidencia pendiente de revisión.</p>
                               )}
@@ -1926,6 +1933,17 @@ export function Workspace({
                                 />
                                 <Badge status={value(a, "status")} />
                                 <TrainingEvidence
+                                  reviewMessage={
+                                    <TrainingReviewMessage
+                                      assignment={a}
+                                      reviewer={
+                                        value(
+                                          find("profiles", a.reviewed_by),
+                                          "full_name",
+                                        ) || undefined
+                                      }
+                                    />
+                                  }
                                   assignmentId={a.id}
                                   progress={Number(a.progress)}
                                   status={value(a, "status")}
