@@ -541,6 +541,7 @@ function SurveyCard({
         setRatings({});
       }
       await reload();
+      window.dispatchEvent(new Event("climate-updated"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo completar.");
     } finally {

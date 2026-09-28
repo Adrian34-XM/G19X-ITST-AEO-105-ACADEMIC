@@ -1,3 +1,4 @@
+import { nonWorkingDay } from "@/lib/working-days";
 /**
  * Esquemas Zod de las operaciones permitidas. Rechaza campos inesperados y valida identificadores, estados y límites antes de ejecutar la función SQL command.
  */
@@ -9,6 +10,8 @@ const id = z.uuid(),
   date = z.iso.date();
 const optionalId = id.optional();
 export const schemas = {
+  "department.delete": z.object({ id }).strict(),
+  "position.delete": z.object({ id }).strict(),
   "department.save": z.object({ id: optionalId, name: short }).strict(),
   "position.save": z
     .object({ id: optionalId, name: short, department_id: id })
@@ -109,7 +112,10 @@ export const schemas = {
       description: text,
       employee_id: id,
       priority: z.enum(["LOW", "MEDIUM", "HIGH"]),
-      due_date: date,
+      due_date: date.refine(
+        (v) => !nonWorkingDay(v),
+        "Selecciona un día hábil de México (lunes a viernes, sin descansos obligatorios).",
+      ),
     })
     .strict(),
   "task.status": z

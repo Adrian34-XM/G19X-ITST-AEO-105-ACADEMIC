@@ -235,7 +235,13 @@ async function mutate(req: Request, ctx: Ctx) {
     if (op === "interview.save")
       await validateInterviewSchedule(client, payload);
     if (op === "course.progress") await requireCourseEvidenceSchema(client);
-    const { data, error } = await client.rpc("command", { op, payload });
+    const { data, error } =
+      op === "department.save"
+        ? await client.rpc("save_department", {
+            target: schemas["department.save"].parse(payload).id ?? null,
+            title: schemas["department.save"].parse(payload).name,
+          })
+        : await client.rpc("command", { op, payload });
     if (error) databaseError(error);
     return NextResponse.json(data, {
       status: req.method === "POST" ? 201 : 200,

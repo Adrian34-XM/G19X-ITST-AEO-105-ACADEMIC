@@ -1,4 +1,5 @@
 "use client";
+import { ModuleBadge } from "./module-badge";
 import { TaskConversation } from "./task-conversation";
 import { TaskCalendar } from "./task-calendar";
 import { canEditStaff } from "@/modules/workspace/organization";
@@ -186,6 +187,7 @@ export function Workspace({
         ? t.status === "SUBMITTED"
         : !["APPROVED", "SUBMITTED"].includes(value(t, "status"));
   const [applicationStatus, setApplicationStatus] = useState("POSTULADO");
+  const [navigationSearch, setNavigationSearch] = useState("");
   const authorized = profile ? scopeData(rawData, profile) : rawData;
   const filterable = [
     "onboarding",
@@ -346,6 +348,8 @@ export function Workspace({
       : hr
         ? [
             "overview",
+            "positions",
+            "departments",
             "vacancies",
             "applications",
             "interviews",
@@ -435,7 +439,8 @@ export function Workspace({
   const canCreate =
     (hr && ["vacancies", "interviews", "courses", "tasks"].includes(view)) ||
     (manager && view === "tasks") ||
-    (admin && ["users", "positions", "departments"].includes(view));
+    (hr && ["positions", "departments"].includes(view)) ||
+    (admin && ["users", "departments"].includes(view));
   const tableView =
     view === "users" ? "profiles" : view === "audit" ? "audit_logs" : view;
   const tableRows = filtered(tableView).filter(
@@ -660,23 +665,51 @@ export function Workspace({
         <div className="workspace-label">
           GESTIÓN DE TALENTO <span>WORKSPACE</span>
         </div>
-        <nav>
-          {(profile ? nav : ["jobs"]).map((key, i) => {
-            const Icon = icons[i % icons.length];
-            return (
-              <Link
-                key={key}
-                className={key === view ? "active" : ""}
-                href={href(key)}
-              >
-                <Icon size={19} />
-                {titles[key]}
-                {key === "applications" && rows("applications").length > 0 && (
-                  <em>{rows("applications").length}</em>
-                )}
-              </Link>
-            );
-          })}
+        <label className="navigation-search">
+          Buscar módulo
+          <input
+            type="search"
+            value={navigationSearch}
+            onChange={(e) => setNavigationSearch(e.target.value)}
+            placeholder="Tareas, equipo, encuestas…"
+          />
+        </label>
+        <nav aria-label="Módulos del sistema">
+          {(profile ? nav : ["jobs"])
+            .filter((key) =>
+              titles[key]
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase()
+                .includes(
+                  navigationSearch
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .toLowerCase(),
+                ),
+            )
+            .map((key) => {
+              const i = (profile ? nav : ["jobs"]).indexOf(key);
+              const Icon = icons[i % icons.length];
+              return (
+                <Link
+                  key={key}
+                  aria-current={key === view ? "page" : undefined}
+                  className={key === view ? "active" : ""}
+                  href={href(key)}
+                >
+                  <Icon size={19} />
+                  {titles[key]}
+                  {profile && (
+                    <ModuleBadge
+                      module={key}
+                      data={authorized}
+                      profile={profile}
+                    />
+                  )}
+                </Link>
+              );
+            })}
         </nav>
         <div className="sidebar-bottom">
           <div className="security-note">
@@ -2323,10 +2356,14 @@ export function Workspace({
                               )}
                             </td>
                             <td>
-                              {((admin &&
-                                ["users", "positions", "departments"].includes(
-                                  view,
-                                )) ||
+                              {((hr &&
+                                ["positions", "departments"].includes(view)) ||
+                                (admin &&
+                                  [
+                                    "users",
+                                    "positions",
+                                    "departments",
+                                  ].includes(view)) ||
                                 (hr &&
                                   view === "employees" &&
                                   profile &&
@@ -2337,6 +2374,58 @@ export function Workspace({
                                   onClick={() => edit(tableView, r)}
                                 >
                                   Editar
+                                </button>
+                              )}
+                              {view === "departments" && hr && (
+                                <button
+                                  className="secondary"
+                                  disabled={
+                                    busy ||
+                                    (authorized.positions ?? []).some(
+                                      (p) => p.department_id === r.id,
+                                    )
+                                  }
+                                  title="Solo se pueden eliminar áreas sin puestos ni otros registros vinculados"
+                                  onClick={() => {
+                                    if (
+                                      window.confirm(
+                                        `¿Eliminar el área «${value(r, "name")}»? Esta acción no se puede deshacer.`,
+                                      )
+                                    )
+                                      void act("department.delete", {
+                                        id: r.id,
+                                      });
+                                  }}
+                                >
+                                  Eliminar área
+                                </button>
+                              )}
+                              {view === "positions" && hr && (
+                                <button
+                                  className="secondary"
+                                  disabled={
+                                    busy ||
+                                    (authorized.employees ?? []).some(
+                                      (e) => e.position_id === r.id,
+                                    )
+                                  }
+                                  title={
+                                    (authorized.employees ?? []).some(
+                                      (e) => e.position_id === r.id,
+                                    )
+                                      ? "Puesto asignado a una persona"
+                                      : "Eliminar puesto sin asignaciones"
+                                  }
+                                  onClick={() => {
+                                    if (
+                                      window.confirm(
+                                        `¿Eliminar el puesto «${value(r, "name")}»? Esta acción no se puede deshacer.`,
+                                      )
+                                    )
+                                      void act("position.delete", { id: r.id });
+                                  }}
+                                >
+                                  Eliminar puesto
                                 </button>
                               )}
                               {view === "candidates" && hr && (

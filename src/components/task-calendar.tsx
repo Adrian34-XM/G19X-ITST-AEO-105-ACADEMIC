@@ -1,4 +1,5 @@
 "use client";
+import { nonWorkingDay } from "@/lib/working-days";
 import { useState } from "react";
 import Link from "next/link";
 import { type Row, value } from "@/modules/workspace/types";
@@ -90,6 +91,7 @@ export function TaskCalendar({
             <button
               key={date}
               className="calendar-day task-calendar-day"
+              title={nonWorkingDay(date) ?? "Día hábil"}
               data-priority={items[0]?.priority as string | undefined}
               aria-pressed={selected === date}
               aria-label={`${date}: ${items.length} tareas${counts.map((p) => `, ${p.count} prioridad ${stateLabel(p.priority)}`).join("")}`}

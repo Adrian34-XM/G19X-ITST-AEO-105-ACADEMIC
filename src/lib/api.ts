@@ -1,3 +1,4 @@
+import { mexicoDate, nonWorkingDay } from "@/lib/working-days";
 /**
  * Utilidades HTTP comunes: control de origen, lectura limitada de JSON y traducción de errores. Evita devolver mensajes internos de base de datos o excepciones que podrían contener información sensible.
  */
@@ -40,7 +41,15 @@ export async function validateInterviewSchedule(
   payload: Record<string, unknown>,
 ) {
   const time = new Date(String(payload.scheduled_at)).getTime();
-  if (time >= Date.now()) return;
+  if (time >= Date.now()) {
+    const reason = nonWorkingDay(mexicoDate(String(payload.scheduled_at)));
+    if (reason)
+      throw new ApiError(
+        422,
+        `No se pueden agendar entrevistas: ${reason}. Selecciona un día hábil (hora de Ciudad de México).`,
+      );
+    return;
+  }
   if (payload.id) {
     const { data } = await client
       .from("interviews")

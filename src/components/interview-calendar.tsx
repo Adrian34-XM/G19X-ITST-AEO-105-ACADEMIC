@@ -1,5 +1,6 @@
 "use client";
 /** Agenda local: el servidor conserva la validación definitiva de conflictos. */
+import { nonWorkingDay, mexicoDate } from "@/lib/working-days";
 import { useState } from "react";
 import { type Snapshot, type Row, value } from "@/modules/workspace/types";
 export function InterviewCalendar({
@@ -20,7 +21,7 @@ export function InterviewCalendar({
     (i) => i.status === "SCHEDULED",
   );
   const dayItems = active.filter(
-    (i) => key(new Date(value(i, "scheduled_at"))) === selected,
+    (i) => mexicoDate(value(i, "scheduled_at")) === selected,
   );
   const offset = (month.getDay() + 6) % 7;
   const count = new Date(
@@ -86,7 +87,7 @@ export function InterviewCalendar({
             new Date(month.getFullYear(), month.getMonth(), i + 1),
           );
           const total = active.filter(
-            (a) => key(new Date(value(a, "scheduled_at"))) === date,
+            (a) => mexicoDate(value(a, "scheduled_at")) === date,
           ).length;
           return (
             <button
@@ -94,13 +95,15 @@ export function InterviewCalendar({
               aria-pressed={selected === date}
               aria-label={`${date}: ${total ? `${total} entrevista${total === 1 ? " agendada" : "s agendadas"}` : "Sin entrevistas agendadas"}`}
               key={date}
+              disabled={!!nonWorkingDay(date) && total === 0}
+              title={nonWorkingDay(date) ?? "Día hábil"}
               onClick={() => setSelected(date)}
             >
               <span>{i + 1}</span>
               <small>
                 {total
                   ? `${total} cita${total === 1 ? "" : "s"}`
-                  : "Disponible"}
+                  : (nonWorkingDay(date) ?? "Disponible")}
               </small>
             </button>
           );
@@ -124,7 +127,7 @@ export function InterviewCalendar({
           ))}
           {!dayItems.length && <p>No hay citas programadas este día.</p>}
           <button
-            disabled={selected < key(new Date())}
+            disabled={selected < key(new Date()) || !!nonWorkingDay(selected)}
             onClick={() =>
               onSelect({
                 id: "",
@@ -138,7 +141,7 @@ export function InterviewCalendar({
           >
             {selected < key(new Date())
               ? "No se puede agendar en fechas pasadas"
-              : "Agendar candidato en este día"}
+              : nonWorkingDay(selected) ?? "Agendar candidato en este día"}
           </button>
         </div>
       )}
