@@ -4,6 +4,7 @@ import { request } from "./forms";
 import { DataGraph } from "./workforce-tools";
 type Results = {
   responses: number;
+  status?: string;
   invited: number;
   comments: string[];
   feedback?: string[];
@@ -19,6 +20,13 @@ export function ClimateResults({
   const [data, setData] = useState<Results | null>(null),
     [error, setError] = useState(""),
     [revision, setRevision] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [analysis, setAnalysis] = useState<{
+    summary: string;
+    strengths: string[];
+    risks: string[];
+    recommendations: string[];
+  } | null>(null);
   useEffect(() => {
     let active = true;
     fetch(`/api/climate?survey=${encodeURIComponent(id)}`, {
@@ -41,7 +49,14 @@ export function ClimateResults({
   }, [id, revision]);
   return (
     <section>
-      <button className="secondary" onClick={() => setRevision((r) => r + 1)}>
+      <button
+        className="secondary"
+        disabled={busy}
+        onClick={() => {
+          setAnalysis(null);
+          setRevision((r) => r + 1);
+        }}
+      >
         Actualizar participación
       </button>
       {error && <p className="error">{error}</p>}
@@ -92,6 +107,78 @@ export function ClimateResults({
                 con al menos cinco respuestas.
               </p>
             )}
+            <article className="record">
+              <h4>Lectura de las gráficas</h4>
+              <p>
+                Han respondido {data.responses} personas; faltan{" "}
+                {Math.max(0, data.invited - data.responses)} de las{" "}
+                {data.invited} invitadas. La participación no mide satisfacción.
+              </p>
+              <p>
+                Los promedios describen las respuestas recibidas, no la opinión
+                de quienes aún no respondieron. No permiten deducir causas ni
+                cambios a lo largo del tiempo.
+              </p>
+              <button
+                disabled={
+                  busy ||
+                  data.status !== "CLOSED" ||
+                  data.responses < 5 ||
+                  !data.averages.length
+                }
+                onClick={async () => {
+                  setBusy(true);
+                  setError("");
+                  setAnalysis(null);
+                  try {
+                    const response = await request("/api/climate", {
+                      op: "ai.graphs",
+                      payload: { id },
+                    });
+                    setAnalysis(response.result);
+                  } catch (e) {
+                    setError(
+                      e instanceof Error
+                        ? e.message
+                        : "No se pudo analizar las gráficas.",
+                    );
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                {busy ? "Analizando gráficas…" : "Analizar gráficas con IA"}
+              </button>
+              <p className="muted">
+                Disponible al cerrar la encuesta y reunir al menos cinco
+                respuestas. La IA recibe preguntas, participación y promedios;
+                no recibe comentarios ni identidades.
+              </p>
+              {analysis && (
+                <div className="ai-result" role="status">
+                  <h4>Análisis de las gráficas con IA</h4>
+                  <p>{analysis.summary}</p>
+                  {[
+                    ["Fortalezas", analysis.strengths],
+                    ["Aspectos por revisar", analysis.risks],
+                    ["Próximos pasos", analysis.recommendations],
+                  ].map(([title, items]) => (
+                    <div key={String(title)}>
+                      <strong>{title}</strong>
+                      <ul>
+                        {(items as string[]).map((item, i) => (
+                          <li key={i}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  <p className="muted">
+                    Interpretación orientativa: contrasta las conclusiones con
+                    las cifras de las gráficas. Requiere revisión humana.
+                  </p>
+                </div>
+              )}
+            </article>
             <h4>Comentarios anónimos de encuestas</h4>
             {data.comments.map((c, i) => (
               <blockquote key={i}>{c}</blockquote>

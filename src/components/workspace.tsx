@@ -2011,40 +2011,70 @@ export function Workspace({
                       </p>
                     </div>
                   )}
+                  {view === "analytics" && (
+                    <div className="report-section-heading">
+                      <h2>Analíticas de procesos de RH</h2>
+                      <p>
+                        Volúmenes, distribución y evolución de registros. Estos
+                        indicadores describen procesos, no califican a las
+                        personas.
+                      </p>
+                    </div>
+                  )}
                   <div className="kpi-grid">
-                    {[
-                      [
-                        view === "performance"
-                          ? personalPerformance
-                            ? "Mis tareas"
-                            : "Personas en seguimiento"
-                          : "Candidatos",
-                        rows(
-                          view === "performance"
-                            ? personalPerformance
-                              ? "tasks"
-                              : "employees"
-                            : "candidates",
-                        ).length,
-                      ],
-                      [
-                        "Incorporaciones completadas",
-                        rows("onboarding").filter(
-                          (a) => a.status === "COMPLETED",
-                        ).length,
-                      ],
-                      [
-                        "Cursos completados",
-                        scopedCourses.filter((c) => c.status === "COMPLETED")
-                          .length,
-                      ],
-                      [
-                        "Tareas vencidas",
-                        scopedTasks.filter((t) =>
-                          overdue(t, new Date().toISOString().slice(0, 10)),
-                        ).length,
-                      ],
-                    ].map(([label, n]) => (
+                    {(view === "analytics"
+                      ? [
+                          ["Vacantes en el alcance", rows("vacancies").length],
+                          [
+                            "Postulaciones recibidas",
+                            rows("applications").length,
+                          ],
+                          [
+                            "Entrevistas registradas",
+                            rows("interviews").length,
+                          ],
+                          [
+                            "Postulaciones contratadas",
+                            rows("applications").filter(
+                              (a) => a.status === "CONTRATADO",
+                            ).length,
+                          ],
+                        ]
+                      : [
+                          [
+                            view === "performance"
+                              ? personalPerformance
+                                ? "Mis tareas"
+                                : "Personas en seguimiento"
+                              : "Candidatos",
+                            rows(
+                              view === "performance"
+                                ? personalPerformance
+                                  ? "tasks"
+                                  : "employees"
+                                : "candidates",
+                            ).length,
+                          ],
+                          [
+                            "Incorporaciones completadas",
+                            rows("onboarding").filter(
+                              (a) => a.status === "COMPLETED",
+                            ).length,
+                          ],
+                          [
+                            "Cursos completados",
+                            scopedCourses.filter(
+                              (c) => c.status === "COMPLETED",
+                            ).length,
+                          ],
+                          [
+                            "Tareas vencidas",
+                            scopedTasks.filter((t) =>
+                              overdue(t, new Date().toISOString().slice(0, 10)),
+                            ).length,
+                          ],
+                        ]
+                    ).map(([label, n]) => (
                       <article className="kpi" key={label}>
                         <span>{label}</span>
                         <strong>{n}</strong>
@@ -2072,7 +2102,11 @@ export function Workspace({
                         hint: "Avances y perfiles",
                       },
                     ]
-                      .filter((t) => !personalPerformance || t.id !== "people")
+                      .filter(
+                        (t) =>
+                          t.id !== "people" ||
+                          (view === "performance" && !personalPerformance),
+                      )
                       .map((t) => (
                         <button
                           key={t.id}
@@ -2130,7 +2164,7 @@ export function Workspace({
                       </>
                     )}
                   </div>
-                  {!personalPerformance && (
+                  {view === "performance" && !personalPerformance && (
                     <div
                       hidden={reportTab !== "people"}
                       className="panel people-report"

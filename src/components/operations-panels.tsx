@@ -705,7 +705,7 @@ export function AnalyticsCharts({
       ? ["tasks", "courses"]
       : process && process !== "all"
         ? [process]
-        : ["tasks", "courses", "applications"];
+        : ["applications", "vacancies", "interviews", "tasks", "courses"];
   return (
     <div className="analytics-chart-grid">
       {metrics.map((metric) => (
@@ -721,7 +721,11 @@ function AnalyticsChart({ data, metric }: { data: Snapshot; metric: string }) {
       ? data.tasks
       : metric === "courses"
         ? data.course_assignments
-        : data.applications) ?? [];
+        : metric === "vacancies"
+          ? data.vacancies
+          : metric === "interviews"
+            ? data.interviews
+            : data.applications) ?? [];
   const groups: Record<string, number> = {};
   for (const r of selected) {
     const k = value(r, "status");
@@ -766,7 +770,9 @@ function AnalyticsChart({ data, metric }: { data: Snapshot; metric: string }) {
             {
               tasks: "Tareas",
               courses: "Capacitación",
-              applications: "Reclutamiento",
+              applications: "Postulaciones por estado",
+              vacancies: "Vacantes por estado",
+              interviews: "Entrevistas por estado",
             } as Record<string, string>
           )[metric]
         }

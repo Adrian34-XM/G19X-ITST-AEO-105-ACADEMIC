@@ -108,11 +108,15 @@ it("rechaza solicitud desconocida sin crear registros", async () => {
 });
 it("superadministrador puede analizar y no envía texto privado de tareas", async () => {
   state.role = "SUPERUSER";
+  state.generate.mockResolvedValueOnce({
+    result: { topics: ["tasks"] },
+    model: "test",
+  });
   expect((await POST(req("analytics"))).status).toBe(200);
   const context = state.generate.mock.calls[0][0];
-  expect(context.data.tasks).toEqual([{ id: "t", employee_id: "e" }]);
-  expect(JSON.stringify(context.data)).not.toContain("test@nexo.test");
-  expect(JSON.stringify(context.data)).not.toContain("Revisar");
+  expect(context.data).toBeUndefined();
+  expect(JSON.stringify(context)).not.toContain("test@nexo.test");
+  expect(JSON.stringify(context)).not.toContain("Revisar");
 });
 it("rechaza persona ajena antes de reservar o invocar el proveedor", async () => {
   const response = await POST(

@@ -5,7 +5,14 @@ import { stateLabel } from "./labels";
 export const chartSchema = z
   .object({
     title: z.string().min(1).max(160),
-    dataset: z.enum(["tasks", "course_assignments", "onboarding"]),
+    dataset: z.enum([
+      "tasks",
+      "course_assignments",
+      "onboarding",
+      "applications",
+      "vacancies",
+      "interviews",
+    ]),
     group: z.enum(["status", "department", "day", "month"]),
     kind: z.enum(["bars", "columns", "line", "pie", "donut"]),
   })
@@ -40,6 +47,9 @@ export function requestedCharts(prompt: string, proposed: Chart[]): Chart[] {
   const datasets = (
     [
       ["tasks", /tareas?|evidencias?/, "Tareas"],
+      ["applications", /postulaciones?|candidatos?/, "Postulaciones"],
+      ["vacancies", /vacantes?/, "Vacantes"],
+      ["interviews", /entrevistas?/, "Entrevistas"],
       [
         "course_assignments",
         /capacitacion|capacitaciones|cursos?/,
@@ -88,6 +98,9 @@ export function requestedCharts(prompt: string, proposed: Chart[]): Chart[] {
           kind: kind ?? c.kind,
         }));
   const names = {
+    applications: "Postulaciones",
+    vacancies: "Vacantes",
+    interviews: "Entrevistas",
     tasks: "Tareas",
     course_assignments: "Capacitaciones",
     onboarding: "Incorporaciones",
@@ -149,8 +162,24 @@ export function chartValues(
     const position = (data.positions ?? []).find(
       (p) => p.id === employee?.position_id,
     );
+    const application = (data.applications ?? []).find(
+      (a) => a.id === row.application_id,
+    );
+    const vacancy =
+      chart.dataset === "vacancies"
+        ? row
+        : (data.vacancies ?? []).find(
+            (v) => v.id === (row.vacancy_id ?? application?.vacancy_id),
+          );
+    const vacancyPosition = (data.positions ?? []).find(
+      (p) => p.id === vacancy?.position_id,
+    );
     const department = (data.departments ?? []).find(
-      (d) => d.id === position?.department_id,
+      (d) =>
+        d.id ===
+        (vacancy?.department_id ??
+          vacancyPosition?.department_id ??
+          position?.department_id),
     );
     const label =
       chart.group === "status"

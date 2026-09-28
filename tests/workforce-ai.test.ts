@@ -237,3 +237,60 @@ it("ordena las fechas cronológicamente y excluye fechas ausentes o futuras", ()
     ),
   ).toEqual([{ label: "2026-09", count: 2 }]);
 });
+it("analíticas permite gráficas de reclutamiento a RH y mantiene desempeño separado", async () => {
+  state.role = "RH_ADMIN";
+  const response = await POST(
+    req({
+      mode: "chart",
+      section: "analytics",
+      prompt: "Postulaciones por estado en barras",
+    }),
+  );
+  expect(response.status).toBe(200);
+  expect((await response.json()).result.charts[0].dataset).toBe("applications");
+  const performance = await POST(
+    req({
+      mode: "chart",
+      section: "performance",
+      prompt: "Postulaciones por estado",
+    }),
+  );
+  expect(performance.status).toBe(422);
+});
+it("analíticas rechaza colaboradores y jefes antes de consultar IA", async () => {
+  for (const role of ["EMPLEADO", "JEFE"]) {
+    state.role = role;
+    expect(
+      (await POST(req({ mode: "chart", section: "analytics" }))).status,
+    ).toBe(403);
+  }
+  expect(state.generate).not.toHaveBeenCalled();
+});
+it("agrupa entrevistas por el área de la vacante sin mezclar áreas", () => {
+  const values = chartValues(
+    {
+      departments: [
+        { id: "d1", name: "Tecnología" },
+        { id: "d2", name: "Ventas" },
+      ],
+      vacancies: [
+        { id: "v1", department_id: "d1" },
+        { id: "v2", department_id: "d2" },
+      ],
+      applications: [
+        { id: "a1", vacancy_id: "v1" },
+        { id: "a2", vacancy_id: "v2" },
+      ],
+      interviews: [
+        { id: "i1", application_id: "a1" },
+        { id: "i2", application_id: "a1" },
+        { id: "i3", application_id: "a2" },
+      ],
+    },
+    { title: "", dataset: "interviews", group: "department", kind: "bars" },
+  );
+  expect(values).toEqual([
+    { label: "Tecnología", count: 2 },
+    { label: "Ventas", count: 1 },
+  ]);
+});
