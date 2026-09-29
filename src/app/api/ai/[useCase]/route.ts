@@ -97,6 +97,8 @@ export async function POST(
       context = {
         task: { description: sanitize(t.description) },
         evidence: sanitize(e.evidence_text),
+        writing_instructions:
+          "Redacta reason en español natural como un comentario útil para quien revisa la tarea: explica qué muestra la evidencia, cómo se relaciona con lo solicitado y qué falta comprobar. Usa uno o dos párrafos breves, sin encabezados prefabricados, códigos técnicos ni repetir la conclusión. En observations incluye únicamente hallazgos concretos diferentes de reason. Distingue lo observado de lo que no puede comprobarse; no inventes contenido ni apruebes automáticamente la tarea. Si la evidencia es insuficiente dilo claramente. La decisión final corresponde al responsable humano.",
       };
       cached = e.ai_result;
     }

@@ -8,6 +8,8 @@ const ids = {
   own: "10000000-0000-4000-8000-000000000001",
   other: "10000000-0000-4000-8000-000000000002",
   position: "20000000-0000-4000-8000-000000000001",
+  task: "30000000-0000-4000-8000-000000000001",
+  otherTask: "30000000-0000-4000-8000-000000000002",
 };
 const state = vi.hoisted(() => ({
   role: "EMPLEADO",
@@ -40,12 +42,21 @@ vi.mock("@/modules/workspace/queries", () => ({
     ],
     tasks: [
       {
-        id: "t1",
+        id: ids.task,
         employee_id: ids.own,
         status: "SUBMITTED",
         description: "Texto confidencial",
       },
-      { id: "t2", employee_id: ids.other, status: "APPROVED" },
+      { id: ids.otherTask, employee_id: ids.other, status: "APPROVED" },
+    ],
+    task_evidence: [
+      {
+        id: "e1",
+        employee_id: ids.own,
+        task_id: ids.task,
+        evidence_text: "archivo privado",
+        file_path: "privado.pdf",
+      },
     ],
     course_assignments: [],
     onboarding: [],
@@ -78,6 +89,49 @@ const req = (body: unknown) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+it("preguntas de tareas usan contexto propio y redacción libre sin contenidos privados", async () => {
+  state.generate.mockResolvedValue({
+    model: "mock",
+    result: {
+      summary: "Tu entrega ya está lista para que el responsable la revise.",
+      recommendations: [],
+    },
+  });
+  const response = await POST(
+    req({ mode: "tasks", task_id: ids.task, prompt: "¿Cómo va esta tarea?" }),
+  );
+  expect(response.status).toBe(200);
+  expect((await response.json()).result.summary).toBe(
+    "Tu entrega ya está lista para que el responsable la revise.",
+  );
+  const context = state.generate.mock.calls[0][0];
+  expect(context.tasks).toHaveLength(1);
+  expect(context.evidence).toMatchObject({
+    files: 1,
+    tasksWithEvidence: 1,
+    contentAnalyzed: false,
+  });
+  expect(
+    context.verified_context.metrics.map((m: { process: string }) => m.process),
+  ).toEqual(["Tareas"]);
+  expect(JSON.stringify(context)).not.toMatch(
+    /archivo privado|privado.pdf|Texto confidencial|secreto@test/,
+  );
+});
+it("impide consultar una tarea ajena por identificador", async () => {
+  const response = await POST(
+    req({ mode: "tasks", task_id: ids.otherTask, prompt: "Resume esta tarea" }),
+  );
+  expect(response.status).toBe(403);
+  expect(state.generate).not.toHaveBeenCalled();
+});
+it("rechaza vacantes desde preguntas de tareas antes de consumir IA", async () => {
+  const response = await POST(
+    req({ mode: "tasks", prompt: "cuantas vacantes hay disponibles" }),
+  );
+  expect(response.status).toBe(422);
+  expect(state.generate).not.toHaveBeenCalled();
+});
 it("rechaza vacantes en incorporación antes de reservar o llamar al proveedor", async () => {
   state.role = "RH_ADMIN";
   const response = await POST(

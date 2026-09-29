@@ -170,6 +170,8 @@ Los filtros trabajan sobre las filas autorizadas cargadas; no sustituyen RLS ni 
 
 ## Entrega, revisión e historial
 
+Tareas y evidencias dispone de vistas Lista y Calendario, con conteos de pendientes, entregas por revisar, atrasos y aprobadas sobre los filtros actuales. Las tarjetas resumen muestran responsable, prioridad, fecha y cantidad de evidencias; el detalle mantiene conversación, instrucciones, subida y revisión. El listado no monta una conversación por tarjeta. Las secciones de pendientes, revisión e historial conservan sus reglas de estado y autorización.
+
 La vista de incorporación reúne indicadores de procesos activos, revisiones, plazos y completados. El seguimiento permite buscar por persona y mostrar únicamente procesos con actividades entregadas; cada actividad despliega sus acciones individualmente. La asignación presenta persona, plantilla y fecha como tres pasos, con vista previa del plan. Los filtros se aplican al conjunto autorizado y no cambian las reglas de entrega o revisión.
 
 En tareas, el colaborador entrega la evidencia y la tarea pasa a revisión. Las aprobadas se consultan en el historial; una entrega pendiente de revisión no se presenta como atraso del empleado. `sortTasks` devuelve una copia ordenada por prioridad, fecha e identificador. El calendario utiliza los vencimientos y los mismos registros autorizados.
@@ -197,6 +199,8 @@ Desempeño utiliza procesos laborales de tareas, capacitación e incorporación.
 `analyticsSummary` produce cifras y afirmaciones con código determinista; la IA selecciona temas de una lista permitida. Los resultados siguen limitados al conjunto cargado. La ausencia de registros no acredita bajo desempeño ni que un proceso no exista fuera de ese conjunto.
 
 ## Archivos y visión
+
+En tareas, `WorkforceAI` permite preguntar desde el listado o el detalle. El modo `tasks` de `/api/ai/workforce` vuelve a aplicar permisos y filtros; un `task_id` fuera del alcance se rechaza antes de llamar al proveedor. La IA redacta la respuesta con datos estructurados de tareas y conteos de evidencias, sin recibir rutas ni contenido de archivos. Esta consulta no verifica entregables: esa función corresponde al análisis específico de cada evidencia. Las preguntas de otros módulos se rechazan y las respuestas no cambian estados. Los análisis de evidencia ya guardados conservan su resultado; las instrucciones de redacción natural se aplican a nuevos análisis.
 
 `readLimitedBody` consume el cuerpo de la solicitud contando bytes reales. No confía únicamente en Content-Length. JSON admite hasta 100000 bytes; el multipart tiene un límite global de 5 MB más 100000 bytes para sus campos y envoltura. La inspección posterior aplica el límite de cada archivo. No volver a leer `req.body` después de utilizar estos lectores.
 

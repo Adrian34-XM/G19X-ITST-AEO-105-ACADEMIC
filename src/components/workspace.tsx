@@ -185,6 +185,7 @@ export function Workspace({
   );
   const [reportFiltersOpen, setReportFiltersOpen] = useState(false);
   const [taskSection, setTaskSection] = useState("active");
+  const [taskLayout, setTaskLayout] = useState<"list" | "calendar">("list");
   const taskHistory = taskSection === "history";
   const taskMatches = (t: Row) =>
     taskSection === "history"
@@ -1649,9 +1650,121 @@ export function Workspace({
                 </section>
               )}
               {view === "tasks" && (
-                <section>
+                <section className="tasks-workspace">
+                  <details className="panel task-ai-questions">
+                    <summary>
+                      Preguntar a la IA sobre{" "}
+                      {detail
+                        ? "esta tarea y sus evidencias"
+                        : "tareas y evidencias"}
+                    </summary>
+                    <WorkforceAI
+                      key={
+                        String(detail ?? "all") + JSON.stringify(activeFilters)
+                      }
+                      mode="tasks"
+                      taskId={detail}
+                      filters={activeFilters}
+                    />
+                  </details>
                   {!detail && (
-                    <TaskCalendar tasks={tableRows} basePath={href("tasks")} />
+                    <>
+                      <div className="tasks-overview">
+                        <div className="tasks-overview-heading">
+                          <div>
+                            <span className="org-eyebrow">
+                              ORGANIZA, ENTREGA Y REVISA
+                            </span>
+                            <h2>
+                              {hr || manager
+                                ? "El trabajo de tu equipo, en un solo lugar"
+                                : "Tus tareas y entregas, en un solo lugar"}
+                            </h2>
+                            <p>
+                              Encuentra pendientes, consulta evidencias y sigue
+                              cada entrega hasta su aprobación.
+                            </p>
+                          </div>
+                          <div
+                            className="org-view-switch"
+                            role="group"
+                            aria-label="Vista de tareas"
+                          >
+                            <button
+                              className="secondary"
+                              aria-pressed={taskLayout === "list"}
+                              onClick={() => setTaskLayout("list")}
+                            >
+                              Lista de tareas
+                            </button>
+                            <button
+                              className="secondary"
+                              aria-pressed={taskLayout === "calendar"}
+                              onClick={() => setTaskLayout("calendar")}
+                            >
+                              Calendario
+                            </button>
+                          </div>
+                        </div>
+                        <div className="tasks-metrics">
+                          <div>
+                            <strong>
+                              {
+                                tableRows.filter(
+                                  (t) =>
+                                    !["APPROVED", "SUBMITTED"].includes(
+                                      value(t, "status"),
+                                    ),
+                                ).length
+                              }
+                            </strong>
+                            <span>Pendientes de entrega</span>
+                          </div>
+                          <div>
+                            <strong>
+                              {
+                                tableRows.filter(
+                                  (t) => t.status === "SUBMITTED",
+                                ).length
+                              }
+                            </strong>
+                            <span>Entregas por revisar</span>
+                          </div>
+                          <div className="tasks-metric-warning">
+                            <strong>
+                              {
+                                tableRows.filter((t) =>
+                                  overdue(
+                                    t,
+                                    new Date().toISOString().slice(0, 10),
+                                  ),
+                                ).length
+                              }
+                            </strong>
+                            <span>Fuera de plazo</span>
+                          </div>
+                          <div>
+                            <strong>
+                              {
+                                tableRows.filter((t) => t.status === "APPROVED")
+                                  .length
+                              }
+                            </strong>
+                            <span>Aprobadas en historial</span>
+                          </div>
+                        </div>
+                        <small>
+                          Conteos de las tareas visibles con tus filtros y
+                          permisos.
+                        </small>
+                      </div>
+                      {taskLayout === "calendar" && (
+                        <TaskCalendar
+                          tasks={tableRows}
+                          basePath={href("tasks")}
+                        />
+                      )}
+                    </>
                   )}
                   {detail ? (
                     <>
@@ -1669,13 +1782,14 @@ export function Workspace({
                       )}
                     </>
                   ) : (
-                    <>
+                    <div hidden={taskLayout !== "list"}>
                       <div className="actions task-history-controls">
                         <button
                           className={
                             taskSection === "review" ? "" : "secondary"
                           }
                           onClick={() => setTaskSection("review")}
+                          aria-pressed={taskSection === "review"}
                         >
                           Entregadas por revisar (
                           {
@@ -1715,46 +1829,78 @@ export function Workspace({
                           )
                         </button>
                       </div>
-                      <p>
+                      <p className="tasks-list-help">
                         Orden: prioridad alta (rojo), media (ámbar) y baja
                         (verde). A igual prioridad, primero la fecha límite más
                         cercana.
                       </p>
-                      <div className="record-grid">
-                        {sortTasks(tableRows.filter(taskMatches)).map((t) =>
-                          taskHistory ? (
-                            <article
-                              className="record task-priority-card"
-                              data-priority={value(t, "priority")}
-                              key={t.id}
-                            >
-                              <span className="eyebrow">
-                                {employeeName(t.employee_id)} ·{" "}
-                                {labels[value(t, "priority")]}
+                      <div className="tasks-card-grid">
+                        {sortTasks(tableRows.filter(taskMatches)).map((t) => (
+                          <article
+                            className="record task-priority-card task-summary-card"
+                            data-priority={value(t, "priority")}
+                            key={t.id}
+                          >
+                            <div className="task-summary-top">
+                              <span className="task-priority-label">
+                                Prioridad {labels[value(t, "priority")]}
                               </span>
-                              <h3>{value(t, "title")}</h3>
-                              <Badge status="APPROVED" />
-                              <p>Fecha límite: {value(t, "due_date")}</p>
-                              <Link
-                                className="secondary"
-                                href={`${href("tasks")}/${t.id}`}
-                              >
-                                Ver características y evidencias ↗
-                              </Link>
-                            </article>
-                          ) : (
-                            taskCard(t)
-                          ),
-                        )}
+                              <Badge status={value(t, "status")} />
+                            </div>
+                            <h3>{value(t, "title")}</h3>
+                            <p className="task-summary-person">
+                              {employeeName(t.employee_id)}
+                            </p>
+                            <dl className="task-summary-meta">
+                              <div>
+                                <dt>Fecha límite</dt>
+                                <dd>{value(t, "due_date") || "Sin fecha"}</dd>
+                              </div>
+                              <div>
+                                <dt>Evidencias</dt>
+                                <dd>
+                                  {
+                                    rows("task_evidence").filter(
+                                      (e) => e.task_id === t.id,
+                                    ).length
+                                  }{" "}
+                                  archivos
+                                </dd>
+                              </div>
+                            </dl>
+                            {overdue(
+                              t,
+                              new Date().toISOString().slice(0, 10),
+                            ) && (
+                              <p className="task-late-label">
+                                Fuera de plazo · requiere seguimiento
+                              </p>
+                            )}
+                            <Link
+                              className="secondary task-open-link"
+                              href={`${href("tasks")}/${t.id}`}
+                              aria-label={`${taskHistory ? "Consultar historial de" : t.status === "SUBMITTED" ? "Revisar entrega de" : "Abrir tarea"} ${value(t, "title")}`}
+                            >
+                              {taskHistory
+                                ? "Consultar historial"
+                                : t.status === "SUBMITTED"
+                                  ? "Ver entrega y evidencias"
+                                  : "Abrir tarea y evidencias"}{" "}
+                              <span aria-hidden="true">↗</span>
+                            </Link>
+                          </article>
+                        ))}
                       </div>
                       {!tableRows.some(taskMatches) && (
                         <p className="empty">
                           {taskHistory
                             ? "No hay tareas aprobadas con estos filtros."
-                            : "No hay tareas pendientes con estos filtros."}
+                            : taskSection === "review"
+                              ? "No hay entregas pendientes de revisión con estos filtros."
+                              : "No hay tareas pendientes con estos filtros."}
                         </p>
                       )}
-                    </>
+                    </div>
                   )}
                 </section>
               )}

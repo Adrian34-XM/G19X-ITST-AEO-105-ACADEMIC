@@ -215,6 +215,11 @@ export async function POST(req: Request) {
       });
     }
     Object.assign(context, { module_scope: moduleTopicInstruction(area) });
+    if (area === "tasks")
+      Object.assign(context, {
+        writing_style:
+          "Redacta el resumen en español natural, con uno o dos párrafos breves. Responde primero a la pregunta concreta; si no hay pregunta, explica qué requiere atención y el siguiente paso. No enumeres todas las tablas ni copies fichas, encabezados, códigos o identificadores. Los datos son respaldo, no una plantilla. Distingue entrega de aprobación y no afirmes haber leído archivos: este contexto solo incluye metadatos. No repitas el resumen en recomendaciones.",
+      });
     const admin = adminDb();
     if (area === "overview" && profile.role !== "CANDIDATO") {
       const { data: unread, error: unreadError } = await client.rpc(

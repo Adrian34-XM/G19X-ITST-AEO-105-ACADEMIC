@@ -247,11 +247,13 @@ export function DataGraph({ chart }: { chart: Graph }) {
 }
 export function WorkforceAI({
   mode,
+  taskId,
   employeeId,
   section,
   filters = {},
 }: {
-  mode: "chart" | "profile" | "onboarding";
+  mode: "chart" | "profile" | "onboarding" | "tasks";
+  taskId?: string;
   employeeId?: string;
   section?: "performance" | "analytics";
   filters?: WorkspaceFilters;
@@ -284,6 +286,7 @@ export function WorkforceAI({
       const r = await request("/api/ai/workforce", {
         mode,
         employee_id: employeeId,
+        task_id: taskId,
         section,
         prompt,
         filters: allowed,
@@ -298,16 +301,22 @@ export function WorkforceAI({
   return (
     <section className="panel">
       <h2>
-        {mode === "chart"
-          ? "Gráficas a partir de tus instrucciones"
-          : mode === "profile"
-            ? "Resumen de esta persona con IA"
-            : "Resumen de incorporación con IA"}
+        {mode === "tasks"
+          ? "Pregunta a la IA sobre tareas y evidencias"
+          : mode === "chart"
+            ? "Gráficas a partir de tus instrucciones"
+            : mode === "profile"
+              ? "Resumen de esta persona con IA"
+              : "Resumen de incorporación con IA"}
       </h2>
       <p>
-        {mode === "chart"
-          ? "Describe lo que necesitas comparar: tareas, capacitación o incorporaciones, por estado o área. Se respetan los filtros y tus permisos."
-          : "Resumen de avances y pendientes del ámbito autorizado. La interpretación requiere revisión humana."}
+        {mode === "tasks"
+          ? taskId
+            ? "Consulta el estado, plazo y evidencias registradas de esta tarea. Para evaluar un archivo, utiliza su análisis específico."
+            : "Pregunta por pendientes, plazos, prioridades y evidencias registradas del equipo visible. Se respetan tus filtros y permisos."
+          : mode === "chart"
+            ? "Describe lo que necesitas comparar: tareas, capacitación o incorporaciones, por estado o área. Se respetan los filtros y tus permisos."
+            : "Resumen de avances y pendientes del ámbito autorizado. La interpretación requiere revisión humana."}
       </p>
       <label>
         Instrucciones de análisis
@@ -316,18 +325,22 @@ export function WorkforceAI({
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder={
-            mode === "chart"
-              ? "Compara las incorporaciones por estado en una gráfica de barras"
-              : "Resume avances y próximos pasos"
+            mode === "tasks"
+              ? "¿Qué tareas necesitan atención y cuáles tienen evidencias entregadas?"
+              : mode === "chart"
+                ? "Compara las incorporaciones por estado en una gráfica de barras"
+                : "Resume avances y próximos pasos"
           }
         />
       </label>
       <button disabled={busy} onClick={() => void analyze()}>
         {busy
           ? "Analizando…"
-          : mode === "chart"
-            ? "Generar gráficas"
-            : "Generar resumen"}
+          : mode === "tasks"
+            ? "Preguntar a la IA"
+            : mode === "chart"
+              ? "Generar gráficas"
+              : "Generar resumen"}
       </button>
       {error && (
         <p className="error" role="alert">
