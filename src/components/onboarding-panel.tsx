@@ -1,4 +1,9 @@
 "use client";
+/**
+ * @file Gestión de planes, plantillas y actividades de incorporación con entrega y revisión. Separa
+ * acciones del colaborador y del responsable y mantiene visibles avances e historial.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Planes y documentos sobre el conjunto ya autorizado por RLS y los filtros de la vista. */
 import { WorkforceAI } from "./workforce-tools";
 import { OnboardingLearning } from "./onboarding-learning";
@@ -42,6 +47,8 @@ export function OnboardingPanel({
 }) {
   const router = useRouter();
   const [history, setHistory] = useState(false);
+  const [search, setSearch] = useState("");
+  const [pendingReview, setPendingReview] = useState(false);
   const [section, setSection] = useState("follow");
   const [newEmployee, setNewEmployee] = useState("");
   const hr = isHR(profile.role),
@@ -83,6 +90,22 @@ export function OnboardingPanel({
   );
   const employee = (o: Row) =>
     (data.employees ?? []).find((e) => e.id === o.employee_id);
+  // La búsqueda solo reduce procesos previamente autorizados; no amplía el alcance del rol.
+  const visibleProcesses = processes
+    .filter((o) => detail || (o.status === "COMPLETED") === history)
+    .filter((o) =>
+      name(employee(o)?.profile_id)
+        .toLocaleLowerCase("es")
+        .includes(search.trim().toLocaleLowerCase("es")),
+    )
+    .filter(
+      (o) =>
+        history ||
+        !pendingReview ||
+        (data.onboarding_items ?? []).some(
+          (i) => i.onboarding_id === o.id && i.status === "SUBMITTED",
+        ),
+    );
   const canManage = (o: Row) =>
     hr || (manager && employee(o)?.profile_id !== profile.id);
   const today = new Date().toISOString().slice(0, 10);
@@ -128,29 +151,74 @@ export function OnboardingPanel({
     }
   }
   return (
-    <section>
+    <section className="onboarding-workspace">
       {error && (
         <p role="alert" className="error">
           {error}
         </p>
       )}
       {notice && <p role="status">{notice}</p>}
-      <div className="record">
+      <div className="onboarding-overview">
+        <span className="org-eyebrow">ACOMPAÑA CADA NUEVO COMIENZO</span>
         <h2>Seguimiento de incorporaciones</h2>
         <p>
-          {processes.length} procesos · {late.length} actividades atrasadas
+          Consulta el avance de cada persona, revisa sus entregas y organiza sus
+          próximos pasos.
         </p>
+        <div className="onboarding-metrics">
+          <div>
+            <strong>
+              {processes.filter((o) => o.status !== "COMPLETED").length}
+            </strong>
+            <span>En incorporación</span>
+          </div>
+          <div>
+            <strong>
+              {
+                (data.onboarding_items ?? []).filter(
+                  (i) =>
+                    i.status === "SUBMITTED" &&
+                    processes.some((o) => o.id === i.onboarding_id),
+                ).length
+              }
+            </strong>
+            <span>Actividades por revisar</span>
+          </div>
+          <div data-warning={late.length > 0}>
+            <strong>{late.length}</strong>
+            <span>Actividades fuera de plazo</span>
+          </div>
+          <div>
+            <strong>
+              {processes.filter((o) => o.status === "COMPLETED").length}
+            </strong>
+            <span>Procesos completados</span>
+          </div>
+        </div>
         {late.length > 0 && (
-          <ul>
-            {late.map((i) => (
-              <li key={i.id}>
-                <a href={`#onboarding-${i.onboarding_id}`}>
-                  {value(i, "title")}
-                </a>{" "}
-                · Venció el {value(i, "due_date")}
-              </li>
-            ))}
-          </ul>
+          <details className="onboarding-late">
+            <summary>
+              Consultar actividades fuera de plazo ({late.length})
+            </summary>
+            <ul>
+              {late.map((i) => (
+                <li key={i.id}>
+                  <a
+                    href={`#onboarding-${i.onboarding_id}`}
+                    onClick={() => {
+                      setSection("follow");
+                      setHistory(false);
+                      setSearch("");
+                      setPendingReview(false);
+                    }}
+                  >
+                    {value(i, "title")}
+                  </a>{" "}
+                  · Venció el {value(i, "due_date")}
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
       </div>
       {(hr || manager) && (
@@ -179,9 +247,9 @@ export function OnboardingPanel({
             Elige al colaborador, una plantilla guardada y la fecha de inicio.
             También puedes usar el borrador de Crear plantillas.
           </p>
-          <fieldset disabled={busy}>
+          <fieldset disabled={busy} className="onboarding-assignment">
             <label>
-              Incorporación a la que asignar el plan
+              1. Selecciona la persona
               <select
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
@@ -197,7 +265,7 @@ export function OnboardingPanel({
               </select>
             </label>
             <label>
-              Origen del plan
+              2. Elige el plan de actividades
               <select
                 value={template}
                 onChange={(e) => setTemplate(e.target.value)}
@@ -211,14 +279,14 @@ export function OnboardingPanel({
               </select>
             </label>
             <label>
-              Fecha de inicio
+              3. Define la fecha de inicio
               <input
                 type="date"
                 value={start}
                 onChange={(e) => setStart(e.target.value)}
               />
             </label>
-            <details>
+            <details open className="onboarding-plan-preview">
               <summary>Vista previa de actividades</summary>
               <ol>
                 {(template
@@ -573,97 +641,141 @@ export function OnboardingPanel({
         </>
       )}
       <div hidden={section !== "follow"}>
-        {!detail && (
-          <div className="actions">
-            <button
-              className={history ? "secondary" : ""}
-              onClick={() => setHistory(false)}
-            >
-              Procesos en curso (
-              {processes.filter((o) => o.status !== "COMPLETED").length})
-            </button>
-            <button
-              className={history ? "" : "secondary"}
-              onClick={() => setHistory(true)}
-            >
-              Historial de incorporaciones (
-              {processes.filter((o) => o.status === "COMPLETED").length})
-            </button>
-          </div>
-        )}
-        <p>
-          {
-            (data.onboarding_items ?? []).filter(
-              (i) => i.status === "SUBMITTED",
-            ).length
-          }{" "}
-          actividades entregadas pendientes de revisión.
-        </p>
-        <div className="record-grid">
-          {processes
-            .filter((o) => detail || (o.status === "COMPLETED") === history)
-            .map((o) => {
-              const e = employee(o),
-                own = e?.profile_id === profile.id,
-                manages = canManage(o);
-              const items = (data.onboarding_items ?? []).filter(
-                (i) => i.onboarding_id === o.id,
-              );
-              const docs = (data.onboarding_documents ?? []).filter(
-                (d) => d.onboarding_id === o.id,
-              );
-              const pct = items.length
-                ? Math.round(
-                    (items.filter((i) => i.status === "COMPLETED").length /
-                      items.length) *
-                      100,
-                  )
-                : 0;
-              const next = items
-                .filter((i) => i.status !== "COMPLETED")
-                .sort((a, b) =>
-                  value(a, "due_date").localeCompare(value(b, "due_date")),
-                )[0];
-              const boss = (data.employees ?? []).find(
-                (m) => m.id === e?.manager_id,
-              );
-              return (
-                <article
-                  className="record"
-                  key={o.id}
-                  id={`onboarding-${o.id}`}
-                >
-                  <h2>{name(e?.profile_id)}</h2>
+        <div className="onboarding-follow-tools">
+          {!detail && (
+            <div className="actions">
+              <button
+                className={history ? "secondary" : ""}
+                aria-pressed={!history}
+                onClick={() => setHistory(false)}
+              >
+                Procesos en curso (
+                {processes.filter((o) => o.status !== "COMPLETED").length})
+              </button>
+              <button
+                className={history ? "" : "secondary"}
+                aria-pressed={history}
+                onClick={() => setHistory(true)}
+              >
+                Historial de incorporaciones (
+                {processes.filter((o) => o.status === "COMPLETED").length})
+              </button>
+            </div>
+          )}
+          <label>
+            Buscar persona
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Escribe un nombre…"
+            />
+          </label>
+          {!history && (
+            <label className="onboarding-review-filter">
+              <input
+                type="checkbox"
+                checked={pendingReview}
+                onChange={(e) => setPendingReview(e.target.checked)}
+              />
+              Solo con actividades por revisar
+            </label>
+          )}
+        </div>
+        <div className="onboarding-process-list">
+          {visibleProcesses.map((o) => {
+            const e = employee(o),
+              own = e?.profile_id === profile.id,
+              manages = canManage(o);
+            const items = (data.onboarding_items ?? []).filter(
+              (i) => i.onboarding_id === o.id,
+            );
+            const docs = (data.onboarding_documents ?? []).filter(
+              (d) => d.onboarding_id === o.id,
+            );
+            const pct = items.length
+              ? Math.round(
+                  (items.filter((i) => i.status === "COMPLETED").length /
+                    items.length) *
+                    100,
+                )
+              : 0;
+            const next = items
+              .filter((i) => i.status !== "COMPLETED")
+              .sort((a, b) =>
+                value(a, "due_date").localeCompare(value(b, "due_date")),
+              )[0];
+            const boss = (data.employees ?? []).find(
+              (m) => m.id === e?.manager_id,
+            );
+            return (
+              <article
+                className="record onboarding-person"
+                key={o.id}
+                id={`onboarding-${o.id}`}
+              >
+                <div className="onboarding-person-heading">
+                  <div className="onboarding-initials" aria-hidden="true">
+                    {name(e?.profile_id)
+                      .split(" ")
+                      .slice(0, 2)
+                      .map((part) => part[0])
+                      .join("")}
+                  </div>
+                  <div>
+                    <h2>{name(e?.profile_id)}</h2>
+                    <p>
+                      {items.filter((i) => i.status === "COMPLETED").length} de{" "}
+                      {items.length} actividades completadas
+                    </p>
+                  </div>
                   <span className="badge">
                     {stateLabel(value(o, "status"))}
                   </span>
-                  <p>{pct}% completado</p>
-                  <progress max={100} value={pct} />
-                  {next && (
-                    <p>
-                      <strong>Siguiente paso:</strong> {value(next, "title")}
-                    </p>
-                  )}
-                  <details open={!!detail}>
-                    <summary>
-                      Ver actividades y documentos ({items.length})
-                    </summary>
-                    {items
-                      .filter((i) => i.status !== "COMPLETED")
-                      .map((i) => {
-                        const owner = (value(i, "owner_role") ||
-                          "EMPLOYEE") as keyof typeof owners;
-                        const canComplete =
-                          (hr && owner === "HR") ||
-                          (owner === "EMPLOYEE" && own) ||
-                          (owner === "MANAGER" && manages);
-                        const overdue =
-                          i.status !== "COMPLETED" &&
-                          value(i, "due_date") &&
-                          value(i, "due_date") < today;
-                        return (
-                          <div className="record" key={i.id}>
-                            <h3>{value(i, "title")}</h3>
+                </div>
+                <p>{pct}% completado</p>
+                <progress
+                  max={100}
+                  value={pct}
+                  aria-label={`Avance de ${name(e?.profile_id)}`}
+                />
+                {next && (
+                  <p className="onboarding-next">
+                    <strong>Siguiente paso:</strong> {value(next, "title")}
+                  </p>
+                )}
+                <details open={!!detail} className="onboarding-activities">
+                  <summary>
+                    Ver actividades y documentos ({items.length})
+                  </summary>
+                  {items
+                    .filter((i) => i.status !== "COMPLETED")
+                    .map((i) => {
+                      const owner = (value(i, "owner_role") ||
+                        "EMPLOYEE") as keyof typeof owners;
+                      const canComplete =
+                        (hr && owner === "HR") ||
+                        (owner === "EMPLOYEE" && own) ||
+                        (owner === "MANAGER" && manages);
+                      const overdue =
+                        i.status !== "COMPLETED" &&
+                        value(i, "due_date") &&
+                        value(i, "due_date") < today;
+                      return (
+                        <details className="onboarding-activity" key={i.id}>
+                          <summary>
+                            <span>
+                              <strong>{value(i, "title")}</strong>
+                              <small>
+                                {owners[owner]} · Fecha límite:{" "}
+                                {value(i, "due_date") || "Sin fecha"}
+                              </small>
+                            </span>
+                            <span className="badge">
+                              {stateLabel(value(i, "status"))}
+                            </span>
+                          </summary>
+                          <div className="onboarding-activity-body">
                             <p>{value(i, "description")}</p>
                             {owner === "EMPLOYEE" && (
                               <OnboardingLearning
@@ -810,98 +922,98 @@ export function OnboardingPanel({
                                 </form>
                               )}
                           </div>
-                        );
-                      })}
-                    <details>
-                      <summary>
-                        Historial de actividades aprobadas (
-                        {items.filter((i) => i.status === "COMPLETED").length})
-                      </summary>
-                      {items
-                        .filter((i) => i.status === "COMPLETED")
-                        .map((i) => (
-                          <article className="record" key={i.id}>
-                            <h3>{value(i, "title")}</h3>
-                            <p>{value(i, "description")}</p>
-                            <p>{value(i, "review_comments")}</p>
-                            <p>Completada: {value(i, "completed_at")}</p>
-                          </article>
-                        ))}
-                    </details>
-                    {(own || hr) && (
-                      <>
-                        <h3>Documentos privados</h3>
-                        <p>
-                          RH revisa los documentos. Si solicita correcciones,
-                          sube una nueva versión; la anterior se conserva.
-                        </p>
-
-                        {docs.length === 0 && (
-                          <p>Documentación pendiente de entrega.</p>
-                        )}
-                        {docs.map((d, index) => (
-                          <div className="record" key={d.id}>
-                            <button
-                              className="secondary"
-                              onClick={() => void openDocument(d.id)}
-                            >
-                              Ver documento {index + 1} ·{" "}
-                              {value(
-                                items.find((i) => i.id === d.item_id) ?? {
-                                  id: "",
-                                },
-                                "title",
-                              ) || "Expediente anterior"}
-                            </button>
-                            <p>
-                              {stateLabel(value(d, "status") || "SUBMITTED")}
-                            </p>
-                            <p>{value(d, "comments")}</p>
-                            {hr && (d.status === "SUBMITTED" || !d.status) && (
-                              <form
-                                onSubmit={(event) => {
-                                  event.preventDefault();
-                                  const f = new FormData(event.currentTarget);
-                                  void execute("document.review", {
-                                    id: d.id,
-                                    status: f.get("status"),
-                                    comments: f.get("comments"),
-                                  });
-                                }}
-                              >
-                                <label>
-                                  Resultado
-                                  <select name="status">
-                                    <option value="APPROVED">Aprobado</option>
-                                    <option value="REJECTED">
-                                      Solicitar correcciones
-                                    </option>
-                                  </select>
-                                </label>
-                                <label>
-                                  Comentarios
-                                  <textarea
-                                    name="comments"
-                                    required
-                                    maxLength={2000}
-                                  />
-                                </label>
-                                <button disabled={busy}>
-                                  Guardar revisión
-                                </button>
-                              </form>
-                            )}
-                          </div>
-                        ))}
-                      </>
-                    )}
+                        </details>
+                      );
+                    })}
+                  <details>
+                    <summary>
+                      Historial de actividades aprobadas (
+                      {items.filter((i) => i.status === "COMPLETED").length})
+                    </summary>
+                    {items
+                      .filter((i) => i.status === "COMPLETED")
+                      .map((i) => (
+                        <article className="record" key={i.id}>
+                          <h3>{value(i, "title")}</h3>
+                          <p>{value(i, "description")}</p>
+                          <p>{value(i, "review_comments")}</p>
+                          <p>Completada: {value(i, "completed_at")}</p>
+                        </article>
+                      ))}
                   </details>
-                </article>
-              );
-            })}
+                  {(own || hr) && (
+                    <>
+                      <h3>Documentos privados</h3>
+                      <p>
+                        RH revisa los documentos. Si solicita correcciones, sube
+                        una nueva versión; la anterior se conserva.
+                      </p>
+
+                      {docs.length === 0 && (
+                        <p>Documentación pendiente de entrega.</p>
+                      )}
+                      {docs.map((d, index) => (
+                        <div className="record" key={d.id}>
+                          <button
+                            className="secondary"
+                            onClick={() => void openDocument(d.id)}
+                          >
+                            Ver documento {index + 1} ·{" "}
+                            {value(
+                              items.find((i) => i.id === d.item_id) ?? {
+                                id: "",
+                              },
+                              "title",
+                            ) || "Expediente anterior"}
+                          </button>
+                          <p>{stateLabel(value(d, "status") || "SUBMITTED")}</p>
+                          <p>{value(d, "comments")}</p>
+                          {hr && (d.status === "SUBMITTED" || !d.status) && (
+                            <form
+                              onSubmit={(event) => {
+                                event.preventDefault();
+                                const f = new FormData(event.currentTarget);
+                                void execute("document.review", {
+                                  id: d.id,
+                                  status: f.get("status"),
+                                  comments: f.get("comments"),
+                                });
+                              }}
+                            >
+                              <label>
+                                Resultado
+                                <select name="status">
+                                  <option value="APPROVED">Aprobado</option>
+                                  <option value="REJECTED">
+                                    Solicitar correcciones
+                                  </option>
+                                </select>
+                              </label>
+                              <label>
+                                Comentarios
+                                <textarea
+                                  name="comments"
+                                  required
+                                  maxLength={2000}
+                                />
+                              </label>
+                              <button disabled={busy}>Guardar revisión</button>
+                            </form>
+                          )}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </details>
+              </article>
+            );
+          })}
         </div>
-        {!processes.length && (
-          <p>No hay incorporaciones con los filtros actuales.</p>
+        {!visibleProcesses.length && (
+          <p className="onboarding-empty" role="status">
+            No hay incorporaciones con estos filtros. Prueba otro nombre o
+            cambia la vista.
+          </p>
         )}
       </div>
     </section>

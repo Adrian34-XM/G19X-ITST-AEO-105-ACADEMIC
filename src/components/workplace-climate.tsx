@@ -1,4 +1,10 @@
 "use client";
+/**
+ * @file Creación, asignación y respuesta de encuestas, comentarios anónimos y análisis de clima.
+ * Separa la administración de encuestas de las pendientes del usuario y respeta los requisitos de
+ * agregación.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Ambiente laboral: encuesta de escala 1–5, comentarios anónimos y borradores revisables. */
 import { ClimateResults, AnonymousComment } from "./climate-results";
 import { isHR } from "@/lib/permissions";

@@ -1,3 +1,9 @@
+/**
+ * @file Contratos de planes, actividades y operaciones de incorporación. Distingue responsables del
+ * empleado, jefe y RH, requisitos de documentos y revisión; una propuesta de IA debe cumplir el
+ * mismo contrato.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { z } from "zod";
 export const stepSchema = z
   .object({

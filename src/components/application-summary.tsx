@@ -1,4 +1,9 @@
 "use client";
+/**
+ * @file Presentación resumida de postulaciones y sus estados. Usa las etiquetas y los registros
+ * disponibles para facilitar el seguimiento de reclutamiento.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Filtros y recomendaciones de las postulaciones visibles. Los enlaces apuntan
  * a las tarjetas del listado; el CV se obtiene mediante la descarga autorizada. */
 import { applicationSections } from "@/modules/workspace/application-sections";

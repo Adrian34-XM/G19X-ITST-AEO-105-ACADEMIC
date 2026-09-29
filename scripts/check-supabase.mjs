@@ -1,4 +1,10 @@
 /**
+ * @file Comprueba conexión, autenticación y acceso a recursos configurados. Permite distinguir
+ * fallos de servicio o migraciones de errores de interfaz; requiere las variables del entorno de
+ * prueba.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Comprobación de disponibilidad sin escrituras: verifica Auth, lectura pública y rechazo de acceso anónimo a tablas privadas. No demuestra que todos los flujos autenticados funcionen.
  */
 // Comprobaciones sin escrituras; no imprime claves ni registros de usuarios.

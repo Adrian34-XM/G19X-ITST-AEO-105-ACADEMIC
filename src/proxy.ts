@@ -1,4 +1,10 @@
 /**
+ * @file Renueva la sesión y aplica el acceso por rol antes de navegar. Las operaciones privadas
+ * vuelven a autorizarse en la API y en PostgreSQL; este control de navegación no reemplaza esas
+ * comprobaciones.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Renueva las cookies de sesión y controla el acceso a las áreas privadas. Consulta el rol vigente; las rutas API vuelven a validar identidad y permisos.
  */
 import { createServerClient } from "@supabase/ssr";

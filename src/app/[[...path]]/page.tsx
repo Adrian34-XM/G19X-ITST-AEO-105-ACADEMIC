@@ -1,4 +1,10 @@
 /**
+ * @file Entrada de páginas públicas y espacios privados. Resuelve la ruta, obtiene identidad y
+ * datos de la sesión y entrega el contexto al componente Workspace; los recursos privados no se
+ * cargan con la clave administrativa.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Entrada de páginas del sistema. Distingue acceso público, autenticación y áreas privadas, carga el conjunto de datos autorizado y entrega la vista al componente Workspace.
  */
 import Link from "next/link";

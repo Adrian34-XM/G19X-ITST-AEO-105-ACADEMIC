@@ -78,6 +78,47 @@ const req = (body: unknown) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+it("rechaza vacantes en incorporación antes de reservar o llamar al proveedor", async () => {
+  state.role = "RH_ADMIN";
+  const response = await POST(
+    req({ mode: "onboarding", prompt: "cuantas vacantes hay disponibles" }),
+  );
+  expect(response.status).toBe(422);
+  expect((await response.json()).error).toContain(
+    "no corresponde al módulo de Incorporación",
+  );
+  expect(state.generate).not.toHaveBeenCalled();
+  expect(state.rpc).not.toHaveBeenCalled();
+});
+it("incorporación conserva la redacción de IA y aporta conteos verificados sin datos privados", async () => {
+  state.role = "RH_ADMIN";
+  state.generate.mockResolvedValue({
+    model: "mock",
+    result: {
+      summary:
+        "No puedo comparar áreas porque no hay actividades disponibles en esta consulta.",
+      recommendations: [],
+    },
+  });
+  const response = await POST(
+    req({ mode: "onboarding", prompt: "Qué área tiene más personas" }),
+  );
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.result.summary).toBe(
+    "No puedo comparar áreas porque no hay actividades disponibles en esta consulta.",
+  );
+  expect(body.result.recommendations).toEqual([]);
+  expect(state.generate.mock.calls[0][0].request).toBe(
+    "Qué área tiene más personas",
+  );
+  const context = state.generate.mock.calls[0][0].verified_context;
+  expect(context.metrics).toHaveLength(1);
+  expect(context.metrics[0].process).toBe("Incorporación");
+  expect(JSON.stringify(context)).not.toMatch(
+    /Persona privada|secreto@test|Texto confidencial/,
+  );
+});
 it("gráficas calculadas en servidor solo cuentan filas del alcance y no exponen textos privados a IA", async () => {
   const r = await POST(
     req({ mode: "chart", section: "performance", prompt: "Tareas por estado" }),

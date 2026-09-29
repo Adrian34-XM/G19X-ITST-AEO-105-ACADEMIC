@@ -1,3 +1,8 @@
+/**
+ * @file Adaptador REST de recursos de negocio. Resuelve operaciones permitidas y aplica validación
+ * de origen, sesión y contrato antes de delegar las reglas transaccionales a PostgreSQL.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { requireHrHierarchySchema } from "@/lib/api";
 /**
  * Adaptador de rutas REST por recurso. Reutiliza las funciones de archivos, IA y comandos para mantener las mismas validaciones en los distintos puntos de entrada.

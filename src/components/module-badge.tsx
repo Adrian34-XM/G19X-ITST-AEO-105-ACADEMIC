@@ -1,6 +1,16 @@
 "use client";
+/**
+ * @file Indicadores de pendientes o registros recientes en la navegación. El significado depende
+ * del módulo; no todos son mensajes sin leer ni se descartan automáticamente al visitar la
+ * pantalla.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { useEffect, useState } from "react";
 import type { Snapshot, Profile } from "@/modules/workspace/types";
+/**
+ * Calcula señales sobre el conjunto visible. Para clima consulta asignaciones y recibos
+ * del usuario; una consulta fallida conserva la distinción entre desconocido y cero.
+ */
 export function ModuleBadge({
   module,
   data,

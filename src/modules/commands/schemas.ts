@@ -1,3 +1,8 @@
+/**
+ * @file Contratos de entrada de los comandos de negocio. Restringe operaciones, campos y estados
+ * antes de invocar SQL; la validación de estructura no sustituye la autorización de filas.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { nonWorkingDay } from "@/lib/working-days";
 /**
  * Esquemas Zod de las operaciones permitidas. Rechaza campos inesperados y valida identificadores, estados y límites antes de ejecutar la función SQL command.

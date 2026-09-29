@@ -1,4 +1,10 @@
 "use client";
+/**
+ * @file Contenedor principal de navegación y vistas por rol. Conecta datos autorizados, formularios
+ * y paneles especializados; coordina las actualizaciones de pantalla tras las operaciones del
+ * servidor.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { ModuleBadge } from "./module-badge";
 import { TaskConversation } from "./task-conversation";
 import { TaskCalendar } from "./task-calendar";

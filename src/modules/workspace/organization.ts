@@ -1,3 +1,9 @@
+/**
+ * @file Construye el organigrama, conserva ancestros autorizados y protege recorridos contra
+ * ciclos. También refleja en la interfaz quién puede editar a integrantes de RH; PostgreSQL vuelve
+ * a exigir esa regla.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import type { Snapshot, Row, Profile } from "./types";
 /** RH solo puede modificar a otro RH si es su superior de RH más alto. */
 export function canEditStaff(data: Snapshot, actor: Profile, employee: Row) {

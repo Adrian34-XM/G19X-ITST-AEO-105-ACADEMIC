@@ -1,3 +1,9 @@
+/**
+ * @file Contratos de gráficas, borradores formativos y resúmenes. La IA propone una representación;
+ * las cifras se calculan con datos autorizados y los nombres de procesos y agrupaciones están
+ * restringidos.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** La IA elige una presentación; los valores se calculan con datos autorizados, nunca con código del modelo. */
 import { z } from "zod";
 import { type Snapshot, value } from "./types";

@@ -1,4 +1,10 @@
 "use client";
+/**
+ * @file Conversación vinculada a una tarea, con envío, paginación y actualización periódica.
+ * Registra hasta qué mensaje se ha leído mediante la API; consultar el chat exige acceso a la
+ * tarea.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { stateLabel } from "@/modules/workspace/labels";

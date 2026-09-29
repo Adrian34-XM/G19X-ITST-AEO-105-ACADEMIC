@@ -1,3 +1,8 @@
+/**
+ * @file Asignación de jefe directo mediante una RPC que comprueba jerarquía y ciclos. Exige el
+ * esquema actualizado de protección de RH antes de aceptar cambios.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { requireHrHierarchySchema } from "@/lib/api";
 /** Asigna el jefe directo con autorización y prevención de ciclos en PostgreSQL. */
 import { NextResponse } from "next/server";

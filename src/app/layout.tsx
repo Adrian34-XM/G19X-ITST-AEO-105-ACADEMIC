@@ -1,4 +1,9 @@
 /**
+ * @file Estructura HTML compartida, metadatos y estilos globales. Mantiene el marco común de todas
+ * las rutas sin concentrar aquí las reglas de autorización de cada módulo.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Estructura HTML común y estilos globales de todas las páginas.
  */
 import type { Metadata } from "next";

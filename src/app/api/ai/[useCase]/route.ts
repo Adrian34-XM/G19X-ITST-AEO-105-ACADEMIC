@@ -1,4 +1,10 @@
 /**
+ * @file Análisis de postulaciones o evidencias desde identificadores autorizados. Reserva una
+ * ejecución, valida la salida y persiste resultados; los errores no se sustituyen por evaluaciones
+ * inventadas.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Coordina análisis de reclutamiento y evidencias: valida rol y recurso, carga contexto autorizado, reutiliza resultados existentes y registra la solicitud. El proveedor genera el JSON; finish_ai persiste el resultado con permisos administrativos.
  */
 import { NextResponse } from "next/server";

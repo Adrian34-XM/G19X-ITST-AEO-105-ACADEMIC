@@ -1,3 +1,9 @@
+/**
+ * @file Filtra el conjunto de trabajo por área, persona, proceso y periodo relacionando empleados,
+ * puestos y registros. Debe recibir datos previamente autorizados; un filtro visual no concede
+ * acceso.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { filterModule, type ModuleFilters } from "./module-filters";
 /** Filtra un conjunto ya autorizado; no sustituye RLS ni acepta filas del navegador. */
 import type { Snapshot } from "./types";

@@ -1,3 +1,8 @@
+/**
+ * @file Traduce códigos internos a textos de interfaz en español. Conserva los identificadores
+ * originales en almacenamiento y peticiones para mantener los contratos del sistema.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Etiquetas visibles en español. Los valores enviados a la API conservan sus códigos. */
 export const labels: Record<string, string> = {
   OPEN: "Abierta",

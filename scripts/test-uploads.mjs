@@ -1,4 +1,9 @@
 /**
+ * @file Pruebas de integración de documentos con servicios reales. Puede crear registros y
+ * archivos; ejecutar únicamente contra un entorno destinado a pruebas con credenciales apropiadas.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Prueba de integración que inicia sesiones de demostración, sube documentos ficticios y verifica descargas y rechazos. Crea una tarea y conserva archivos para revisión; requiere contraseñas de prueba en variables de entorno.
  */
 // Pruebas con la aplicación en ejecución. Crea documentos identificados como pruebas.

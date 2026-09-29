@@ -1,3 +1,8 @@
+/**
+ * @file Valida y prepara la opinión de IA sobre evidencias de capacitación. Separa hallazgos,
+ * faltantes y próximos pasos; el resultado orienta la revisión humana y no aprueba progreso.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { z } from "zod";
 import { readableOverview } from "@/modules/workspace/overview";
 export const trainingOpinion = z

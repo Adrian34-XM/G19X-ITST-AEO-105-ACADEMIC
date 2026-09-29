@@ -1,4 +1,9 @@
 /**
+ * @file Acceso, registro y cierre de sesión mediante Supabase Auth. Traduce fallos a respuestas
+ * públicas y administra cookies a través del cliente de servidor.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Registro, acceso y cierre de sesión. El registro público crea candidatos; al iniciar sesión se consulta el perfil activo y se devuelve el destino según su rol.
  */
 import { NextResponse } from "next/server";

@@ -1,4 +1,9 @@
 /**
+ * @file Catálogo de roles, destinos y permisos de navegación. Compartido por interfaz y servidor;
+ * ocultar una ruta o botón no sustituye las políticas RLS.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Catálogo de roles, páginas iniciales y transiciones visibles de postulaciones. Las reglas definitivas de escritura también se comprueban en PostgreSQL.
  */
 export const roles = [

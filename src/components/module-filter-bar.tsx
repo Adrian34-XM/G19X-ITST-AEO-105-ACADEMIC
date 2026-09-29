@@ -1,4 +1,9 @@
 "use client";
+/**
+ * @file Controles visuales de búsqueda, estado y fechas de los listados. Comunica cambios al
+ * contenedor sin cambiar por sí mismo los permisos ni los datos almacenados.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { stateLabel } from "@/modules/workspace/labels";
 import { type Snapshot, value } from "@/modules/workspace/types";
 import { type WorkspaceFilters } from "@/modules/workspace/filters";

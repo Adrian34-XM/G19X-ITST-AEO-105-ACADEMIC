@@ -1,4 +1,10 @@
 "use client";
+/**
+ * @file Entrega y consulta de evidencias formativas, recursos sugeridos y opinión de IA. Conserva
+ * observaciones de rechazo para orientar una nueva entrega; la validación final corresponde al
+ * responsable autorizado.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { request } from "./forms";

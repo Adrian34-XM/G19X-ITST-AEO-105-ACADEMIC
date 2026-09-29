@@ -1,4 +1,10 @@
 "use client";
+/**
+ * @file Calendario de entrevistas con indicación de días ocupados y selección de fecha. Las
+ * comprobaciones visuales se complementan con validaciones de fechas y conflictos en servidor y
+ * SQL.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Agenda local: el servidor conserva la validación definitiva de conflictos. */
 import { nonWorkingDay, mexicoDate } from "@/lib/working-days";
 import { useState } from "react";

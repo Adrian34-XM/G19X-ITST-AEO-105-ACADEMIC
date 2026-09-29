@@ -1,4 +1,9 @@
 "use client";
+/**
+ * @file Diálogo de contratación y elección de puesto, área y jefe. Envía la operación de negocio al
+ * servidor para que los registros asociados se creen con las validaciones de la base.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { useState } from "react";
 import { request } from "./forms";
 import { type Snapshot, value } from "@/modules/workspace/types";

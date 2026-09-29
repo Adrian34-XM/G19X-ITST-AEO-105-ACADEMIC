@@ -1,3 +1,8 @@
+/**
+ * @file Completa puesto, área y jefe después de la contratación. RH y superusuario envían
+ * identificadores; SQL comprueba coherencia entre puesto y área y validez del superior.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticate, requireRole, ApiError } from "@/lib/auth";

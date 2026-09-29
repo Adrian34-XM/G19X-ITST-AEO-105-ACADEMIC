@@ -1,3 +1,9 @@
+/**
+ * @file Recorridos integrados con cuentas y registros identificados como pruebas. Usa servicios
+ * reales y puede modificar datos; sus resultados corresponden al entorno y a los casos
+ * efectivamente ejecutados.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Integración real con registros aislados. Ejecutar solo con autorización para crear datos de prueba. */
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";

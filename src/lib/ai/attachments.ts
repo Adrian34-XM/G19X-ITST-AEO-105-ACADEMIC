@@ -1,7 +1,18 @@
+/**
+ * @file Obtiene imágenes y PDF mediante el cliente autorizado y los prepara en base64 para el
+ * proveedor. Comprueba formato, tamaño y configuración visual; la descarga conserva las políticas
+ * de Storage.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Descarga con la sesión del solicitante: conserva RLS y las reglas de Storage. */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "@/lib/auth";
 import type { Attachment } from "./provider";
+/**
+ * Descarga con el cliente de sesión recibido; no sustituirlo por adminDb para evitar RLS.
+ * Devuelve el binario codificado, no una URL pública. La conversión de PDF a páginas
+ * ocurre después en el proveedor que la necesite.
+ */
 export async function authorizedAttachment(
   client: SupabaseClient,
   bucket: string,

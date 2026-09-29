@@ -1,4 +1,9 @@
 "use client";
+/**
+ * @file Solicita un borrador de vacante a la IA para revisión humana. El contenido propuesto debe
+ * pasar por el formulario de guardado antes de convertirse en una vacante persistida.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Borrador revisable: generar no publica la vacante ni cambia sus datos. */
 import { useState } from "react";
 import { type Snapshot, value } from "@/modules/workspace/types";

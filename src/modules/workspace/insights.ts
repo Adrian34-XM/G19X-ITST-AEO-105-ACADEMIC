@@ -1,3 +1,9 @@
+/**
+ * @file Calcula alcance por rol, destinatarios y señales operativas sin IA. El jefe trabaja sobre
+ * la jerarquía subordinada autorizada; una tarea entregada para revisión no cuenta como atraso del
+ * empleado.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Señales verificables calculadas sobre datos ya autorizados, sin inventar resultados de IA. */
 import { stateLabel } from "@/modules/workspace/labels";
 import { filterWorkspace, type WorkspaceFilters } from "./filters";
@@ -15,6 +21,7 @@ export function canReviewTeamPerformance(data: Snapshot, profile: Profile) {
       ))
   );
 }
+/** Compara fechas ISO; una entrega pendiente de revisión no es atraso del colaborador. */
 export function overdue(task: Row, today: string) {
   return (
     !!task.due_date &&
@@ -22,6 +29,11 @@ export function overdue(task: Row, today: string) {
     !["APPROVED", "SUBMITTED"].includes(value(task, "status"))
   );
 }
+/**
+ * Restringe empleados y registros relacionados antes de mostrar o enviar contexto a IA.
+ * RH conserva el alcance disponible; JEFE recorre descendientes hasta un punto fijo;
+ * EMPLEADO conserva lo propio. No reemplaza RLS ni recupera filas que no se cargaron.
+ */
 export function scopeData(data: Snapshot, profile: Profile): Snapshot {
   // Defensa adicional: ni la interfaz ni el contexto de IA dependen solo del filtro visual.
   const team = new Set(
@@ -81,6 +93,7 @@ export function taskRecipients(data: Snapshot, profile: Profile): Snapshot {
         : [],
   };
 }
+/** Construye alertas deterministas sobre datos ya autorizados, con today en formato ISO. */
 export function notifications(data: Snapshot, today: string) {
   return [
     ...(data.onboarding_items ?? [])

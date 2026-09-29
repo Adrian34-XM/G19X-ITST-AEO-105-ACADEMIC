@@ -1,7 +1,19 @@
+/**
+ * @file Materiales, evaluación e intentos de incorporación. Solo responsables autorizados
+ * configuran contenido; las respuestas se califican en SQL y el colaborador no recibe la clave de
+ * respuestas correctas.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticate, ApiError } from "@/lib/auth";
-import { checkOrigin, failure, databaseError } from "@/lib/api";
+import { authenticate, requireRole, ApiError } from "@/lib/auth";
+import {
+  readFormData,
+  checkOrigin,
+  failure,
+  databaseError,
+  readJson,
+} from "@/lib/api";
 import { adminDb } from "@/lib/supabase/server";
 import { inspectFile } from "@/lib/storage/files";
 const question = z
@@ -38,7 +50,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     checkOrigin(req);
-    const { client, user } = await authenticate();
+    const { client, user, profile } = await authenticate();
     if (req.headers.get("content-type")?.includes("application/json")) {
       const payload = z
         .object({
@@ -46,7 +58,7 @@ export async function POST(req: Request) {
           answers: z.array(z.number().int().min(0).max(5)).min(1).max(20),
         })
         .strict()
-        .parse(await req.json());
+        .parse(await readJson(req));
       const { data, error } = await client.rpc("onboarding_learning_command", {
         op: "attempt",
         payload,
@@ -54,7 +66,8 @@ export async function POST(req: Request) {
       if (error) databaseError(error);
       return NextResponse.json(data);
     }
-    const form = await req.formData();
+    requireRole(profile.role, ["RH_ADMIN", "JEFE"]);
+    const form = await readFormData(req);
     const id = z.uuid().parse(form.get("id"));
     const { error: access } = await client.rpc("onboarding_learning_command", {
       op: "read",

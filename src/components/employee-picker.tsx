@@ -1,4 +1,9 @@
 "use client";
+/**
+ * @file Selección múltiple de personas con búsqueda y filtro de área. Conserva la selección al
+ * cambiar filtros y permite retirar integrantes; recibe únicamente los destinatarios autorizados.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Selector reutilizable: filtra opciones sin perder las personas ya seleccionadas. */
 import { useState } from "react";
 import { type Snapshot, value } from "@/modules/workspace/types";

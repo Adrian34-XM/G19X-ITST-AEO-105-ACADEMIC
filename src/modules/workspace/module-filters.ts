@@ -1,3 +1,8 @@
+/**
+ * @file Aplica los criterios de búsqueda propios de cada listado. Opera sobre las filas ya cargadas
+ * y no consulta páginas adicionales de la base de datos.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import type { Snapshot, Row } from "./types";
 export type ModuleFilters = {
   module?: string;

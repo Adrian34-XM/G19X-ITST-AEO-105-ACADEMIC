@@ -1,3 +1,9 @@
+/**
+ * @file Construye afirmaciones y conteos verificables de analíticas a partir del conjunto filtrado.
+ * El modelo selecciona temas permitidos, mientras el código conserva el control de las cifras y sus
+ * límites.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** La IA selecciona procesos; las cifras y las afirmaciones se construyen con registros filtrados. */
 import { z } from "zod";
 import type { Snapshot } from "./types";

@@ -1,4 +1,9 @@
 /**
+ * @file Subida y descarga autorizada de documentos privados. Limita el multipart y valida archivos
+ * antes de Storage; la asociación SQL y el objeto no comparten una transacción de base de datos.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Gestiona documentos privados. POST valida propietario y archivo, sube a Storage y registra la asociación. GET comprueba acceso y entrega un enlace de descarga de 60 segundos. Storage y SQL son operaciones separadas: un fallo al asociar puede dejar un archivo sin referencia.
  */
 import { requireWorkforceSchema, requireCourseEvidenceSchema } from "@/lib/api";
@@ -6,14 +11,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticate, ApiError } from "@/lib/auth";
 import { inspectFile, maxFileSize } from "@/lib/storage/files";
-import { checkOrigin, databaseError, failure } from "@/lib/api";
+import { readFormData, checkOrigin, databaseError, failure } from "@/lib/api";
 export async function POST(req: Request) {
   try {
     checkOrigin(req);
     const { client, user, profile } = await authenticate();
     if (Number(req.headers.get("content-length") ?? 0) > maxFileSize + 10000)
       throw new ApiError(413, "El archivo supera 5 MB.");
-    const form = await req.formData();
+    const form = await readFormData(req);
     const bucket = z
       .enum(["cvs", "task-evidence", "onboarding-documents", "course-evidence"])
       .parse(form.get("bucket"));

@@ -1,8 +1,13 @@
+/**
+ * @file Operaciones de adjuntos de vacantes con sesión, rol y validación de archivo. Devuelve
+ * acceso temporal de descarga sin hacer público el depósito de documentos.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Referencias privadas de vacantes, accesibles únicamente a RH y superadministración. */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticate, requireRole, ApiError } from "@/lib/auth";
-import { checkOrigin, failure, databaseError } from "@/lib/api";
+import { readFormData, checkOrigin, failure, databaseError } from "@/lib/api";
 import { inspectFile, maxFileSize } from "@/lib/storage/files";
 export async function GET(req: Request) {
   try {
@@ -55,7 +60,7 @@ export async function POST(req: Request) {
     requireRole(profile.role, ["RH_ADMIN"]);
     if (Number(req.headers.get("content-length") ?? 0) > maxFileSize + 10000)
       throw new ApiError(413, "El archivo supera 5 MB.");
-    const form = await req.formData();
+    const form = await readFormData(req);
     const vacancy = z.uuid().parse(form.get("vacancy"));
     const file = form.get("file");
     if (!(file instanceof File))

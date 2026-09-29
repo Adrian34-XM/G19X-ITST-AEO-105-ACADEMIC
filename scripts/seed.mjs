@@ -1,4 +1,10 @@
 /**
+ * @file Crea cuentas y registros de demostración. Requiere configuración administrativa y
+ * autorización explícita para destinos remotos; no es un reinicio seguro ni una operación
+ * idempotente de producción.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Carga usuarios y escenarios de demostración con acceso administrativo. Requiere configuración explícita para usar un proyecto remoto; no debe ejecutarse sobre datos reales como si fuera una migración.
  */
 import { createClient } from "@supabase/supabase-js";

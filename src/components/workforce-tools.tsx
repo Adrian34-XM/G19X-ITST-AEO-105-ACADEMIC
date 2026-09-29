@@ -1,4 +1,10 @@
 "use client";
+/**
+ * @file Herramientas de gráficas, propuestas de instrucciones, capacitación y revisión del
+ * progreso. Las gráficas representan conteos recibidos, con leyendas y tipos intercambiables; el
+ * modelo no aporta código ejecutable.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Herramientas revisables: el servidor determina el alcance y calcula las cifras. */
 import { useState } from "react";
 import Link from "next/link";
@@ -17,6 +23,11 @@ type Graph = {
   group?: string;
   values: { label: string; count: number }[];
 };
+/**
+ * Cambiar la representación reutiliza las mismas categorías y conteos del servidor.
+ * Las fechas se traducen para lectura; agrupar por creación no implica disponer de
+ * una serie histórica de cambios de estado o del rendimiento de una persona.
+ */
 export function DataGraph({ chart }: { chart: Graph }) {
   const [selectedKind, setSelectedKind] = useState("");
   const kind = selectedKind || chart.kind;

@@ -1,4 +1,10 @@
 /**
+ * @file Contratos de resultados de IA y saneamiento del texto de entrada. Los esquemas limitan
+ * forma y valores, pero no garantizan veracidad ni eliminan por sí solos toda inyección de
+ * instrucciones.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Define los contratos de recomendaciones y verificación de evidencias. El texto de los documentos se trata como datos no confiables; la sanitización limita caracteres, pero no garantiza eliminar toda inyección de instrucciones.
  */
 import { z } from "zod";

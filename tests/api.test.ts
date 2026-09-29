@@ -121,3 +121,79 @@ it.each([
     ).toThrow("Origen no autorizado");
   },
 );
+it("limita bytes UTF-8 aunque no haya Content-Length", async () => {
+  await expect(
+    readJson(
+      new Request("http://localhost/api", {
+        method: "POST",
+        body: JSON.stringify("á".repeat(60000)),
+      }),
+    ),
+  ).rejects.toThrow("demasiado grande");
+});
+it("cancela el flujo antes de consumir un cuerpo excesivo", async () => {
+  let cancelled = false;
+  const stream = new ReadableStream({
+    pull(c) {
+      c.enqueue(new Uint8Array(60000));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  const req = new Request("http://localhost/api", {
+    method: "POST",
+    body: stream,
+    duplex: "half",
+  } as RequestInit);
+  await expect(readJson(req)).rejects.toThrow("demasiado grande");
+  expect(cancelled).toBe(true);
+});
+it("limita multipart y mantiene archivos válidos", async () => {
+  const { readFormData } = await import("@/lib/api");
+  const data = new FormData();
+  data.set(
+    "file",
+    new File(["evidencia"], "prueba.txt", { type: "text/plain" }),
+  );
+  const parsed = await readFormData(
+    new Request("http://localhost/api", { method: "POST", body: data }),
+  );
+  expect(await (parsed.get("file") as File).text()).toBe("evidencia");
+  await expect(
+    readFormData(
+      new Request("http://localhost/api", {
+        method: "POST",
+        body: new Uint8Array(5 * 1024 * 1024 + 100001),
+      }),
+    ),
+  ).rejects.toThrow("demasiado grande");
+});
+it("permite cerrar entrevistas antiguas en festivo pero impide reprogramarlas a otro festivo", async () => {
+  const { validateInterviewSchedule } = await import("@/lib/api");
+  const client = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({
+            data: { scheduled_at: "2030-10-01T18:00:00Z", status: "SCHEDULED" },
+          }),
+        }),
+      }),
+    }),
+  };
+  await expect(
+    validateInterviewSchedule(client as never, {
+      id: "existente",
+      scheduled_at: "2030-10-01T18:00:00Z",
+      status: "COMPLETED",
+    }),
+  ).resolves.toBeUndefined();
+  await expect(
+    validateInterviewSchedule(client as never, {
+      id: "existente",
+      scheduled_at: "2030-12-25T18:00:00Z",
+      status: "SCHEDULED",
+    }),
+  ).rejects.toThrow("día hábil");
+});

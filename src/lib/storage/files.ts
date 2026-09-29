@@ -1,4 +1,10 @@
 /**
+ * @file Inspección de tamaño, formato y contenido de archivos y extracción de texto para análisis.
+ * Los límites de lectura acotan el trabajo; verificar cabeceras no equivale a un análisis
+ * antivirus.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Inspecciona tamaño, extensión, MIME y cabeceras antes de subir. Extrae texto UTF-8 o de PDF con límites de páginas y caracteres. Las cabeceras de imágenes no equivalen a un análisis antivirus.
  */
 import { ApiError } from "@/lib/auth";

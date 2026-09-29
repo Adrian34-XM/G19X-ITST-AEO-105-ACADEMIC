@@ -1,8 +1,10 @@
 # Guía del código en español
 
+Para localizar la responsabilidad y las exportaciones de cada archivo consulta el [mapa completo del código](MAPA_CODIGO.md). Para entender las dependencias de SQL consulta la [guía de base de datos y migraciones](BASE_DATOS_CODIGO.md). La documentación describe la implementación; no acredita que las migraciones estén aplicadas en un servidor remoto.
+
 ## Paneles operativos y orquestación por rol
 
-`src/modules/workspace/insights.ts` calcula alertas sin usar IA y recorta los datos por empleado o equipo directo. Las tareas ya entregadas para revisión no cuentan como atrasos del empleado; se muestran como revisiones pendientes. Las fechas límite se comparan con la fecha UTC del día. Los datos se actualizan al navegar o recargar la página; no son notificaciones por correo ni un servicio de mensajería.
+`src/modules/workspace/insights.ts` calcula alertas sin usar IA y recorta los datos por empleado o jerarquía subordinada. Las tareas ya entregadas para revisión no cuentan como atrasos del empleado; se muestran como revisiones pendientes. Las fechas límite se comparan con la fecha UTC del día. Las novedades generales se actualizan al navegar o recargar; el chat tiene su propio sondeo periódico. No son notificaciones por correo.
 
 `src/components/operations-panels.tsx` muestra novedades, recomendaciones, jerarquías, gráficas y auditoría. RH ve todas sus áreas; un jefe ve su jerarquía subordinada y sus propios registros. El árbol también controla ciclos para no bloquear la pantalla si existen relaciones incorrectas. Las gráficas permiten cambiar proceso, área, periodo y representación en barras o circular.
 
@@ -54,11 +56,13 @@ Una vacante describe requisitos, habilidades y experiencia. Cada postulación co
 
 ## Análisis de IA
 
+`src/lib/ai/module-scope.ts` limita el tema de las consultas: las referencias explícitas a otro dominio se rechazan con un mensaje 422 antes de reservar ejecución o consumir el proveedor. Las instrucciones de cada análisis también exigen rechazar preguntas ajenas en lugar de sustituirlas por un resumen genérico. Vista general admite una visión transversal; desempeño comprende tareas, incorporación y capacitación; analíticas incluye procesos de reclutamiento. Este control temático complementa los permisos y no los reemplaza. La detección local usa expresiones de temas conocidos y no equivale a comprender todas las formulaciones posibles.
+
 `/api/ai/recruitment` compara una postulación con su vacante; `/api/ai/evidence` compara la evidencia con la tarea. Ambos reciben el identificador del registro, no un documento arbitrario ni una clave del proveedor.
 
 La ruta autoriza el recurso y carga el contexto desde la base. Si ya hay un resultado, lo devuelve sin consumir nuevamente el proveedor. Si no, registra `ai.begin`, genera el análisis y lo guarda con `finish_ai`. Este último solo admite el cliente administrativo. La migración de endurecimiento invalida las recomendaciones de postulaciones al actualizar habilidades, experiencia o texto del CV del candidato, y requisitos, habilidades, experiencia, descripción o título de la vacante. Las evidencias tienen su propio resultado guardado; estos disparadores no invalidan sus análisis.
 
-`src/lib/ai/provider.ts` implementa Gemini y Ollama. Tiene un límite de 45 segundos por llamada, solicita JSON y comprueba la respuesta con los esquemas de `src/lib/ai/schemas.ts`. El respaldo a Ollama requiere `AI_FALLBACK=true` y un servicio local operativo. Los nombres de modelos pueden cambiar: configurar un nombre no garantiza que la cuenta pueda utilizarlo.
+`src/lib/ai/provider.ts` implementa Gemini y Ollama. Gemini y Ollama de texto tienen 45 segundos de espera; Ollama con visión dispone de 180 segundos. Solicita JSON y comprueba la respuesta con el esquema de cada operación. El respaldo a Ollama requiere `AI_FALLBACK=true` y un servicio local operativo. Los nombres de modelos pueden cambiar: configurar un nombre no garantiza que la cuenta pueda utilizarlo.
 
 La base limita solicitudes y evita análisis simultáneos recientes del mismo recurso. Si falla el proveedor o la persistencia, la ruta intenta marcar la solicitud como fallida. No sustituye un error por un resultado ficticio. El texto extraído y, cuando corresponde, el archivo se envían al proveedor configurado; para pruebas se deben usar datos ficticios.
 
@@ -134,6 +138,8 @@ EmployeePicker conserva la selección entre filtros de búsqueda y área; BulkAs
 
 organization construye raíces y conserva ancestros autorizados al filtrar por área. TeamTree representa tarjetas conectadas y ramas plegables; EmployeeProfile utiliza el conjunto ya restringido por scopeData/RLS. El filtro employees se valida también en /api/ai/orchestrate antes de generar recomendaciones.
 
+El organigrama permite alternar entre recuadros por área y una jerarquía completa que conserva conexiones entre áreas. Ofrece zoom de 60 % a 130 %, restablecimiento a 100 %, plegado global o por responsable y ocultación del lienzo. El desplazamiento queda dentro del panel para que los equipos amplios no ensanchen la página. Los superiores incluidos como contexto se distinguen por un borde discontinuo; los controles visuales no modifican asignaciones ni permisos.
+
 ## Orquestador de la vista general (22 de septiembre)
 
 La vista general solicita automáticamente un resumen por usuario y rol. El servidor reúne estados, fechas, totales, señales de atraso y registros recientes de los módulos visibles: reclutamiento, entrevistas, equipo, incorporación, tareas, evidencias (sin contenido), capacitación y encuestas (solo estado y fecha). La auditoría se incorpora únicamente para superadministración y excluye los registros del propio orquestador.
@@ -149,7 +155,7 @@ Requiere la migración existente de orquestación y el proveedor configurado en 
 - Vista general: tipo de notificación (filtra las tarjetas, no el resumen general del orquestador).
 - Vacantes: estado, puesto, área para RH, búsqueda y fecha de registro.
 - Postulaciones: secciones por estado, vacante, búsqueda, área para RH y fechas de postulación.
-- Entrevistas: estado, área para RH, búsqueda por candidato y rango de fechas de agenda.
+- Entrevistas: calendario y secciones por estado; la selección de fecha permite consultar las citas del día.
 - Equipo: estado, puesto, nombre y área para RH; el organigrama conserva ancestros autorizados como contexto.
 - Onboarding: estado, persona, búsqueda, área para RH y fecha de registro.
 - Tareas: estado, prioridad, atraso, fechas límite y selección de personas. Los aprobados conservan su historial.
@@ -161,3 +167,47 @@ Requiere la migración existente de orquestación y el proveedor configurado en 
 - Ambiente laboral: búsqueda por título y estado de encuesta.
 
 Los filtros trabajan sobre las filas autorizadas cargadas; no sustituyen RLS ni amplían acceso. Las vistas individuales y el perfil personal no necesitan los filtros de listado. Se reinician al cambiar de ruta; Limpiar filtros restaura el listado del módulo. Las fechas usan los valores guardados por el sistema. El límite existente de carga es 1.000 registros por tabla; no se añadió paginación remota en este cambio.
+
+## Entrega, revisión e historial
+
+La vista de incorporación reúne indicadores de procesos activos, revisiones, plazos y completados. El seguimiento permite buscar por persona y mostrar únicamente procesos con actividades entregadas; cada actividad despliega sus acciones individualmente. La asignación presenta persona, plantilla y fecha como tres pasos, con vista previa del plan. Los filtros se aplican al conjunto autorizado y no cambian las reglas de entrega o revisión.
+
+En tareas, el colaborador entrega la evidencia y la tarea pasa a revisión. Las aprobadas se consultan en el historial; una entrega pendiente de revisión no se presenta como atraso del empleado. `sortTasks` devuelve una copia ordenada por prioridad, fecha e identificador. El calendario utiliza los vencimientos y los mismos registros autorizados.
+
+En capacitación, `progress` expresa el avance registrado y `approved_progress` el validado. La revisión acepta o rechaza con observaciones y puede ajustar el porcentaje dentro de las reglas de SQL. Tras un rechazo, `evidence_required_after` permite exigir evidencia nueva; no basta volver a enviar el archivo anterior. `TrainingReviewMessage` mantiene visibles las indicaciones del responsable. La opinión de IA no llama a la operación de aprobación.
+
+En incorporación, las plantillas contienen actividades con responsable, plazo y requisito de documento. Un plan con avances no se reemplaza libremente. El colaborador entrega y el responsable comprueba archivos y actividad. `OnboardingLearning` añade un material de lectura y una evaluación opcional: las respuestas correctas permanecen en servidor, se registran intentos y es posible repetir una evaluación reprobada. Si la evaluación es obligatoria, aprobarla forma parte de los requisitos para completar la actividad.
+
+## Conversaciones y novedades
+
+`TaskConversation` consulta mensajes por páginas y se actualiza periódicamente. Las secuencias permiten pedir mensajes anteriores y confirmar hasta dónde se leyó; un recibo pertenece al usuario, no a todo el equipo. La base comprueba acceso a la tarea y limita envíos. Las conversaciones de tareas aprobadas se cierran para nuevas publicaciones.
+
+El orquestador recibe título de tarea y cantidad de mensajes pendientes, no su contenido. No debe inferir urgencia a partir de que exista un mensaje sin leer. Los indicadores de navegación de `ModuleBadge` tienen significados distintos: algunos cuentan pendientes y otros registros recientes; visitar una pantalla no necesariamente borra el indicador.
+
+## Desempeño, analíticas y perfiles
+
+`activity-context.ts` relaciona actividades, procesos de incorporación, empleados, puestos y departamentos sobre el conjunto ya autorizado. Calcula personas únicas por área, actividades sin finalizar, estados y atrasos, y distingue tablas ausentes de conteos cero. En incorporación el servidor calcula los hechos y la IA redacta una respuesta centrada en la pregunta, sin concatenar las fichas como una plantilla. El esquema valida la estructura de la respuesta; la redacción requiere revisión humana y no constituye una garantía automática de exactitud. Los demás análisis reciben estos agregados como contexto adicional según su módulo. Las preguntas son texto libre, pero requieren datos disponibles: no se garantizan respuestas a causas, historia, documentos privados o información fuera de permisos. Las cifras se limitan a las filas cargadas.
+
+Desempeño utiliza procesos laborales de tareas, capacitación e incorporación. Analíticas permite a RH y superusuario observar también el flujo de reclutamiento. Los filtros recibidos por las rutas se validan y se aplican después de restringir el alcance de los datos.
+
+`canReviewTeamPerformance` permite seguimiento colectivo a RH o a un usuario con rol JEFE y subordinados autorizados. Un perfil EMPLEADO conserva el alcance propio; la existencia de una relación jerárquica no convierte por sí sola su rol en JEFE.
+
+`chartSchema` limita procesos, agrupaciones y representaciones. `requestedCharts` interpreta preferencias explícitas del texto; `chartValues` calcula conteos sobre los registros permitidos. El modelo no devuelve consultas SQL ni JavaScript para ejecutar. Una gráfica por fecha de creación muestra cuándo se registraron los elementos, no reconstruye sus cambios de estado diarios.
+
+`analyticsSummary` produce cifras y afirmaciones con código determinista; la IA selecciona temas de una lista permitida. Los resultados siguen limitados al conjunto cargado. La ausencia de registros no acredita bajo desempeño ni que un proceso no exista fuera de ese conjunto.
+
+## Archivos y visión
+
+`readLimitedBody` consume el cuerpo de la solicitud contando bytes reales. No confía únicamente en Content-Length. JSON admite hasta 100000 bytes; el multipart tiene un límite global de 5 MB más 100000 bytes para sus campos y envoltura. La inspección posterior aplica el límite de cada archivo. No volver a leer `req.body` después de utilizar estos lectores.
+
+Para IA, se utiliza texto extraído cuando resulta aprovechable. Si se necesita visión, `authorizedAttachment` descarga con la sesión autorizada; Gemini puede recibir PDF o imagen y Ollama utiliza un modelo visual configurado. `pdfImages` convierte PDF a PNG, conserva el orden y rechaza más de seis páginas, sin analizar parcialmente en silencio. Un PDF mixto enviado como texto puede perder información visual; el análisis no debe afirmar haber leído lo que no recibió.
+
+## Convenciones de mantenimiento
+
+Los comentarios `@file` describen responsabilidad y límites del archivo. Los comentarios de funciones explican contratos o decisiones no evidentes. Mantener ambos al cambiar comportamiento; evitar duplicar cada línea de implementación en prosa.
+
+Las directivas `use client` deben permanecer antes de los imports. No mover clientes administrativos ni claves de proveedor a componentes de navegador. Las etiquetas se traducen al presentar; los códigos persistidos permanecen estables.
+
+Para añadir un módulo, conectar página y navegación, definir contratos, autorizar la API, implementar permisos SQL, crear pruebas de autorización y documentar su entrada en el [mapa del código](MAPA_CODIGO.md). Para cambios de base utilizar una migración posterior; no modificar instaladores antiguos como sustituto de una actualización.
+
+El [índice de pruebas y configuración](PRUEBAS_CODIGO.md) describe qué comprueba cada archivo y distingue pruebas simuladas de servicios reales. La [guía de SQL](BASE_DATOS_CODIGO.md) enumera las 28 migraciones y sus dependencias.

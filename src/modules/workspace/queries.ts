@@ -1,4 +1,10 @@
 /**
+ * @file Carga tablas con la sesión y un máximo de 1000 filas por tabla. Auditoría se obtiene solo
+ * para superusuario; un fallo de consulta se informa como error y no se transforma en un conjunto
+ * vacío.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Carga en paralelo las tablas visibles para la sesión. RLS determina qué filas puede leer cada usuario. El límite de 1000 filas por tabla implica que esta vista no representa un reporte completo para volúmenes mayores.
  */
 import "server-only";

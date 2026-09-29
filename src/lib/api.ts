@@ -1,3 +1,9 @@
+/**
+ * @file Controles HTTP reutilizables: origen, tamaño real del cuerpo, requisitos de esquema y
+ * errores públicos. La validación del transporte se complementa con Zod y las reglas de
+ * autorización de cada operación SQL.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { mexicoDate, nonWorkingDay } from "@/lib/working-days";
 /**
  * Utilidades HTTP comunes: control de origen, lectura limitada de JSON y traducción de errores. Evita devolver mensajes internos de base de datos o excepciones que podrían contener información sensible.
@@ -36,20 +42,16 @@ export async function requireCourseEvidenceSchema(client: SupabaseClient) {
       "Ejecuta supabase/migrations/202609230003_course_evidence.sql en Supabase para activar evidencias de capacitación.",
     );
 }
+/**
+ * Valida citas nuevas, reprogramadas o reactivadas contra el instante actual y el calendario.
+ * Permite cerrar una cita histórica sin cambiar su fecha: exigir una fecha futura en ese
+ * caso impediría registrar el resultado de una entrevista que ya ocurrió.
+ */
 export async function validateInterviewSchedule(
   client: SupabaseClient,
   payload: Record<string, unknown>,
 ) {
   const time = new Date(String(payload.scheduled_at)).getTime();
-  if (time >= Date.now()) {
-    const reason = nonWorkingDay(mexicoDate(String(payload.scheduled_at)));
-    if (reason)
-      throw new ApiError(
-        422,
-        `No se pueden agendar entrevistas: ${reason}. Selecciona un día hábil (hora de Ciudad de México).`,
-      );
-    return;
-  }
   if (payload.id) {
     const { data } = await client
       .from("interviews")
@@ -63,11 +65,21 @@ export async function validateInterviewSchedule(
     )
       return;
   }
+  if (time >= Date.now()) {
+    const reason = nonWorkingDay(mexicoDate(String(payload.scheduled_at)));
+    if (reason)
+      throw new ApiError(
+        422,
+        `No se pueden agendar entrevistas: ${reason}. Selecciona un día hábil (hora de Ciudad de México).`,
+      );
+    return;
+  }
   throw new ApiError(
     422,
     "Selecciona una fecha y hora posterior al momento actual.",
   );
 }
+/** Detecta la RPC de contratación antes de ofrecer asignación de puesto, área y jefe. */
 export async function requireHiringSchema(client: SupabaseClient) {
   const { error } = await client.rpc("hiring_options_ready");
   if (error)
@@ -169,12 +181,56 @@ export function failure(error: unknown) {
     { status: 503 },
   );
 }
+/**
+ * Consume una sola vez el flujo y cuenta bytes reales, no caracteres ni solo Content-Length.
+ * Cancela la lectura al superar el límite y libera el lector incluso si ocurre un error.
+ * El llamador debe usar los bytes devueltos: el cuerpo original ya quedó consumido.
+ */
+async function readLimitedBody(req: Request, limit: number) {
+  if (Number(req.headers.get("content-length") ?? 0) > limit)
+    throw new ApiError(413, "Solicitud demasiado grande.");
+  // Cuenta bytes mientras llegan: Content-Length puede faltar o ser falso.
+  const reader = req.body?.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  if (reader) {
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > limit) {
+          await reader.cancel();
+          throw new ApiError(413, "Solicitud demasiado grande.");
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+/** Acota todo el multipart antes de que el parser cargue archivos o campos. */
+export async function readFormData(req: Request) {
+  const bytes = await readLimitedBody(req, 5 * 1024 * 1024 + 100000);
+  try {
+    return await new Response(bytes, {
+      headers: { "Content-Type": req.headers.get("content-type") ?? "" },
+    }).formData();
+  } catch {
+    throw new ApiError(400, "Formulario inválido.");
+  }
+}
+/** Lee hasta 100000 bytes; distingue exceso de tamaño (413) de JSON mal formado (400). */
 export async function readJson(req: Request) {
-  if (Number(req.headers.get("content-length") ?? 0) > 100000)
-    throw new ApiError(413, "Solicitud demasiado grande.");
-  const text = await req.text();
-  if (text.length > 100000)
-    throw new ApiError(413, "Solicitud demasiado grande.");
+  const text = new TextDecoder().decode(await readLimitedBody(req, 100000));
   try {
     return JSON.parse(text);
   } catch {

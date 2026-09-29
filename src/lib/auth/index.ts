@@ -1,4 +1,10 @@
 /**
+ * @file Autenticación de servidor y exigencia de roles sobre perfiles activos. El superusuario
+ * hereda las operaciones autorizadas a RH; las comprobaciones de pertenencia a un equipo se
+ * realizan además en cada recurso.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Verifica la identidad con Supabase Auth y exige un perfil activo. Devuelve el cliente de la sesión para conservar RLS; requireRole restringe cada operación según su caso de uso.
  */
 import "server-only";

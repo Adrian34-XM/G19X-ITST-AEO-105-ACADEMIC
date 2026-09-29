@@ -1,4 +1,9 @@
 /**
+ * @file Tipos del perfil y de las filas agrupadas por tabla. value convierte campos para su
+ * presentación; estos tipos flexibles no sustituyen los esquemas de validación de entradas.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Contratos compartidos para filas, perfiles y conjuntos de tablas. Los valores de cada fila son desconocidos hasta que el consumidor los comprueba o convierte para mostrarlos.
  */
 export type Row = { id: string; [key: string]: unknown };

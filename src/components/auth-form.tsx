@@ -1,5 +1,10 @@
 "use client";
 /**
+ * @file Formulario de acceso y registro que envía credenciales a las rutas de autenticación.
+ * Gestiona el estado de envío y los errores sin incorporar claves administrativas al navegador.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Formulario de acceso y registro. Envía las credenciales al endpoint propio y navega según su respuesta; el rol no se elige desde el registro público.
  */
 import Link from "next/link";

@@ -1,4 +1,10 @@
 /**
+ * @file Alta administrativa de cuentas con privilegios de superusuario. La creación en Auth y la
+ * asignación de perfil no son una sola transacción; contempla compensación si falla el paso
+ * posterior.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Crea cuentas desde el área de superusuario con el cliente administrativo. Asigna el rol mediante la sesión autorizada e intenta eliminar la cuenta recién creada si esa asignación falla.
  */
 import { NextResponse } from "next/server";

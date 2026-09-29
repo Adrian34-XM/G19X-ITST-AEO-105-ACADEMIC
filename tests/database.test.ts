@@ -2,6 +2,7 @@
  * Pruebas sobre PostgreSQL embebido mediante PGlite. Preparan esquemas auxiliares de Auth y Storage, aplican migraciones y comprueban transacciones, RLS y permisos.
  */
 import { beforeAll, afterAll, describe, it, expect } from "vitest";
+import { mexicoDate, nonWorkingDay } from "@/lib/working-days";
 import { PGlite } from "@electric-sql/pglite";
 import { readFile, readdir } from "node:fs/promises";
 let db: PGlite;
@@ -482,7 +483,7 @@ describe("PostgreSQL real: transacciones, RLS y aislamiento", () => {
     const taskId = crypto.randomUUID();
     const evidenceId = crypto.randomUUID();
     await db.query(
-      "insert into tasks(id,title,description,employee_id,created_by,due_date,status) values($1,'Prueba IA','Revisar documento',$2,$3,current_date,'SUBMITTED')",
+      "insert into tasks(id,title,description,employee_id,created_by,due_date,status) values($1,'Prueba IA','Revisar documento',$2,$3,public.next_working_day(current_date),'SUBMITTED')",
       [taskId, employee, ids.manager],
     );
     await db.query(
@@ -659,7 +660,7 @@ describe("PostgreSQL real: transacciones, RLS y aislamiento", () => {
       title: "Seguimiento admin",
       description: "Revisión",
       priority: "LOW",
-      due_date: "2027-02-01",
+      due_date: "2027-02-02",
     });
     await as(ids.admin, "select public.climate_command('save',$1)", [
       JSON.stringify({
@@ -956,7 +957,7 @@ describe("PostgreSQL real: transacciones, RLS y aislamiento", () => {
       title: "Asignación por jerarquía",
       description: "Solo subordinados",
       priority: "LOW",
-      due_date: "2027-02-01",
+      due_date: "2027-02-02",
     };
     // El jefe superior asigna a un jefe intermedio y a un descendiente indirecto.
     for (const recipient of [middle.id, employee])
@@ -1043,7 +1044,7 @@ describe("PostgreSQL real: transacciones, RLS y aislamiento", () => {
       (
         await batch(ids.manager, "course", people.slice(0, 2), {
           id: course,
-          due_date: "2027-02-01",
+          due_date: "2027-02-02",
         })
       ).rows,
     ).toEqual([{ result: { created: 2, skipped: 0 } }]);
@@ -1061,14 +1062,14 @@ describe("PostgreSQL real: transacciones, RLS y aislamiento", () => {
       [course],
     );
     expect(dates.rows).toEqual([
-      { due_date: "2027-02-01" },
-      { due_date: "2027-02-01" },
+      { due_date: "2027-02-02" },
+      { due_date: "2027-02-02" },
     ]);
     const task = {
       title: "Tarea lote seguro",
       description: "Entregar evidencia",
       priority: "LOW",
-      due_date: "2027-02-01",
+      due_date: "2027-02-02",
     };
     await expect(
       batch(ids.manager, "task", [people[0], people[2]], task),
@@ -1096,7 +1097,7 @@ describe("PostgreSQL real: transacciones, RLS y aislamiento", () => {
     await expect(
       batch(ids.manager, "course", [people[2]], {
         id: course,
-        due_date: "2027-02-01",
+        due_date: "2027-02-02",
       }),
     ).rejects.toThrow();
     await db.exec("reset role");
@@ -1554,7 +1555,10 @@ it("agenda rechaza el pasado y contratación asigna área, jefe y plantilla en u
   await expect(command(ids.hr, "interview.save", appointment)).rejects.toThrow(
     "INTERVIEW_IN_PAST",
   );
-  const future = new Date(Date.now() + 40 * 86400000).toISOString();
+  const futureDate = new Date(Date.now() + 40 * 86400000);
+  while (nonWorkingDay(mexicoDate(futureDate.toISOString())))
+    futureDate.setUTCDate(futureDate.getUTCDate() + 1);
+  const future = futureDate.toISOString();
   const interview = await command(ids.hr, "interview.save", {
     ...appointment,
     scheduled_at: future,
@@ -1966,4 +1970,28 @@ it("revisión parcial de capacitación: avisos, permisos, corrección y aprobaci
     progress: 100,
     progress_review_pending: false,
   });
+});
+it("desplaza la tarea automática de bienvenida sin perder la contratación", async () => {
+  await db.exec("reset role");
+  const result = await db.query(
+    `select public.next_working_day('2026-12-25'::date)::text as holiday, public.next_working_day('2026-09-26'::date)::text as weekend, public.next_working_day('2026-09-28'::date)::text as working`,
+  );
+  expect(result.rows).toEqual([
+    { holiday: "2026-12-28", weekend: "2026-09-28", working: "2026-09-28" },
+  ]);
+  const source = await db.query<{ definition: string }>(
+    `select pg_get_functiondef(p.oid) as definition from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.prokind='f' and p.proname like '%command%'`,
+  );
+  expect(
+    source.rows.some((r) =>
+      String(r.definition).includes("eid,uid,current_date+7)"),
+    ),
+  ).toBe(false);
+  expect(
+    source.rows.some((r) =>
+      String(r.definition).includes(
+        "eid,uid,public.next_working_day(current_date+7))",
+      ),
+    ),
+  ).toBe(true);
 });

@@ -1,8 +1,18 @@
 "use client";
+/**
+ * @file Diálogo de asignación múltiple de tareas o cursos. Muestra personas seleccionadas, controla
+ * el envío y comunica el resultado; la función SQL valida el conjunto antes de escribir.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { useState } from "react";
 import { EmployeePicker } from "./employee-picker";
 import { request } from "./forms";
 import { type Snapshot, value } from "@/modules/workspace/types";
+/**
+ * course selecciona el modo curso; su ausencia activa la creación de tareas.
+ * data debe venir restringido al alcance del actor. Los filtros solo reducen la lista;
+ * onSaved permite al contenedor recargar el estado confirmado por el servidor.
+ */
 export function BulkAssignment({
   data,
   course,

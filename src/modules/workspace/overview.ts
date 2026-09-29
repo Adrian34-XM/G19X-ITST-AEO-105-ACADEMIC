@@ -1,3 +1,9 @@
+/**
+ * @file Construye el contexto minimizado de novedades y convierte referencias técnicas en nombres
+ * legibles. Describe el estado disponible y registros recientes, no un historial completo de
+ * cambios desde la última visita.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Señales del orquestador sobre registros autorizados; no interpreta cambios sin evidencia temporal. */
 import type { Profile, Snapshot } from "./types";
 import { insightContext, notifications, scopeData, overdue } from "./insights";

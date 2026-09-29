@@ -1,3 +1,8 @@
+/**
+ * @file Genera propuestas estructuradas de vacantes con contexto permitido. Devuelve un borrador
+ * revisable, no una publicación automática.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Genera campos validados sin guardar/publicar automáticamente ni exponer claves. */
 import { NextResponse } from "next/server";
 import { z } from "zod";

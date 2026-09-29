@@ -1,4 +1,10 @@
 "use client";
+/**
+ * @file Ficha individual con información y seguimiento visibles según el perfil del solicitante.
+ * Reutiliza datos previamente restringidos y ofrece consultas de IA sin conceder permisos de
+ * edición adicionales.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { WorkforceAI } from "./workforce-tools";
 import { stateLabel } from "@/modules/workspace/labels";
 import Link from "next/link";

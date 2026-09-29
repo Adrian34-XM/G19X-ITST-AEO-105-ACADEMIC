@@ -1,3 +1,8 @@
+/**
+ * @file Consulta de plantillas y comandos de incorporación, incluido el borrador de IA. Distingue
+ * operaciones de colaborador y gestión; SQL protege avances existentes y requisitos de revisión.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Planes revisables. El cliente de sesión conserva RLS; la IA nunca recibe documentos personales. */
 import { requireWorkforceSchema } from "@/lib/api";
 import { NextResponse } from "next/server";

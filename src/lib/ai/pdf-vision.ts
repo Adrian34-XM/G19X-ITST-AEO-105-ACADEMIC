@@ -1,6 +1,17 @@
+/**
+ * @file Convierte páginas de PDF en imágenes para Ollama cuando se necesita visión. Acota páginas y
+ * resolución para evitar documentos excesivos; un PDF rechazado por límites no debe interpretarse
+ * como evidencia inválida del empleado.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Renderizado local y acotado: nunca se envía un PDF binario a un modelo de imágenes. */
 import { ApiError } from "@/lib/auth";
 export const maxVisionPdfPages = 6;
+/**
+ * Produce una imagen PNG en base64 por página, manteniendo el orden del documento.
+ * Rechaza más de seis páginas en vez de analizar una fracción sin avisar. Libera
+ * páginas, lienzos y documento aun cuando el renderizado falle.
+ */
 export async function pdfImages(data: Uint8Array): Promise<string[]> {
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const { createCanvas } = await import("@napi-rs/canvas");

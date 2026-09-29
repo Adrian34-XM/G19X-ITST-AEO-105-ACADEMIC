@@ -1,3 +1,8 @@
+/**
+ * @file Entrada de comandos de negocio con contrato estricto. Comprueba los requisitos de las
+ * operaciones y conserva la sesión al invocar SQL; nunca acepta SQL arbitrario del cliente.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { requireHrHierarchySchema } from "@/lib/api";
 /**
  * Puerta de escritura general: valida origen, sesión, operación y datos. Delega la modificación a command para aplicar permisos y transacciones en PostgreSQL.

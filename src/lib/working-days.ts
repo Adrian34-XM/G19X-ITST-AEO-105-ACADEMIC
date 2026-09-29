@@ -1,3 +1,9 @@
+/**
+ * @file Calendario laboral implementado: fines de semana y descansos nacionales codificados.
+ * mexicoDate interpreta instantes en Ciudad de México; no incluye automáticamente descansos
+ * empresariales o electorales extraordinarios.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Semana laboral de lunes a viernes y descansos nacionales del artículo 74 LFT. */
 export function nonWorkingDay(date: string): string | null {
   const d = new Date(`${date}T12:00:00Z`);
@@ -21,6 +27,7 @@ export function nonWorkingDay(date: string): string | null {
     return "Transmisión del Poder Ejecutivo Federal";
   return null;
 }
+/** Convierte un instante con zona horaria a la fecha civil usada para agendar en México. */
 export function mexicoDate(value: string) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Mexico_City",

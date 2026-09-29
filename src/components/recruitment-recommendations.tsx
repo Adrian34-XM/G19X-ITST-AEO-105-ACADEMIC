@@ -1,5 +1,10 @@
 "use client";
 /**
+ * @file Comparación de postulaciones activas por vacante y puntuación de IA. Permite revisar a cada
+ * candidato; una recomendación no contrata ni descarta automáticamente.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Compara postulaciones activas de una vacante usando evaluaciones guardadas y validadas. Ordena por afinidad, coloca pendientes al final y solicita análisis individuales; nunca contrata ni rechaza automáticamente.
  */
 import Link from "next/link";

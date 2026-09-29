@@ -1,3 +1,8 @@
+/**
+ * @file Ordena una copia de las tareas por prioridad, vencimiento e identificador. No modifica el
+ * arreglo recibido y mantiene un desempate estable para evitar saltos entre renderizados.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { type Row, value } from "./types";
 
 /** Prioridad descendente; a igual prioridad, primero la fecha límite más cercana. */

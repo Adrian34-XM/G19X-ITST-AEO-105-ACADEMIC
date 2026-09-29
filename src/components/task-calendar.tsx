@@ -1,4 +1,9 @@
 "use client";
+/**
+ * @file Calendario de tareas por vencimiento con cantidades y colores de prioridad. Representa los
+ * registros recibidos; no amplía el alcance del equipo ni reemplaza las listas e historiales.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { nonWorkingDay } from "@/lib/working-days";
 import { useState } from "react";
 import Link from "next/link";

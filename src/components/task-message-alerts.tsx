@@ -1,4 +1,9 @@
 "use client";
+/**
+ * @file Presenta novedades de conversaciones por tarea y cantidad sin leer. Evita incluir el
+ * contenido privado de mensajes en el resumen general de novedades.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { home } from "@/lib/permissions";

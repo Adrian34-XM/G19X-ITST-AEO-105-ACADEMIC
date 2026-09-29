@@ -1,5 +1,10 @@
 "use client";
 /**
+ * @file Renderiza formularios descritos por el módulo de negocio y normaliza sus valores.
+ * Centraliza peticiones y errores visibles; el servidor vuelve a validar todo contenido enviado.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Formularios reutilizables: convierte campos a tipos de negocio, envía JSON y muestra errores. Las subidas usan FormData; la validación definitiva ocurre en el servidor.
  */
 import { useState } from "react";

@@ -61,9 +61,9 @@ GEMINI_MODEL=gemini-2.5-flash
 AI_FALLBACK=false
 ```
 
-Para Ollama usa `AI_PROVIDER=ollama`, `OLLAMA_URL=http://127.0.0.1:11434` y un modelo descargado que soporte salida JSON. El modelo de texto por defecto es `qwen2.5:3b`. Para imágenes, instala un modelo de visión compatible y configura `OLLAMA_VISION_MODEL` con su nombre. Los PDF escaneados requieren Gemini o revisión humana; los PDF con texto y TXT funcionan con ambos proveedores. Gemini admite el archivo PDF/imagen autorizado como entrada multimodal.
+Para Ollama usa `AI_PROVIDER=ollama`, `OLLAMA_URL=http://127.0.0.1:11434` y un modelo descargado que soporte salida JSON. El modelo de texto por defecto es `qwen2.5:3b`. Para imágenes y PDF escaneados, configura `OLLAMA_VISION_MODEL` con un modelo visual instalado. Ollama recibe los PDF como imágenes renderizadas localmente, hasta seis páginas; Gemini admite el PDF/imagen autorizado como entrada multimodal. Los PDF con texto y TXT pueden analizarse por extracción textual. Un documento mixto procesado como texto no implica que se hayan interpretado todas sus imágenes.
 
-El fallback Gemini → Ollama solo se activa con `AI_FALLBACK=true`. Cada intento tiene timeout de 45 segundos; no hay reintentos infinitos. Máximo 5 solicitudes por usuario y minuto y una solicitud pendiente por recurso durante 2 minutos. Los resultados se validan con Zod antes de persistir. Se reutiliza la recomendación almacenada; los cambios de CV, habilidades o requisitos invalidan la recomendación. La IA no aprueba tareas, no contrata ni administra roles.
+El fallback Gemini → Ollama solo se activa con `AI_FALLBACK=true`. Gemini y Ollama de texto tienen 45 segundos de espera; Ollama con visión dispone de 180 segundos. No hay reintentos infinitos. El flujo de análisis por recurso limita a 5 solicitudes por usuario y minuto y una pendiente reciente por recurso; el orquestador tiene su propio límite de 3 por minuto. Los resultados se validan con Zod antes de persistir. Se reutiliza la recomendación almacenada; los cambios de CV, habilidades o requisitos invalidan la recomendación. La IA no aprueba tareas, no contrata ni administra roles.
 
 Antes de IA se aplican autenticación, rol, consulta RLS y contexto mínimo. No se envían correos, nombres de perfiles ni claves como campos de contexto. El CV autorizado puede contener datos personales propios del documento. Las instrucciones dentro de documentos se tratan como datos no confiables. El proveedor no dispone de herramientas ni acceso a la base de datos. Esta separación limita los efectos de prompt injection; no supone que un modelo nunca pueda producir una recomendación incorrecta.
 
@@ -86,12 +86,12 @@ La app usa `SUPABASE_INTERNAL_URL=http://host.docker.internal:54321` dentro del 
 4. Salir y entrar como `rh@nexo.test`. En **Postulaciones**, abrir el CV privado y pulsar **Evaluar candidato**. Revisar score, fortalezas, brechas y resumen.
 5. Cambiar a **En revisión** y luego **Preseleccionado**. Pulsar **Agendar entrevista**, seleccionar entrevistador y una hora sin conflicto (se reserva un intervalo de una hora).
 6. Pulsar **Confirmar contratación**. PostgreSQL crea empleado, onboarding, cuatro elementos de checklist, cursos obligatorios y una tarea inicial en la misma transacción, y registra auditoría.
-7. Entrar de nuevo con la cuenta del candidato, ahora empleado. En **Onboarding**, completar checklist y subir un documento.
-8. En **Capacitación**, leer contenido, iniciar el curso, registrar avances de 25% y completarlo.
+7. Entrar de nuevo con la cuenta del candidato, ahora empleado. En **Onboarding**, consultar actividades, adjuntar los documentos exigidos y aprobar la evaluación si existe. Enviar la actividad y verificar la revisión del responsable.
+8. En **Capacitación**, leer contenido y adjuntar evidencia del avance. El responsable acepta o rechaza con observaciones; únicamente la validación autorizada confirma la finalización.
 9. En **Tareas**, iniciar la tarea y subir evidencia. Pasa a **En revisión**.
 10. Como RH, entrar a **Tareas**, abrir el archivo y ejecutar **Analizar evidencia**. Revisar resultado, confianza y observaciones; aprobar la entrega o solicitar correcciones con motivo.
 11. Revisar **Desempeño**, **Analíticas** y **Auditoría**. La métrica es 60% tareas aprobadas + 40% cursos completados.
-12. Intentar abrir `/rh` con un candidato, consultar un empleado ajeno por API o modificar roles con un usuario normal: deben rechazarse. Un jefe únicamente consulta y gestiona su equipo directo.
+12. Intentar abrir `/rh` con un candidato, consultar un empleado ajeno por API o modificar roles con un usuario normal: deben rechazarse. Un jefe gestiona su jerarquía subordinada autorizada; poder consultar sus registros propios no le permite aprobarse avances.
 
 ## API
 
@@ -119,14 +119,16 @@ npm run test:e2e
 - Unitarias: cálculos, roles, estados, schemas, mass assignment y validación de archivos.
 - Base de datos: migraciones reales ejecutadas en PGlite (PostgreSQL embebido); RLS, contratación, conflicto de agenda, rollback inyectado a mitad de contratación, aislamiento, Storage policies y auditoría inmutable. Se crean esquemas de prueba para `auth.uid` y Storage; esto no sustituye una prueba contra Supabase completo.
 - API: contratos de los handlers, rechazo previo de CSRF y falta de autenticación, JSON inválido, límites y redacción de errores. El cliente de Auth está sustituido únicamente dentro de estas pruebas.
-- IA: contratos de ambos proveedores, salida inválida, fallback acotado y errores. El transporte HTTP está sustituido solo en pruebas; no se llamó a un modelo real.
-- E2E: `e2e/core.spec.ts` incluye registro → CV → postulación → IA → entrevista → contratación → empleado → onboarding → cursos → evidencia → IA → aprobación humana → desempeño. Requiere servicios y credenciales reales. Se omite explícitamente si faltan las variables.
+- IA: contratos de proveedores, salida inválida, fallback y errores con transporte simulado. `tests/vision-live.test.ts` permite probar un modelo real al habilitar `RUN_LOCAL_VISION=true`; no se ejecuta por defecto.
+- E2E: `e2e/core.spec.ts` conserva un recorrido amplio con servicios y credenciales reales. Algunas expectativas proceden del flujo anterior de revisiones y permisos: no usar su mera existencia como certificación de todos los recorridos actuales.
 
 Ver [resultado de verificación](docs/VERIFICACION.md). No declarar terminado el MVP hasta que pase el E2E con Supabase y un proveedor real.
 
-## Fuera de P0
+## Alcance y documentación
 
-Buddy, tutor IA, recomendación de cursos, encuestas pulse, análisis de sentimiento, organigrama y reportes IA avanzados. Se conserva el modelo mínimo de encuestas, pero no hay botones de producto simulando estas funciones. Nómina, biometría, SSO, ERP, videollamadas, ML propio, predicción médica/psicológica y multitenancy quedan fuera del MVP.
+El sistema incluye organigrama, encuestas de clima, propuestas formativas, análisis de evidencias y gráficas asistidas por IA. Nómina, biometría, SSO, ERP, videollamadas, modelos propios y multitenancy no forman parte de esta implementación.
+
+Consulta la [guía del código](docs/CODIGO.md), el [índice por archivo](docs/MAPA_CODIGO.md), la [explicación de SQL](docs/BASE_DATOS_CODIGO.md) y el [mapa de pruebas y configuración](docs/PRUEBAS_CODIGO.md).
 
 ## Referencias técnicas
 

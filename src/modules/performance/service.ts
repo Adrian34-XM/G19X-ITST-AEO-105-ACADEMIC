@@ -1,4 +1,10 @@
 /**
+ * @file Indicador operativo ponderado de tareas aprobadas y cursos completados. Una categoría sin
+ * registros aporta cero: el indicador necesita contexto y no es una decisión laboral ni una
+ * evaluación de atributos personales.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Calcula indicadores deterministas: 60 % de tareas aprobadas y 40 % de cursos completados. Sin registros, cada porcentaje vale cero; el resultado no es una evaluación de IA.
  */
 export function performance(

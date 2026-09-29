@@ -1,4 +1,9 @@
 "use client";
+/**
+ * @file Selector de persona con búsqueda textual y opciones desplegables. Reutiliza identificadores
+ * de las opciones recibidas sin crear personas ni resolver permisos de jerarquía.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { useId, useState } from "react";
 /** Buscador que guarda únicamente una persona seleccionada, nunca texto libre. */
 export function PersonSelect({

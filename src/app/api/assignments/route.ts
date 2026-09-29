@@ -1,3 +1,8 @@
+/**
+ * @file Asignación múltiple validada de tareas y cursos. La RPC comprueba destinatarios y permisos
+ * dentro de la transacción para impedir asignaciones parciales no autorizadas.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Una sola transacción comprueba todos los destinatarios antes de asignar. */
 import { NextResponse } from "next/server";
 import { z } from "zod";

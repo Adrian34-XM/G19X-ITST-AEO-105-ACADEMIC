@@ -1,4 +1,10 @@
 /**
+ * @file Adaptadores de Gemini y Ollama con salidas JSON validadas por esquema. Selecciona modelo de
+ * texto o visión, aplica tiempos de espera y permite respaldo únicamente cuando está configurado;
+ * no ejecuta instrucciones operativas del modelo.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Adaptadores de Gemini y Ollama, ejecutados únicamente en el servidor. Solicitan JSON estructurado, aplican un tiempo máximo y validan la respuesta con Zod. El respaldo local solo se usa si está habilitado.
  */
 import "server-only";

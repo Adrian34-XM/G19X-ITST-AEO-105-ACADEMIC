@@ -1,4 +1,10 @@
 /**
+ * @file Construye clientes exclusivos del servidor. db conserva cookies y RLS; adminDb usa
+ * privilegios administrativos y exige que el llamador haya autorizado previamente al usuario y al
+ * recurso.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Clientes exclusivos del servidor: db usa cookies y permisos del usuario; adminDb usa la clave privada para operaciones administrativas. Nunca debe importarse desde componentes del navegador.
  */
 import "server-only";

@@ -1,4 +1,9 @@
 "use client";
+/**
+ * @file Paneles de novedades, equipo, desempeño, analíticas y auditoría. Reúne filtros y vistas
+ * especializadas; las acciones de IA siguen pasando por las rutas autorizadas del servidor.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 /** Paneles operativos sobre datos autorizados. Las gráficas y alertas no requieren IA. */
 import { stateLabel } from "@/modules/workspace/labels";
 import { organization, canEditStaff } from "@/modules/workspace/organization";
@@ -416,6 +421,8 @@ export function TeamTree({
   const [area, setArea] = useState(""),
     [visible, setVisible] = useState(true),
     [collapsed, setCollapsed] = useState<string[]>([]);
+  const [layout, setLayout] = useState<"areas" | "hierarchy">("areas");
+  const [zoom, setZoom] = useState(100);
   const [employee, setEmployee] = useState(""),
     [manager, setManager] = useState(""),
     [saving, setSaving] = useState(false),
@@ -487,7 +494,9 @@ export function TeamTree({
       <li key={id}>
         <article
           className={
-            "org-person " + (!tree.matches.has(id) ? "org-context" : "")
+            "org-person " +
+            (children.length ? "org-leader " : "") +
+            (!tree.matches.has(id) ? "org-context" : "")
           }
         >
           <span className="org-avatar" aria-hidden="true">
@@ -496,6 +505,9 @@ export function TeamTree({
               .slice(0, 2)
               .map((n) => n[0])
               .join("")}
+          </span>
+          <span className="org-role">
+            {children.length ? "Responsable de equipo" : "Integrante"}
           </span>
           <strong>{name(e.profile_id)}</strong>
           {e.manager_id != null && (
@@ -508,13 +520,14 @@ export function TeamTree({
             {position ? value(position, "name") : "Puesto sin asignar"} ·{" "}
             {dept ? value(dept, "name") : "Área sin asignar"}
           </p>
-          <small>
-            {stateLabel(value(e, "status"))} · {tasks.length} tareas · {late}{" "}
-            atrasadas
-          </small>
+          <div className="org-person-stats">
+            <span>{stateLabel(value(e, "status"))}</span>
+            <span>{tasks.length} tareas</span>
+            {late > 0 && <span className="org-late">{late} con atraso</span>}
+          </div>
           <p>
             <Link href={`${home[profile.role]}/employees/${id}`}>
-              Ver perfil
+              Ver perfil <span aria-hidden="true">↗</span>
             </Link>
           </p>
         </article>
@@ -523,14 +536,18 @@ export function TeamTree({
             <button
               className="org-toggle secondary"
               aria-expanded={!collapsed.includes(id)}
+              aria-label={`${collapsed.includes(id) ? "Expandir" : "Contraer"} equipo de ${name(e.profile_id)}`}
               onClick={() =>
                 setCollapsed((old) =>
                   old.includes(id) ? old.filter((x) => x !== id) : [...old, id],
                 )
               }
             >
-              {collapsed.includes(id) ? "Expandir" : "Contraer"} equipo (
-              {children.length})
+              <span aria-hidden="true">
+                {collapsed.includes(id) ? "+" : "−"}
+              </span>{" "}
+              {children.length}{" "}
+              {children.length === 1 ? "reporte directo" : "reportes directos"}
             </button>
             {!collapsed.includes(id) && (
               <ul>{children.map((c) => node(c.id, next, members))}</ul>
@@ -541,9 +558,21 @@ export function TeamTree({
     );
   }
   return (
-    <section className="panel">
-      <h2>Jefes y estructura del equipo</h2>
-      <details>
+    <section className="panel org-panel">
+      <div className="org-heading">
+        <div>
+          <span className="org-eyebrow">PERSONAS Y CONEXIONES</span>
+          <h2>Jefes y estructura del equipo</h2>
+          <p>
+            Explora quién forma cada equipo y cómo se conecta con sus
+            responsables.
+          </p>
+        </div>
+        <span className="org-total">
+          <strong>{tree.matches.size}</strong> personas en la vista
+        </span>
+      </div>
+      <details className="org-management">
         <summary>Asignar jefe directo o superior</summary>
         <div className="chart-filters">
           <PersonSelect
@@ -587,7 +616,7 @@ export function TeamTree({
           ciclos.
         </p>
       </details>
-      <div className="chart-filters">
+      <div className="chart-filters org-toolbar">
         {isHR(profile.role) && (
           <label>
             Área del organigrama
@@ -599,7 +628,7 @@ export function TeamTree({
                 setVisible(true);
               }}
             >
-              <option value="">Jerarquía general autorizada</option>
+              <option value="">Todas las áreas autorizadas</option>
               {(data.departments ?? []).map((d) => (
                 <option key={d.id} value={d.id}>
                   {value(d, "name")}
@@ -607,6 +636,28 @@ export function TeamTree({
               ))}
             </select>
           </label>
+        )}
+        {!area && (
+          <div
+            className="org-view-switch"
+            role="group"
+            aria-label="Vista del organigrama"
+          >
+            <button
+              className="secondary"
+              aria-pressed={layout === "areas"}
+              onClick={() => setLayout("areas")}
+            >
+              Por áreas
+            </button>
+            <button
+              className="secondary"
+              aria-pressed={layout === "hierarchy"}
+              onClick={() => setLayout("hierarchy")}
+            >
+              Jerarquía completa
+            </button>
+          </div>
         )}
         <button
           className="secondary"
@@ -624,12 +675,54 @@ export function TeamTree({
         >
           Expandir todo
         </button>
+        <button
+          className="secondary"
+          onClick={() => setCollapsed(tree.employees.map((e) => e.id))}
+        >
+          Contraer todo
+        </button>
       </div>
-      <p>
-        {tree.matches.size} personas en tu jerarquía autorizada.
-        {isHR(profile.role) &&
-          " Los superiores de otra área se muestran atenuados para conservar las relaciones reales."}
-      </p>
+      {visible && (
+        <div className="org-canvas-tools">
+          <p>
+            {area
+              ? "Los superiores de otras áreas aparecen con borde discontinuo."
+              : layout === "areas"
+                ? "Cada recuadro agrupa un área. Consulta la jerarquía completa para ver conexiones entre áreas."
+                : "Las líneas conectan a cada responsable con sus reportes directos."}{" "}
+            Desplázate dentro del árbol para explorar.
+          </p>
+          <div
+            className="org-zoom"
+            role="group"
+            aria-label="Tamaño del organigrama"
+          >
+            <button
+              className="secondary"
+              aria-label="Reducir organigrama"
+              disabled={zoom <= 60}
+              onClick={() => setZoom((v) => v - 10)}
+            >
+              −
+            </button>
+            <button
+              className="secondary"
+              aria-label="Restablecer tamaño del organigrama"
+              onClick={() => setZoom(100)}
+            >
+              {zoom}%
+            </button>
+            <button
+              className="secondary"
+              aria-label="Ampliar organigrama"
+              disabled={zoom >= 130}
+              onClick={() => setZoom((v) => v + 10)}
+            >
+              +
+            </button>
+          </div>
+        </div>
+      )}
       {visible && (
         <div
           className="org-chart"
@@ -637,51 +730,62 @@ export function TeamTree({
           aria-label="Árbol organizacional"
           tabIndex={0}
         >
-          {!area ? (
-            <div className="org-areas">
-              {Array.from(
-                new Set(
-                  tree.employees.map((e) =>
-                    String(
-                      (data.positions ?? []).find((p) => p.id === e.position_id)
-                        ?.department_id ?? "",
+          <div className="org-canvas" style={{ zoom: zoom / 100 }}>
+            {!area && layout === "areas" ? (
+              <div className="org-areas">
+                {Array.from(
+                  new Set(
+                    tree.employees.map((e) =>
+                      String(
+                        (data.positions ?? []).find(
+                          (p) => p.id === e.position_id,
+                        )?.department_id ?? "",
+                      ),
                     ),
                   ),
-                ),
-              ).map((department) => {
-                const members = tree.employees.filter(
-                  (e) =>
-                    String(
-                      (data.positions ?? []).find((p) => p.id === e.position_id)
-                        ?.department_id ?? "",
-                    ) === department,
-                );
-                const grouped = organization({
-                  ...authorized,
-                  employees: members,
-                });
-                return (
-                  <section className="org-area" key={department}>
-                    <h3>
-                      {value(
-                        (data.departments ?? []).find(
-                          (d) => d.id === department,
-                        ) ?? { id: "" },
-                        "name",
-                      ) || "Área sin asignar"}{" "}
-                      <small>· {members.length} integrantes</small>
-                    </h3>
-                    <ul>
-                      {grouped.roots.map((r) => node(r.id, new Set(), members))}
-                    </ul>
-                  </section>
-                );
-              })}
-            </div>
-          ) : (
-            <ul>{tree.roots.map((r) => node(r.id, new Set()))}</ul>
-          )}
-          {!tree.roots.length && <p>No hay personas en esta área.</p>}
+                ).map((department) => {
+                  const members = tree.employees.filter(
+                    (e) =>
+                      String(
+                        (data.positions ?? []).find(
+                          (p) => p.id === e.position_id,
+                        )?.department_id ?? "",
+                      ) === department,
+                  );
+                  const grouped = organization({
+                    ...authorized,
+                    employees: members,
+                  });
+                  return (
+                    <section className="org-area" key={department}>
+                      <h3>
+                        {value(
+                          (data.departments ?? []).find(
+                            (d) => d.id === department,
+                          ) ?? { id: "" },
+                          "name",
+                        ) || "Área sin asignar"}{" "}
+                        <small>
+                          {members.filter((e) => tree.matches.has(e.id)).length}{" "}
+                          personas seleccionadas · {members.length} visibles
+                        </small>
+                      </h3>
+                      <ul>
+                        {grouped.roots.map((r) =>
+                          node(r.id, new Set(), members),
+                        )}
+                      </ul>
+                    </section>
+                  );
+                })}
+              </div>
+            ) : (
+              <ul className="org-roots">
+                {tree.roots.map((r) => node(r.id, new Set()))}
+              </ul>
+            )}
+            {!tree.roots.length && <p>No hay personas en esta área.</p>}
+          </div>
         </div>
       )}
       <p>

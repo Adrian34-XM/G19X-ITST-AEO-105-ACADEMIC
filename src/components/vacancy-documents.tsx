@@ -1,4 +1,9 @@
 "use client";
+/**
+ * @file Administra adjuntos privados de vacantes mediante la API. La descarga utiliza enlaces
+ * temporales y la autorización no depende de que el usuario conozca la ruta del archivo.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { useState } from "react";
 /** La lista se carga al abrir el panel; no expone rutas de Storage en el listado. */
 export function VacancyDocuments({ vacancy }: { vacancy: string }) {

@@ -1,4 +1,9 @@
 /**
+ * @file Estado visual transitorio durante la carga de rutas. No representa ausencia de datos ni un
+ * error de autenticación.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Estado de espera que Next.js muestra mientras prepara una página.
  */
 export default function Loading() {

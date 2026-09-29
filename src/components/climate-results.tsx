@@ -1,4 +1,9 @@
 "use client";
+/**
+ * @file Muestra participación, resultados agregados y análisis de gráficas de encuestas. Mantiene
+ * separados los datos de participación y el contenido anónimo de respuestas.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { useEffect, useState } from "react";
 import { request } from "./forms";
 import { DataGraph } from "./workforce-tools";

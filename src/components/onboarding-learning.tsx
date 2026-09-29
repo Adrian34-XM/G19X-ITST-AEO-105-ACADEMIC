@@ -1,5 +1,16 @@
 "use client";
+/**
+ * @file Material de lectura y evaluación opcional de una actividad. Envía respuestas para
+ * calificación en servidor y muestra intentos; completar la lectura no sustituye aprobar una
+ * evaluación cuando está exigida.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { useEffect, useState } from "react";
+/**
+ * id identifica la actividad. manage habilita edición y own el intento del colaborador;
+ * estas banderas controlan la presentación, mientras la API vuelve a comprobar permisos.
+ * Cada respuesta se envía por índice de opción; la solución correcta permanece en SQL.
+ */
 export function OnboardingLearning({
   id,
   manage,

@@ -1,4 +1,9 @@
 /**
+ * @file Describe formularios por operación, opciones y valores iniciales. La interfaz consume estas
+ * definiciones; los contratos Zod y SQL siguen siendo la autoridad para aceptar una escritura.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
+/**
  * Define los campos y opciones de edición para cada recurso. Vincula formularios con operaciones conocidas; no otorga permisos ni escribe directamente en la base de datos.
  */
 import { stateLabel } from "@/modules/workspace/labels";

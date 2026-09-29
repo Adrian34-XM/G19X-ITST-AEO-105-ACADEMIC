@@ -1,3 +1,8 @@
+/**
+ * @file Lectura, envío y confirmación de lectura de conversaciones de tareas. Usa secuencias para
+ * paginar y recibos propios; las RPC comprueban acceso y límites de publicación.
+ * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
+ */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticate, requireRole, ApiError } from "@/lib/auth";
