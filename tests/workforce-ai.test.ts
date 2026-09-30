@@ -389,3 +389,15 @@ it("agrupa entrevistas por el área de la vacante sin mezclar áreas", () => {
     { label: "Ventas", count: 1 },
   ]);
 });
+
+it("el resumen automático del perfil solo envía los estados propios sin identidad ni archivos", async () => {
+  state.generate.mockResolvedValue({model:'mock',result:{summary:'Hay una entrega por revisar.',recommendations:[]}});
+  const response = await POST(req({ mode: "profile", employee_id: ids.own }));
+  expect(response.status).toBe(200);
+  const context = state.generate.mock.calls[0][0];
+  expect(context.verified_context.tareas).toContain("1 registros");
+  expect(context.verified_context.tareas).not.toContain("Aprobado");
+  expect(JSON.stringify(context)).not.toMatch(
+    /Persona privada|secreto@test|Texto confidencial|privado.pdf|archivo privado/,
+  );
+});

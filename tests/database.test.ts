@@ -1995,3 +1995,71 @@ it("desplaza la tarea automática de bienvenida sin perder la contratación", as
     ),
   ).toBe(true);
 });
+
+it("correcciones de perfil: propiedad, revisión de RH, duplicados y aplicación atómica", async () => {
+  const person = "90000000-0000-4000-8000-000000000091";
+  await db.exec("reset role");
+  await db.query(
+    "insert into auth.users(id,email) values($1,'correction@test.local')",
+    [person],
+  );
+  await db.query("update profiles set role='EMPLEADO' where id=$1", [person]);
+  const created = await db.query<{ id: string }>(
+    "insert into employees(profile_id,position_id,hire_date,status) values($1,$2,'2026-01-01','ACTIVE') returning id",
+    [person, pos],
+  );
+  const eid = created.rows[0].id;
+  const sql =
+    "select request_profile_correction($1,'full_name','Nombre corregido','Nombre incompleto') as id";
+  await expect(as(ids.other, sql, [eid])).rejects.toThrow();
+  const requested = await as(person, sql, [eid]);
+  const rid = (requested.rows[0] as { id: string }).id;
+  await expect(as(person, sql, [eid])).rejects.toThrow();
+  expect(
+    (
+      await as(ids.manager, "select * from profile_corrections where id=$1", [
+        rid,
+      ])
+    ).rows,
+  ).toHaveLength(0);
+  await expect(
+    as(person, "select review_profile_correction($1,true,'Confirmado')", [rid]),
+  ).rejects.toThrow();
+  await as(
+    ids.hr,
+    "select review_profile_correction($1,true,'Nombre verificado')",
+    [rid],
+  );
+  expect(
+    (await as(person, "select full_name from profiles where id=$1", [person]))
+      .rows,
+  ).toEqual([{ full_name: "Nombre corregido" }]);
+  const result = await as(
+    person,
+    "select status,review_comment from profile_corrections where id=$1",
+    [rid],
+  );
+  expect(result.rows).toEqual([
+    { status: "APPROVED", review_comment: "Nombre verificado" },
+  ]);
+  await expect(
+    as(ids.hr, "select review_profile_correction($1,true,'Otra vez')", [rid]),
+  ).rejects.toThrow("CORRECTION_NOT_PENDING");
+  const rejected = await as(
+    person,
+    "select request_profile_correction($1,'hire_date','2026-01-02','Revisar fecha') as id",
+    [eid],
+  );
+  await as(
+    ids.hr,
+    "select review_profile_correction($1,false,'La fecha original es correcta')",
+    [(rejected.rows[0] as { id: string }).id],
+  );
+  expect(
+    (
+      await as(person, "select hire_date::text from employees where id=$1", [
+        eid,
+      ])
+    ).rows,
+  ).toEqual([{ hire_date: "2026-01-01" }]);
+});

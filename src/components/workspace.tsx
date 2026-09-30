@@ -349,6 +349,7 @@ export function Workspace({
         "analytics",
         "climate",
         "audit",
+        "profile",
       ]
     : candidate
       ? ["overview", "jobs", "applications", "interviews", "profile"]
@@ -367,6 +368,7 @@ export function Workspace({
             "performance",
             "analytics",
             "climate",
+            "profile",
           ]
         : manager
           ? [
@@ -377,6 +379,7 @@ export function Workspace({
               "courses",
               "performance",
               "climate",
+              "profile",
             ]
           : [
               "overview",
@@ -1533,6 +1536,7 @@ export function Workspace({
                 )}
               {view === "employees" && detail && profile && (
                 <EmployeeProfile
+                  key={detail}
                   data={authorized}
                   profile={profile}
                   id={detail}
@@ -2401,7 +2405,7 @@ export function Workspace({
                   )}
                 </section>
               )}
-              {view === "profile" && profile?.role === "EMPLEADO" && (
+              {view === "profile" && profile && !candidate && (
                 <EmployeeProfile
                   data={authorized}
                   profile={profile}
@@ -2413,7 +2417,7 @@ export function Workspace({
                   ownView
                 />
               )}
-              {view === "profile" && profile?.role !== "EMPLEADO" && (
+              {view === "profile" && candidate && (
                 <section className="panel">
                   <h2>{profile?.full_name}</h2>
                   <p>{profile?.email}</p>
