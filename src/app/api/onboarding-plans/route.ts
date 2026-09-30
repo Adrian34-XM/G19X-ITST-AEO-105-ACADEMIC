@@ -104,6 +104,8 @@ export async function POST(req: Request) {
           context: body.payload.context,
         },
         planSchema,
+        undefined,
+        "draft",
       );
       const draft = planSchema.parse(result);
       const { error: save } = await admin
@@ -120,12 +122,13 @@ export async function POST(req: Request) {
         { draft },
         { headers: { "Cache-Control": "no-store" } },
       );
-    } catch {
+    } catch (e) {
       await admin
         .from("orchestration_runs")
         .update({ status: "FAILED" })
         .eq("id", run)
         .eq("user_id", profile.id);
+      if (e instanceof ApiError) throw e;
       throw new ApiError(
         502,
         "No se pudo generar el plan. Puedes redactarlo manualmente o volver a intentarlo.",

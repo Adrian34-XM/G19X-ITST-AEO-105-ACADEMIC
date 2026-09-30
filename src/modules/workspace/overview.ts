@@ -73,6 +73,14 @@ export function overviewContext(
 ) {
   const scoped = scopeData(data, profile);
   const context = insightContext(scoped, profile, "overview", today);
+  if (profile.role === "EMPLEADO") {
+    // Los catálogos de áreas y puestos no son pendientes personales ni deben
+    // inducir al modelo a convertir los registros propios en métricas del área.
+    delete context.data.departments;
+    delete context.data.positions;
+    delete context.data.employees;
+    delete context.data.courses;
+  }
   const safe = new Set([
     "id",
     "title",

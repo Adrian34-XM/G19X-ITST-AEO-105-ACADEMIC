@@ -119,6 +119,13 @@ export function AuthForm({
               <span>→</span>
             </button>
           </form>
+          {!register && (
+            <p>
+              <Link href="/auth/recover">
+                ¿Olvidaste tu contraseña o necesitas otro enlace?
+              </Link>
+            </p>
+          )}
           <p>
             {register ? "¿Ya tienes cuenta?" : "¿Buscas una oportunidad?"}{" "}
             <Link href={register ? "/login" : "/register"}>

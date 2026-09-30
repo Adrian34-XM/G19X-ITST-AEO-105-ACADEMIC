@@ -55,10 +55,15 @@ it("fallback acotado a un proveedor secundario", async () => {
     .mockResolvedValueOnce(new Response("", { status: 503 }))
     .mockResolvedValueOnce(
       Response.json({ message: { content: JSON.stringify(valid) } }),
+    )
+    .mockResolvedValueOnce(
+      Response.json({
+        message: { content: JSON.stringify({ supported: true, issues: [] }) },
+      }),
     );
   vi.stubGlobal("fetch", f);
   expect((await generate({}, recommendation)).result).toEqual(valid);
-  expect(f).toHaveBeenCalledTimes(2);
+  expect(f).toHaveBeenCalledTimes(3);
 });
 it("proveedor caído produce error, no resultado ficticio", async () => {
   vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("timeout")));

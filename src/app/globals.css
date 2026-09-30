@@ -3142,3 +3142,19 @@ tbody tr:hover {
     flex: 1 1 40%;
   }
 }
+
+/* Acceso a la postulación: ventana modal adaptable con fondo atenuado. */
+.application-access-dialog {
+  width: min(540px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  padding: 28px;
+  border: 1px solid #dce7e3;
+  border-radius: 20px;
+  background: #fff;
+  color: #243b35;
+  box-shadow: 0 24px 80px #16382c33;
+}
+.application-access-dialog::backdrop { background: #102b2466; }
+.application-access-dialog p { margin: 16px 0; line-height: 1.6; }
+.application-access-dialog .actions { flex-wrap: wrap; }

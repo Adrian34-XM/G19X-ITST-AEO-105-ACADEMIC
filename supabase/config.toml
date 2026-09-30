@@ -17,12 +17,21 @@ enabled = true
 port = 54323
 [auth]
 enabled = true
-site_url = "http://localhost:3000"
-additional_redirect_urls = ["http://localhost:3000"]
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/confirm", "http://127.0.0.1:3000/auth/confirm"]
 minimum_password_length = 12
 [auth.email]
 enable_signup = true
-enable_confirmations = false
+enable_confirmations = true
+[auth.email.template.invite]
+subject = "Tu invitación a Nexo"
+content_path = "./supabase/templates/invite.html"
+[auth.email.template.recovery]
+subject = "Recupera tu acceso a Nexo"
+content_path = "./supabase/templates/recovery.html"
+[auth.email.template.confirmation]
+subject = "Confirma tu correo en Nexo"
+content_path = "./supabase/templates/confirmation.html"
 [storage]
 enabled = true
 file_size_limit = "5MiB"

@@ -179,7 +179,6 @@ export async function POST(req: Request) {
         averages: group.averages,
         comments: group.comments,
         feedback: group.feedback ?? [],
-        summary: group.summary,
       };
       if (input.op === "ai.graphs")
         aggregate = {
@@ -188,8 +187,6 @@ export async function POST(req: Request) {
           invited: group.invited,
           averages: group.averages,
         };
-      if (input.op === "ai.summary" && aggregate?.summary)
-        return NextResponse.json({ result: aggregate.summary, cached: true });
     }
     const { data: run, error } = await client.rpc("begin_orchestration", {
       section: "overview",
@@ -204,6 +201,8 @@ export async function POST(req: Request) {
                 topic: input.payload.topic,
               },
               climateDraft,
+              undefined,
+              "draft",
             )
           : await generate(
               {
@@ -252,12 +251,13 @@ export async function POST(req: Request) {
         resource_id: input.op === "ai.summary" ? input.payload.id : null,
       });
       return NextResponse.json({ result });
-    } catch {
+    } catch (e) {
       await admin
         .from("orchestration_runs")
         .update({ status: "FAILED" })
         .eq("id", run)
         .eq("user_id", profile.id);
+      if (e instanceof ApiError) throw e;
       throw new ApiError(
         502,
         "La IA no pudo completar el análisis. Puedes crear y editar la encuesta manualmente; no se han inventado resultados.",

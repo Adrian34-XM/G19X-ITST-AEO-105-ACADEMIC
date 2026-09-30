@@ -62,6 +62,8 @@ export async function POST(req: Request) {
           reference,
         },
         output,
+        undefined,
+        "draft",
       );
       const draft = {
         ...output.parse(result),
@@ -82,12 +84,13 @@ export async function POST(req: Request) {
         { draft },
         { headers: { "Cache-Control": "no-store" } },
       );
-    } catch {
+    } catch (e) {
       await admin
         .from("orchestration_runs")
         .update({ status: "FAILED" })
         .eq("id", run)
         .eq("user_id", profile.id);
+      if (e instanceof ApiError) throw e;
       throw new ApiError(
         502,
         "No se pudo generar la propuesta. Comprueba la disponibilidad del proveedor de IA o crea la vacante manualmente.",

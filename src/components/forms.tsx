@@ -55,6 +55,7 @@ export function EditForm({
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [invitationSent, setInvitationSent] = useState(false);
   const [minimumInterviewTime] = useState(() => {
     const now = new Date();
     return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
@@ -90,7 +91,8 @@ export function EditForm({
         spec.op === "user.create" ? payload : { op: spec.op, payload },
       );
       onSaved();
-      onClose();
+      if (spec.op === "user.create") setInvitationSent(true);
+      else onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo guardar.");
     } finally {
@@ -111,83 +113,94 @@ export function EditForm({
             ×
           </button>
         </div>
-        <form onSubmit={submit}>
-          {spec.fields.map((f) => {
-            const raw = spec.values?.[f.key];
-            let initial = Array.isArray(raw)
-              ? raw.join(", ")
-              : String(raw ?? "");
-            if (f.type === "datetime-local" && initial) {
-              const d = new Date(initial);
-              initial = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-                .toISOString()
-                .slice(0, 16);
-            }
-            return (
-              <label key={f.key}>
-                {f.label}
-                {f.type === "checkbox" ? (
-                  <input
-                    name={f.key}
-                    type="checkbox"
-                    defaultChecked={raw === true}
-                  />
-                ) : f.type === "select" ? (
-                  <select
-                    name={f.key}
-                    required={!f.optional}
-                    defaultValue={initial}
-                  >
-                    <option value="">Seleccionar…</option>
-                    {f.options?.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : f.type === "textarea" ? (
-                  <textarea
-                    name={f.key}
-                    required={!f.optional}
-                    defaultValue={initial}
-                    maxLength={14000}
-                    rows={5}
-                  />
-                ) : (
-                  <input
-                    name={f.key}
-                    type={f.type === "list" ? "text" : (f.type ?? "text")}
-                    required={!f.optional}
-                    defaultValue={initial}
-                    min={
-                      spec.op === "interview.save" &&
-                      f.key === "scheduled_at" &&
-                      !spec.values?.id
-                        ? minimumInterviewTime
-                        : (f.min ?? (f.type === "number" ? 0 : undefined))
-                    }
-                    max={f.max}
-                    maxLength={f.type === "password" ? 128 : 500}
-                    minLength={f.type === "password" ? 12 : undefined}
-                  />
-                )}
-              </label>
-            );
-          })}
-          {error && (
-            <p role="alert" className="error">
-              {error}
-            </p>
-          )}
-          <footer>
-            <button type="button" className="secondary" onClick={onClose}>
-              Cancelar
-            </button>
-            <button disabled={busy}>
-              {busy ? "Guardando…" : "Guardar cambios"}
-            </button>
-          </footer>
-        </form>
+        {spec.op === "user.create" && (
+          <p role="status">
+            {invitationSent
+              ? "Invitación enviada. La persona definirá su contraseña desde el correo."
+              : "Enviaremos una invitación para que la persona confirme su correo y defina su contraseña."}
+          </p>
+        )}
+        {invitationSent ? (
+          <button onClick={onClose}>Cerrar</button>
+        ) : (
+          <form onSubmit={submit}>
+            {spec.fields.map((f) => {
+              const raw = spec.values?.[f.key];
+              let initial = Array.isArray(raw)
+                ? raw.join(", ")
+                : String(raw ?? "");
+              if (f.type === "datetime-local" && initial) {
+                const d = new Date(initial);
+                initial = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+                  .toISOString()
+                  .slice(0, 16);
+              }
+              return (
+                <label key={f.key}>
+                  {f.label}
+                  {f.type === "checkbox" ? (
+                    <input
+                      name={f.key}
+                      type="checkbox"
+                      defaultChecked={raw === true}
+                    />
+                  ) : f.type === "select" ? (
+                    <select
+                      name={f.key}
+                      required={!f.optional}
+                      defaultValue={initial}
+                    >
+                      <option value="">Seleccionar…</option>
+                      {f.options?.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : f.type === "textarea" ? (
+                    <textarea
+                      name={f.key}
+                      required={!f.optional}
+                      defaultValue={initial}
+                      maxLength={14000}
+                      rows={5}
+                    />
+                  ) : (
+                    <input
+                      name={f.key}
+                      type={f.type === "list" ? "text" : (f.type ?? "text")}
+                      required={!f.optional}
+                      defaultValue={initial}
+                      min={
+                        spec.op === "interview.save" &&
+                        f.key === "scheduled_at" &&
+                        !spec.values?.id
+                          ? minimumInterviewTime
+                          : (f.min ?? (f.type === "number" ? 0 : undefined))
+                      }
+                      max={f.max}
+                      maxLength={f.type === "password" ? 128 : 500}
+                      minLength={f.type === "password" ? 12 : undefined}
+                    />
+                  )}
+                </label>
+              );
+            })}
+            {error && (
+              <p role="alert" className="error">
+                {error}
+              </p>
+            )}
+            <footer>
+              <button type="button" className="secondary" onClick={onClose}>
+                Cancelar
+              </button>
+              <button disabled={busy}>
+                {busy ? "Guardando…" : "Guardar cambios"}
+              </button>
+            </footer>
+          </form>
+        )}
       </section>
     </div>
   );

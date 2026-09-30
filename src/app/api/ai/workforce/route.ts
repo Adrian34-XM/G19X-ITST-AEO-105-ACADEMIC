@@ -166,6 +166,8 @@ export async function POST(req: Request) {
             description: body.prompt,
           },
           trainingDraft,
+          undefined,
+          "draft",
         );
         result = trainingDraft.parse(answer.result);
         model = answer.model;

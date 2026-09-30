@@ -12,6 +12,11 @@ import { db } from "@/lib/supabase/server";
 import { checkOrigin, failure, readJson } from "@/lib/api";
 import { home, type Role } from "@/lib/permissions";
 import { ApiError } from "@/lib/auth";
+import {
+  authEmailRedirect,
+  recoveryMessage,
+  registrationMessage,
+} from "@/lib/auth/email-links";
 export async function POST(
   req: Request,
   ctx: { params: Promise<{ action: string }> },
@@ -20,6 +25,89 @@ export async function POST(
     checkOrigin(req);
     const client = await db();
     const { action } = await ctx.params;
+    if (action === "recover") {
+      const input = z
+        .object({ email: z.email().max(254) })
+        .strict()
+        .parse(await readJson(req));
+      const { error } = await client.auth.resetPasswordForEmail(input.email, {
+        redirectTo: authEmailRedirect(),
+      });
+      if (error && error.status !== 400 && error.status !== 422)
+        throw new ApiError(
+          error.status === 429 ? 429 : 503,
+          "No se pudo solicitar el correo. Espera unos minutos e inténtalo de nuevo.",
+        );
+      return NextResponse.json({ message: recoveryMessage });
+    }
+    if (action === "confirm") {
+      const input = z
+        .object({
+          token_hash: z.string().min(1).max(2048),
+          type: z.enum(["invite", "recovery", "signup"]),
+        })
+        .strict()
+        .parse(await readJson(req));
+      const { error } = await client.auth.verifyOtp(input);
+      if (error)
+        throw new ApiError(
+          400,
+          "El enlace no es válido, ya se utilizó o ha caducado. Solicita uno nuevo desde Recuperar acceso.",
+        );
+      if (input.type === "signup") {
+        await client.auth.signOut();
+        return NextResponse.json({
+          message: "Correo confirmado. Ya puedes iniciar sesión.",
+          redirect: "/login",
+        });
+      }
+      return NextResponse.json({ redirect: "/auth/password" });
+    }
+    if (action === "password") {
+      const input = z
+        .object({
+          password: z.string().min(12).max(128),
+          confirm_password: z.string(),
+        })
+        .strict()
+        .refine(
+          (v) => v.password === v.confirm_password,
+          "Las contraseñas no coinciden.",
+        )
+        .parse(await readJson(req));
+      const {
+        data: { user },
+        error: identityError,
+      } = await client.auth.getUser();
+      if (identityError || !user)
+        throw new ApiError(
+          401,
+          "Abre un enlace de invitación o recuperación válido.",
+        );
+      const { data: profile } = await client
+        .from("profiles")
+        .select("active")
+        .eq("id", user.id)
+        .single();
+      if (!profile?.active)
+        throw new ApiError(
+          403,
+          "Cuenta sin acceso. Contacta con el administrador.",
+        );
+      const { error } = await client.auth.updateUser({
+        password: input.password,
+      });
+      if (error)
+        throw new ApiError(
+          400,
+          "No se pudo guardar la contraseña. Usa una nueva contraseña de al menos 12 caracteres o solicita otro enlace.",
+        );
+      await client.auth.signOut({ scope: "global" });
+      return NextResponse.json({
+        message: "Contraseña guardada. Inicia sesión con tu nueva contraseña.",
+        redirect: "/login",
+      });
+    }
     if (action === "logout") {
       await client.auth.signOut();
       return NextResponse.json({ redirect: "/login" });
@@ -39,12 +127,27 @@ export async function POST(
         ? await client.auth.signUp({
             email: input.email,
             password: input.password,
-            options: { data: { full_name: input.full_name } },
+            options: {
+              data: { full_name: input.full_name },
+              emailRedirectTo: authEmailRedirect(),
+            },
           })
         : await client.auth.signInWithPassword({
             email: input.email,
             password: input.password,
           });
+    if (
+      action === "register" &&
+      (!error ||
+        ["user_already_exists", "email_exists"].includes(error.code ?? ""))
+    ) {
+      // Auth puede ocultar duplicados devolviendo una identidad ficticia: no enumerar correos.
+      if (data.session) await client.auth.signOut();
+      return NextResponse.json({
+        message: registrationMessage,
+        redirect: "/login",
+      });
+    }
     if (error)
       throw new ApiError(
         400,

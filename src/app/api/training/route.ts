@@ -117,6 +117,11 @@ export async function POST(req: Request) {
         .select("title,description,content")
         .eq("id", a.course_id)
         .single();
+      if (!c)
+        throw new ApiError(
+          404,
+          "No se dispone del contenido de la capacitación para contrastar la evidencia.",
+        );
       if (!e.evidence_text?.trim()) {
         attachment = await authorizedAttachment(
           client,
@@ -141,6 +146,7 @@ export async function POST(req: Request) {
         context,
         body.mode === "resources" ? resources : opinion,
         attachment,
+        body.mode === "resources" ? "draft" : "analysis",
       );
       const parsed =
         body.mode === "resources"

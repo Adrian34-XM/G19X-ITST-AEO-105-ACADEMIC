@@ -6,6 +6,7 @@
  * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
  */
 import { ModuleBadge } from "./module-badge";
+import { ApplicationAccess } from "./application-access";
 import { TaskConversation } from "./task-conversation";
 import { TaskCalendar } from "./task-calendar";
 import { canEditStaff } from "@/modules/workspace/organization";
@@ -521,14 +522,12 @@ export function Workspace({
                 Eliminar
               </button>
             </>
+          ) : !profile ? (
+            <ApplicationAccess title={value(v, "title")} />
           ) : (
             <button
               disabled={busy}
-              onClick={() =>
-                profile
-                  ? act("application.create", { vacancy_id: v.id })
-                  : router.push("/login")
-              }
+              onClick={() => act("application.create", { vacancy_id: v.id })}
             >
               Postularme <ArrowUpRight size={16} />
             </button>

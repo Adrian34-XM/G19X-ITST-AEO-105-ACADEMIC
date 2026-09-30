@@ -215,3 +215,18 @@ it("los mensajes nuevos invalidan el resumen guardado", async () => {
   expect(state.generate).toHaveBeenCalledTimes(1);
   expect(state.generate.mock.calls[0][0].unread_task_messages).toEqual(unread);
 });
+
+it("vista general del empleado usa alcance personal sin instrucciones ni agrupaciones por áreas", async () => {
+  state.role = "EMPLEADO";
+  expect((await POST(req("overview"))).status).toBe(200);
+  const context = state.generate.mock.calls[0][0];
+  expect(context.areas).toBeUndefined();
+  expect(context.personal_records.departments).toBeUndefined();
+  expect(context.personal_records.positions).toBeUndefined();
+  expect(context.verified_activity_context).toBeUndefined();
+  expect(context.instructions).toContain(
+    "registros personales proporcionados",
+  );
+  expect(context.instructions).not.toContain("visión GENERAL por áreas");
+  expect(context.personal_records.tasks).toHaveLength(1);
+});

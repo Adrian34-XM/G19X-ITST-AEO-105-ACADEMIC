@@ -5,7 +5,8 @@
  * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
  */
 /**
- * Crea cuentas desde el área de superusuario con el cliente administrativo. Asigna el rol mediante la sesión autorizada e intenta eliminar la cuenta recién creada si esa asignación falla.
+ * Reserva una cuenta sin contraseña, asigna su rol y envía la invitación. Si falla un paso
+ * posterior, compensa únicamente la cuenta creada por esta solicitud.
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -13,6 +14,7 @@ import { authenticate, requireRole, ApiError } from "@/lib/auth";
 import { adminDb } from "@/lib/supabase/server";
 import { checkOrigin, failure, readJson, databaseError } from "@/lib/api";
 import { roles } from "@/lib/permissions";
+import { authEmailRedirect } from "@/lib/auth/email-links";
 export async function POST(req: Request) {
   try {
     checkOrigin(req);
@@ -20,18 +22,22 @@ export async function POST(req: Request) {
     requireRole(profile.role, ["SUPERUSER"]);
     const input = z
       .object({
-        email: z.email(),
-        password: z.string().min(12).max(128),
+        email: z
+          .email()
+          .max(254)
+          .transform((v) => v.toLowerCase()),
         full_name: z.string().min(1).max(150),
         role: z.enum(roles),
       })
       .strict()
       .parse(await readJson(req));
     const admin = adminDb();
+    const redirectTo = authEmailRedirect();
+    // Reservar primero la cuenta permite rechazar duplicados sin modificar usuarios existentes.
+    // No tiene contraseña ni correo confirmado hasta que su titular acepte la invitación.
     const { data, error } = await admin.auth.admin.createUser({
       email: input.email,
-      password: input.password,
-      email_confirm: true,
+      email_confirm: false,
       user_metadata: { full_name: input.full_name },
     });
     if (error || !data.user)
@@ -47,7 +53,26 @@ export async function POST(req: Request) {
       await admin.auth.admin.deleteUser(data.user.id);
       databaseError(roleError);
     }
-    return NextResponse.json({ id: data.user.id }, { status: 201 });
+    const invitation = await admin.auth.admin.inviteUserByEmail(input.email, {
+      redirectTo,
+    });
+    if (invitation.error) {
+      const cleanup = await admin.auth.admin.deleteUser(data.user.id);
+      throw new ApiError(
+        503,
+        cleanup.error
+          ? "No se pudo enviar la invitación. La cuenta quedó creada; revisa su estado antes de volver a intentarlo."
+          : "No se pudo enviar la invitación. Revisa el servicio de correo e inténtalo de nuevo.",
+      );
+    }
+    return NextResponse.json(
+      {
+        id: data.user.id,
+        message:
+          "Invitación enviada. La persona definirá su contraseña desde el correo.",
+      },
+      { status: 201 },
+    );
   } catch (e) {
     return failure(e);
   }

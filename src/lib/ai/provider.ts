@@ -11,6 +11,13 @@ import "server-only";
 import { z } from "zod";
 import { systemPrompt, sanitize } from "./schemas";
 import { pdfImages } from "./pdf-vision";
+import { ApiError } from "@/lib/auth";
+import {
+  groundingContext,
+  groundingReview,
+  type GenerationPurpose,
+  unsupportedEvidenceClaim,
+} from "./grounding";
 export type Attachment = { mimeType: string; data: string };
 export interface AIProvider {
   generate(
@@ -54,6 +61,8 @@ export class GeminiProvider implements AIProvider {
     );
     if (!response.ok) throw new Error("PROVIDER_FAILED");
     const data = await response.json();
+    if (data.candidates?.[0]?.finishReason === "MAX_TOKENS")
+      throw new Error("AI_INCOMPLETE_OUTPUT");
     return {
       result: schema.parse(
         JSON.parse(
@@ -118,13 +127,14 @@ export class OllamaProvider implements AIProvider {
           options: {
             temperature: 0.1,
             num_predict: 2000,
-            ...(attachment ? { num_ctx: 8192 } : {}),
+            num_ctx: attachment ? 8192 : 16384,
           },
         }),
       },
     );
     if (!response.ok) throw new Error("PROVIDER_FAILED");
     const data = await response.json();
+    if (data.done_reason === "length") throw new Error("AI_INCOMPLETE_OUTPUT");
     return { result: schema.parse(JSON.parse(data.message.content)), model };
   }
 }
@@ -133,20 +143,42 @@ export async function generate(
   context: unknown,
   schema: z.ZodType,
   attachment?: Attachment,
+  purpose: GenerationPurpose = "analysis",
 ) {
-  const provider =
+  let provider: AIProvider =
     process.env.AI_PROVIDER === "gemini"
       ? new GeminiProvider()
       : new OllamaProvider();
+  let answer: Awaited<ReturnType<AIProvider["generate"]>>;
   try {
-    return await provider.generate(context, schema, attachment);
+    answer = await provider.generate(context, schema, attachment);
   } catch (e) {
     if (
       process.env.AI_PROVIDER === "gemini" &&
       process.env.AI_FALLBACK === "true"
-    )
-      return new OllamaProvider().generate(context, schema, attachment);
-    throw e;
+    ) {
+      provider = new OllamaProvider();
+      answer = await provider.generate(context, schema, attachment);
+    } else throw e;
   }
+  // Las selecciones no contienen conclusiones: sus cifras se calculan después en código.
+  if (purpose === "selection") return answer;
+  if (unsupportedEvidenceClaim(context, answer.result, !!attachment))
+    throw new ApiError(
+      422,
+      "La IA atribuyó contenido a un archivo que no fue leído. No se guardó la evaluación. Abre el análisis específico del archivo.",
+    );
+  const review = await provider.generate(
+    groundingContext(context, answer.result, purpose, !!attachment),
+    groundingReview,
+    attachment,
+  );
+  const checked = groundingReview.parse(review.result);
+  if (!checked.supported || checked.issues.length)
+    throw new ApiError(
+      422,
+      "La respuesta de IA no pudo respaldarse con los datos disponibles. No se guardó esa evaluación; revisa los registros o archivos e intenta nuevamente.",
+    );
+  return answer;
 }
 export { sanitize };

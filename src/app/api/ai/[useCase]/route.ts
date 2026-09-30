@@ -34,7 +34,6 @@ export async function POST(
       .strict()
       .parse(await readJson(req));
     let context: unknown;
-    let cached: unknown;
     let attachment: Attachment | undefined;
     async function attach(bucket: string, path: string) {
       attachment = await authorizedAttachment(client, bucket, path);
@@ -59,17 +58,26 @@ export async function POST(
           .single(),
       ]);
       if (!c || !v) throw new ApiError(404, "Contexto no disponible.");
+      if (
+        !c.cv_text?.trim() &&
+        !c.cv_path &&
+        !c.skills?.length &&
+        !Number(c.experience_years)
+      )
+        throw new ApiError(
+          422,
+          "No hay información profesional suficiente para evaluar esta postulación. Añade el CV o datos profesionales antes de analizarla.",
+        );
       context = {
         vacancy: v,
         candidate: {
           skills: c.skills,
           experience_years: c.experience_years,
           cv_text: sanitize(c.cv_text),
+          cv_text_truncated: c.cv_text.length > 14000,
         },
       };
-      cached = a.ai_result;
-      if (!cached && !c.cv_text.trim() && c.cv_path)
-        await attach("cvs", c.cv_path);
+      if (!c.cv_text.trim() && c.cv_path) await attach("cvs", c.cv_path);
     } else {
       const { data: e } = await client
         .from("task_evidence")
@@ -92,17 +100,15 @@ export async function POST(
         .single();
       if (!t || t.status !== "SUBMITTED")
         throw new ApiError(409, "La tarea debe estar enviada para revisión.");
-      if (!e.ai_result && !e.evidence_text.trim())
-        await attach("task-evidence", e.file_path);
+      if (!e.evidence_text.trim()) await attach("task-evidence", e.file_path);
       context = {
         task: { description: sanitize(t.description) },
         evidence: sanitize(e.evidence_text),
+        evidence_text_truncated: e.evidence_text.length > 14000,
         writing_instructions:
           "Redacta reason en español natural como un comentario útil para quien revisa la tarea: explica qué muestra la evidencia, cómo se relaciona con lo solicitado y qué falta comprobar. Usa uno o dos párrafos breves, sin encabezados prefabricados, códigos técnicos ni repetir la conclusión. En observations incluye únicamente hallazgos concretos diferentes de reason. Distingue lo observado de lo que no puede comprobarse; no inventes contenido ni apruebes automáticamente la tarea. Si la evidencia es insuficiente dilo claramente. La decisión final corresponde al responsable humano.",
       };
-      cached = e.ai_result;
     }
-    if (cached) return NextResponse.json({ result: cached, cached: true });
     const admin = adminDb();
     const { data: request, error } = await client.rpc("command", {
       op: "ai.begin",

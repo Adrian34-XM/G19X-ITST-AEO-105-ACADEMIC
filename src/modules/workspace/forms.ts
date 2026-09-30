@@ -79,12 +79,11 @@ export function formFor(kind: string, data: Snapshot, row?: Row): FormSpec {
       ],
     },
     users: {
-      title: "Crear usuario",
+      title: "Invitar usuario por correo",
       op: "user.create",
       fields: [
         field("full_name", "Nombre completo"),
         field("email", "Correo", "email"),
-        field("password", "Contraseña inicial", "password"),
         states("role", "Rol", [
           "SUPERUSER",
           "RH_ADMIN",
