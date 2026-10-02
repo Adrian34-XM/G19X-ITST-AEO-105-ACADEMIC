@@ -7,6 +7,26 @@ import {
   unsupportedEvidenceClaim,
 } from "@/lib/ai/grounding";
 const schema = z.object({ summary: z.string() });
+it("compara números escritos en letras sin modificar la respuesta original ni nombres", () => {
+  const answer = {
+    summary:
+      "Tienes dos tareas pendientes en Dos Santos. Sugiero revisar un curso.",
+  };
+  const context = groundingContext(
+    { tareas_pendientes: 2 },
+    answer,
+    "analysis",
+    false,
+  );
+  expect(context.proposed_answer).toEqual({
+    summary:
+      "Tienes 2 tareas pendientes en Dos Santos. Sugiero revisar 1 curso.",
+  });
+  expect(answer.summary).toBe(
+    "Tienes dos tareas pendientes en Dos Santos. Sugiero revisar un curso.",
+  );
+  expect(context.sources).toEqual({ tareas_pendientes: 2 });
+});
 const response = (content: unknown) =>
   Response.json({ message: { content: JSON.stringify(content) } });
 afterEach(() => {
