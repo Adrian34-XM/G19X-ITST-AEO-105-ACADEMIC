@@ -21,6 +21,7 @@ export default async function Page({
   return (
     <AccountAccess
       mode={flow}
+      code={typeof query.code === "string" ? query.code : undefined}
       token={
         typeof query.token_hash === "string" ? query.token_hash : undefined
       }

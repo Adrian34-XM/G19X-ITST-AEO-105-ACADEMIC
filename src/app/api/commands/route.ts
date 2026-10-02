@@ -23,7 +23,7 @@ import {
 export async function POST(req: Request) {
   try {
     checkOrigin(req);
-    const { client } = await authenticate();
+    const { client, profile } = await authenticate();
     const input = z
       .object({ op: z.string(), payload: z.unknown() })
       .strict()
@@ -31,6 +31,31 @@ export async function POST(req: Request) {
     if (!Object.hasOwn(schemas, input.op))
       throw new ApiError(404, "Operación no encontrada.");
     const payload = schemas[input.op as Operation].parse(input.payload);
+    if (input.op === "application.create") {
+      const { data: candidate, error } = await client
+        .from("candidates")
+        .select("cv_path")
+        .eq("profile_id", profile.id)
+        .maybeSingle();
+      if (error) databaseError(error);
+      if (!candidate?.cv_path?.trim())
+        throw new ApiError(
+          422,
+          "Carga tu CV en tu perfil antes de postularte.",
+        );
+    }
+    if (input.op === "application.withdraw" && "id" in payload) {
+      const { data, error } = await client.rpc("withdraw_application", {
+        target: payload.id,
+      });
+      if (error?.code === "PGRST202")
+        throw new ApiError(
+          503,
+          "Aplica la migración 202610010001_candidate_withdrawal.sql para habilitar el retiro de postulaciones.",
+        );
+      if (error) databaseError(error);
+      return NextResponse.json(data);
+    }
     if (input.op === "department.save") {
       const department = schemas["department.save"].parse(payload);
       const { data, error } = await client.rpc("save_department", {
@@ -113,6 +138,8 @@ export async function POST(req: Request) {
       op: input.op,
       payload,
     });
+    if (input.op === "application.create" && error?.code === "23505")
+      throw new ApiError(409, "Ya tienes una postulación para esta vacante. Si está retirada, verifica que se haya aplicado la migración 202610010002_candidate_reapply.sql.");
     if (error) databaseError(error);
     return NextResponse.json(data);
   } catch (e) {

@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   rpc: vi.fn(),
   signOut: vi.fn(),
   verifyOtp: vi.fn(),
+  exchangeCodeForSession: vi.fn(),
+  setSession: vi.fn(),
   updateUser: vi.fn(),
   resetPasswordForEmail: vi.fn(),
   signUp: vi.fn(),
@@ -225,4 +227,56 @@ it("exige origen fijo HTTPS en producción y admite localhost", () => {
   expect(() => authEmailRedirect()).toThrow("HTTPS");
   vi.stubEnv("APP_URL", "http://127.0.0.1:3000");
   expect(authEmailRedirect()).toBe("http://127.0.0.1:3000/auth/confirm");
+});
+
+it.each([null, "recovery"])(
+  "acepta el código PKCE y distingue recuperación: %s",
+  async (redirectType) => {
+    mocks.exchangeCodeForSession.mockResolvedValue({
+      data: { redirectType },
+      error: null,
+    });
+    mocks.getUser.mockResolvedValue({
+      data: { user: { id: "confirmed", email_confirmed_at: "2026-10-01" } },
+      error: null,
+    });
+    const response = await send("callback", { code: "test-code" });
+    expect(response.status).toBe(200);
+    expect((await response.json()).redirect).toBe(
+      redirectType ? "/auth/password" : "/login",
+    );
+  },
+);
+it("rechaza un código inválido sin declarar el correo confirmado", async () => {
+  mocks.exchangeCodeForSession.mockResolvedValue({
+    data: {},
+    error: { code: "bad_code" },
+  });
+  expect((await send("callback", { code: "expired-code" })).status).toBe(400);
+});
+it("valida en Auth la identidad del enlace con tokens", async () => {
+  mocks.setSession.mockResolvedValue({ data: {}, error: null });
+  mocks.getUser.mockResolvedValue({
+    data: { user: { id: "confirmed", email_confirmed_at: "2026-10-01" } },
+    error: null,
+  });
+  expect(
+    (
+      await send("callback", {
+        access_token: "test-access",
+        refresh_token: "test-refresh",
+        type: "invite",
+      })
+    ).status,
+  ).toBe(200);
+  mocks.getUser.mockResolvedValue({ data: { user: null }, error: null });
+  expect(
+    (
+      await send("callback", {
+        access_token: "test-access",
+        refresh_token: "test-refresh",
+        type: "invite",
+      })
+    ).status,
+  ).toBe(400);
 });

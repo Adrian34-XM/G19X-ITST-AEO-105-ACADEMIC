@@ -195,6 +195,7 @@ export function Workspace({
         ? t.status === "SUBMITTED"
         : !["APPROVED", "SUBMITTED"].includes(value(t, "status"));
   const [applicationStatus, setApplicationStatus] = useState("POSTULADO");
+  const [submittedVacancies, setSubmittedVacancies] = useState<string[]>([]);
   const [navigationSearch, setNavigationSearch] = useState("");
   const authorized = profile ? scopeData(rawData, profile) : rawData;
   const filterable = [
@@ -299,6 +300,14 @@ export function Workspace({
     try {
       await request("/api/commands", { op, payload });
       refresh();
+      if (op === "application.create") {
+        setSubmittedVacancies((current) => [...current, String(payload.vacancy_id)]);
+        setNotice("Postulación enviada. Puedes revisarla en Mis postulaciones.");
+      }
+      if (op === "application.withdraw") {
+        const previous = authorized.applications?.find((a) => a.id === payload.id);
+        setSubmittedVacancies((current) => current.filter((id) => id !== previous?.vacancy_id));
+      }
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "No se pudo completar.");
     } finally {
@@ -467,6 +476,11 @@ export function Workspace({
       ? tableRows
       : tableRows.filter((a) => a.status === applicationStatus),
   );
+  const availableVacancies = filtered("vacancies").filter((v) => !candidate || (
+    !submittedVacancies.includes(v.id) &&
+    !(authorized.applications ?? []).some((a) => a.vacancy_id === v.id && a.status !== "RETIRADO" &&
+      (authorized.candidates ?? []).some((c) => c.id === a.candidate_id && c.profile_id === profile?.id))
+  ));
   function vacancyCard(v: Row) {
     return (
       <article className="record" key={v.id}>
@@ -526,8 +540,27 @@ export function Workspace({
             <ApplicationAccess title={value(v, "title")} />
           ) : (
             <button
-              disabled={busy}
+              disabled={
+                busy ||
+                !authorized.candidates?.some(
+                  (c) =>
+                    c.profile_id === profile.id &&
+                    String(c.cv_path ?? "").trim(),
+                )
+              }
               onClick={() => act("application.create", { vacancy_id: v.id })}
+              aria-disabled={
+                !authorized.candidates?.some(
+                  (c) => c.profile_id === profile.id && c.cv_path,
+                )
+              }
+              title={
+                !authorized.candidates?.some(
+                  (c) => c.profile_id === profile.id && c.cv_path,
+                )
+                  ? "Carga tu CV en tu perfil para postularte"
+                  : undefined
+              }
             >
               Postularme <ArrowUpRight size={16} />
             </button>
@@ -778,6 +811,22 @@ export function Workspace({
           </div>
         </header>
         <main className="content">
+          {candidate &&
+            !authorized.candidates?.some(
+              (c) =>
+                c.profile_id === profile?.id && String(c.cv_path ?? "").trim(),
+            ) && (
+              <section role="alert" className="candidate-cv-warning">
+                <h2>Falta cargar tu CV</h2>
+                <p>
+                  Para postularte a una vacante, primero carga tu currículum en
+                  tu perfil.
+                </p>
+                <Link className="button" href="/candidate/profile">
+                  Ir a mi perfil y cargar CV
+                </Link>
+              </section>
+            )}
           <div className="page-heading">
             <div>
               <span className="eyebrow">
@@ -1343,10 +1392,10 @@ export function Workspace({
                 )}
               {["jobs", "vacancies"].includes(view) && (
                 <div className="record-grid">
-                  {filtered("vacancies").map(vacancyCard)}
-                  {!filtered("vacancies").length && (
+                  {availableVacancies.map(vacancyCard)}
+                  {!availableVacancies.length && (
                     <p className="empty">
-                      No hay vacantes que coincidan con tu búsqueda.
+                      {candidate ? "No hay nuevas vacantes que coincidan con tu búsqueda. Consulta tus postulaciones y retiros en Mis postulaciones." : "No hay vacantes que coincidan con tu búsqueda."}
                     </p>
                   )}
                 </div>
@@ -1439,7 +1488,7 @@ export function Workspace({
                             >
                               Ver CV privado
                             </button>
-                            {!["CONTRATADO", "RECHAZADO"].includes(
+                            {!["CONTRATADO", "RECHAZADO", "RETIRADO"].includes(
                               value(a, "status"),
                             ) && (
                               <button
@@ -1454,6 +1503,28 @@ export function Workspace({
                         </>
                       )}
                       <AIResult result={a.ai_result} />
+                      {candidate &&
+                        [
+                          "POSTULADO",
+                          "EN_REVISION",
+                          "PRESELECCIONADO",
+                          "ENTREVISTA",
+                        ].includes(value(a, "status")) && (
+                          <button
+                            className="secondary"
+                            disabled={busy}
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  "¿Retirar esta postulación? Se conservará en tu historial y se cancelarán sus entrevistas pendientes. Podrás volver a postularte si la vacante sigue abierta.",
+                                )
+                              )
+                                void act("application.withdraw", { id: a.id });
+                            }}
+                          >
+                            Retirar postulación
+                          </button>
+                        )}
                       {hr && (
                         <div className="actions">
                           {(

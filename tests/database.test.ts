@@ -56,6 +56,11 @@ beforeAll(async () => {
     `update public.profiles set role='RH_ADMIN' where id='${ids.hr}';update public.profiles set role='SUPERUSER' where id='${ids.admin}';update public.profiles set role='JEFE' where id='${ids.manager}';`,
   );
 });
+beforeAll(async () => {
+  await db.exec(
+    "reset role; update public.candidates set cv_path='fixture/cv.pdf'",
+  );
+});
 afterAll(async () => {
   await db.close();
 });
@@ -1496,6 +1501,10 @@ it("agenda rechaza el pasado y contratación asigna área, jefe y plantilla en u
     [candidate, manager],
   );
   await db.query("update profiles set role='JEFE' where id=$1", [manager]);
+  await db.query(
+    "update candidates set cv_path='fixture/cv.pdf' where profile_id=$1",
+    [candidate],
+  );
   const dep = await command(ids.admin, "department.save", {
     name: "Área de contratación nueva",
   });
@@ -2062,4 +2071,58 @@ it("correcciones de perfil: propiedad, revisión de RH, duplicados y aplicación
       ])
     ).rows,
   ).toEqual([{ hire_date: "2026-01-01" }]);
+});
+
+it("requiere CV y permite retirar solo la postulación propia, conservando historial", async () => {
+  await db.exec("reset role");
+  const user = crypto.randomUUID();
+  await db.query(
+    "insert into auth.users(id,email) values($1,'withdraw@test.local')",
+    [user],
+  );
+  const vacancyId = await command(ids.hr, "vacancy.save", {
+    position_id: pos,
+    title: "Retiro",
+    description: "Prueba",
+    requirements: "Prueba",
+    skills: [],
+    experience_required: 0,
+    status: "PUBLISHED",
+  });
+  await expect(
+    command(user, "application.create", { vacancy_id: vacancyId }),
+  ).rejects.toThrow("CV_REQUIRED");
+  await db.exec("reset role");
+  await db.query(
+    "update candidates set cv_path='fixture/cv.pdf' where profile_id=$1",
+    [user],
+  );
+  const application = await command(user, "application.create", {
+    vacancy_id: vacancyId,
+  });
+  await expect(
+    as(ids.other, "select withdraw_application($1)", [application]),
+  ).rejects.toThrow();
+  await as(user, "select withdraw_application($1)", [application]);
+  const result = await as(user, "select status from applications where id=$1", [
+    application,
+  ]);
+  expect(result.rows[0]).toEqual({ status: "RETIRADO" });
+  expect(await command(user, "application.create", { vacancy_id: vacancyId })).toBe(application);
+  const reopened = await as(user, "select status from applications where id=$1", [application]);
+  expect(reopened.rows[0]).toEqual({ status: "POSTULADO" });
+  await expect(command(user, "application.create", { vacancy_id: vacancyId })).rejects.toThrow();
+  await as(user, "select withdraw_application($1)", [application]);
+  await db.exec("reset role");
+  await db.query("update vacancies set status='CLOSED' where id=$1", [vacancyId]);
+  await expect(command(user, "application.create", { vacancy_id: vacancyId })).rejects.toThrow("VACANCY_CLOSED");
+  await expect(
+    as(user, "select withdraw_application($1)", [application]),
+  ).rejects.toThrow("INVALID_TRANSITION");
+  await expect(
+    command(ids.hr, "application.status", {
+      id: application,
+      status: "EN_REVISION",
+    }),
+  ).rejects.toThrow();
 });

@@ -11,4 +11,5 @@ export const applicationSections: Record<string, string> = {
   ENTREVISTA: "En entrevista",
   CONTRATADO: "Historial de contratados",
   RECHAZADO: "Historial de rechazados",
+  RETIRADO: "Historial de retiradas",
 };

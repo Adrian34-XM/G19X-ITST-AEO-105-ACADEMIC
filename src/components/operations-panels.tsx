@@ -45,6 +45,11 @@ type Advice = {
     employee_id: string | null;
   }[];
 };
+function requireSummary(result: Advice | null | undefined): Advice {
+  if (!result || typeof result.summary !== "string" || !result.summary.trim() || !Array.isArray(result.recommendations))
+    throw new Error("La IA no devolvió un resumen válido. Vuelve a intentarlo; no se mostrará información inventada.");
+  return result;
+}
 // Comparte únicamente solicitudes en curso de la misma cuenta; no persiste datos en el navegador.
 const overviewRequests = new Map<
   string,
@@ -105,7 +110,7 @@ export function OperationsPanel({
       try {
         const result = await loadOverview(profile.id);
         if (active) {
-          setAdvice(result.result);
+          setAdvice(requireSummary(result.result));
           setGenerated(result.generated_at);
         }
       } catch (e) {
@@ -187,7 +192,7 @@ export function OperationsPanel({
         setSuggestion(r.prompt);
         return;
       }
-      setAdvice(r.result);
+      setAdvice(requireSummary(r.result));
       setGenerated(r.generated_at);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo analizar.");
@@ -287,9 +292,10 @@ export function OperationsPanel({
       )}
       {area === "overview" && (
         <p className="muted">
-          Se genera al abrir esta vista con los datos que puedes consultar.
-          Muestra el estado actual y registros con fecha reciente; no sustituye
-          el historial de auditoría. Actualiza para consultar nuevos datos.
+          Resumen de registros creados esta semana, de lunes a domingo en horario
+          de Ciudad de México, y su estado actual. Incluye postulaciones nuevas o
+          reactivadas. Los pendientes de semanas anteriores siguen disponibles
+          en las notificaciones y en cada módulo.
         </p>
       )}
       {busy && area === "overview" && (
@@ -297,8 +303,12 @@ export function OperationsPanel({
           El orquestador está revisando tus novedades y pendientes…
         </p>
       )}
-      {area === "overview" && profile.role !== "CANDIDATO" && (
-        <TaskMessageAlerts key={profile.id} profile={profile} />
+      {error && (
+        <div className="error" role="alert">
+          <strong>No se pudo generar el resumen de IA.</strong>
+          <p>{error}</p>
+          <p>Las notificaciones siguen disponibles abajo. Puedes volver a intentarlo con «Actualizar resumen».</p>
+        </div>
       )}
       {advice && (
         <div className="ai-result">
@@ -373,6 +383,9 @@ export function OperationsPanel({
           </select>
         </label>
       )}
+      {area === "overview" && profile.role !== "CANDIDATO" && (
+        <TaskMessageAlerts key={profile.id} profile={profile} />
+      )}
       <details open>
         <summary>{visibleNotes.length} novedades y pendientes</summary>
         <div className="notification-list">
@@ -404,7 +417,6 @@ export function OperationsPanel({
           )}
         </div>
       </details>
-      {error && <p role="alert">{error}</p>}
     </section>
   );
 }

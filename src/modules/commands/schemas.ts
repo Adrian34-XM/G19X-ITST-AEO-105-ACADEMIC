@@ -45,6 +45,7 @@ export const schemas = {
     .strict(),
   "vacancy.delete": z.object({ id }).strict(),
   "application.create": z.object({ vacancy_id: id }).strict(),
+  "application.withdraw": z.object({ id }).strict(),
   "application.status": z
     .object({
       id,

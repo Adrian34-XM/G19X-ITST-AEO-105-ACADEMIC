@@ -3158,3 +3158,14 @@ tbody tr:hover {
 .application-access-dialog::backdrop { background: #102b2466; }
 .application-access-dialog p { margin: 16px 0; line-height: 1.6; }
 .application-access-dialog .actions { flex-wrap: wrap; }
+
+.candidate-cv-warning {
+  margin-bottom: 24px;
+  padding: 24px;
+  border: 1px solid #efaaaa;
+  border-left: 5px solid #c63737;
+  border-radius: 16px;
+  background: #fff1f1;
+  color: #842323;
+}
+.candidate-cv-warning p { margin: 12px 0 18px; }

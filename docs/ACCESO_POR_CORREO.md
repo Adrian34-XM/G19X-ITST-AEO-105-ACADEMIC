@@ -11,7 +11,7 @@ Desde el acceso se puede solicitar recuperación. La respuesta pública no indic
 1. Define `APP_URL` en el servidor (por ejemplo, `https://nexo.empresa.mx`). En local utiliza `http://127.0.0.1:3000`. Reinicia Next después de cambiar el entorno.
 2. En Authentication → URL Configuration, establece Site URL con el origen y agrega la URL exacta `APP_URL/auth/confirm` a Redirect URLs. No uses comodines en producción.
 3. Activa Confirm email en el proveedor de correo. La aplicación no puede sustituir esa configuración: si se desactiva, Supabase puede confirmar automáticamente el registro.
-4. Copia los archivos de `supabase/templates/` a las plantillas correspondientes: Invite user, Reset password y Confirm signup. Es imprescindible conservar `TokenHash`, `RedirectTo` y el tipo de cada enlace; las plantillas predeterminadas que entregan tokens en el fragmento de URL no son compatibles con este flujo.
+4. Copia los archivos de `supabase/templates/` a las plantillas correspondientes: Invite user, Reset password y Confirm signup. Conserva `TokenHash`, `RedirectTo` y el tipo de cada enlace. También se admiten las plantillas predeterminadas: sus códigos PKCE requieren el mismo navegador y origen donde se solicitó el correo; los tokens en el fragmento se validan con Auth antes de continuar.
 5. Configura SMTP para enviar a destinatarios reales, remitente verificado y los límites de envío. No guardes credenciales SMTP en variables públicas. Configura expiración de códigos y límites de solicitudes en Auth. Si habilitas CAPTCHA, integra además la respuesta del desafío en los formularios antes de activarlo.
 
 La configuración en `supabase/config.toml` aplica al Supabase local, no modifica el proyecto alojado. Los cambios de este flujo no requieren migración SQL.

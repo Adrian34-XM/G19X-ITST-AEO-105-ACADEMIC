@@ -128,3 +128,20 @@ it("el borrador se revisa como propuesta, la selección determinista no solicita
   await generate({}, schema, undefined, "selection");
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
+
+it.each([true, false])("la reparación única del resumen vuelve a validarse: %s", async (supported) => {
+  vi.stubEnv("AI_PROVIDER", "ollama");
+  const fetcher = vi.fn()
+    .mockResolvedValueOnce(response({summary:"Hay 18 pendientes"}))
+    .mockResolvedValueOnce(response({supported:false,issues:["Solo hay dos pendientes"]}))
+    .mockResolvedValueOnce(response({summary:"Hay dos pendientes"}))
+    .mockResolvedValueOnce(response({supported,issues:supported ? [] : ["No respaldado"]}));
+  vi.stubGlobal("fetch",fetcher);
+  const result = generate({pending:2},schema,undefined,"analysis",true);
+  if(supported) expect((await result).result).toEqual({summary:"Hay dos pendientes"});
+  else await expect(result).rejects.toThrow("no pudo respaldarse");
+  expect(fetcher).toHaveBeenCalledTimes(4);
+  const review = JSON.parse(fetcher.mock.calls[3][1].body);
+  const reviewContext = JSON.parse(review.messages[1].content);
+  expect(reviewContext.sources).toEqual({pending:2});
+});

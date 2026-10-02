@@ -25,6 +25,51 @@ export async function POST(
     checkOrigin(req);
     const client = await db();
     const { action } = await ctx.params;
+    if (action === "callback") {
+      const input = z
+        .union([
+          z.object({ code: z.string().min(1).max(4096) }).strict(),
+          z
+            .object({
+              access_token: z.string().min(1).max(16384),
+              refresh_token: z.string().min(1).max(4096),
+              type: z.enum(["signup", "invite", "recovery"]),
+            })
+            .strict(),
+        ])
+        .parse(await readJson(req));
+      const result =
+        "code" in input
+          ? await client.auth.exchangeCodeForSession(input.code)
+          : await client.auth.setSession({
+              access_token: input.access_token,
+              refresh_token: input.refresh_token,
+            });
+      if (result.error)
+        throw new ApiError(
+          400,
+          "No se pudo validar el enlace. Ábrelo en el mismo navegador donde solicitaste el correo o solicita otro enlace.",
+        );
+      const identity = await client.auth.getUser();
+      if (identity.error || !identity.data.user?.email_confirmed_at) {
+        await client.auth.signOut({ scope: "local" });
+        throw new ApiError(
+          400,
+          "No se pudo confirmar el correo. Solicita un enlace nuevo.",
+        );
+      }
+      const recovery =
+        "code" in input
+          ? "redirectType" in result.data &&
+            result.data.redirectType === "recovery"
+          : input.type !== "signup";
+      if (recovery) return NextResponse.json({ redirect: "/auth/password" });
+      await client.auth.signOut({ scope: "local" });
+      return NextResponse.json({
+        message: "Correo confirmado. Ya puedes iniciar sesión.",
+        redirect: "/login",
+      });
+    }
     if (action === "recover") {
       const input = z
         .object({ email: z.email().max(254) })

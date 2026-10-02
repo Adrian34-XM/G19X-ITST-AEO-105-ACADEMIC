@@ -29,7 +29,7 @@ export const tables = [
   "audit_logs",
 ] as const;
 /** Obtiene hasta 1000 filas por tabla con los permisos del cliente recibido. */
-export async function snapshot(client: SupabaseClient): Promise<Snapshot> {
+export async function snapshot(client: SupabaseClient, week?: { start: string; end: string }): Promise<Snapshot> {
   const { data: identity } = await client.auth.getUser();
   const { data: profile } = identity.user
     ? await client
@@ -42,7 +42,13 @@ export async function snapshot(client: SupabaseClient): Promise<Snapshot> {
     tables.map(async (table) => {
       if (table === "audit_logs" && profile?.role !== "SUPERUSER")
         return [table, []] as const;
-      const query = client.from(table).select("*");
+      let query = client.from(table).select("*");
+      // Catálogos y relaciones permanecen para resolver permisos y áreas. Los movimientos
+      // se filtran en SQL, antes de descargarlos; no se interpreta creación como finalización.
+      if (week && !["profiles", "departments", "positions", "candidates", "employees", "courses"].includes(table)) {
+        const date = table === "applications" ? "applied_at" : "created_at";
+        query = query.gte(date, week.start).lt(date, week.end);
+      }
       const { data, error } = await (
         table === "audit_logs"
           ? query.order("created_at", { ascending: false })

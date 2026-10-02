@@ -36,6 +36,7 @@ export const labels: Record<string, string> = {
   ENTREVISTA: "Entrevista",
   CONTRATADO: "Contratado",
   RECHAZADO: "Rechazado",
+  RETIRADO: "Retirado",
   NEEDS_REVIEW: "Revisión humana",
   HIGH: "Alta",
   MEDIUM: "Media",
