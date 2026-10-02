@@ -354,6 +354,22 @@ describe("PostgreSQL real: transacciones, RLS y aislamiento", () => {
     ).rejects.toThrow();
     await command(ids.hr, "task.status", {
       id: task.id,
+      status: "REJECTED",
+      comments: "Incluye los pasos de configuración y el resultado obtenido.",
+    });
+    expect((await as(ids.candidate, "select status,comments from tasks where id=$1", [task.id])).rows).toEqual([
+      { status: "REJECTED", comments: "Incluye los pasos de configuración y el resultado obtenido." },
+    ]);
+    await as(ids.candidate, "insert into storage.objects(bucket_id,name) values($1,$2)", ["task-evidence", ids.candidate + "/correction.txt"]);
+    await command(ids.candidate, "file.attach", {
+      id: task.id,
+      bucket: "task-evidence",
+      path: ids.candidate + "/correction.txt",
+      text: "Pasos de configuración y resultado corregidos",
+    });
+    expect((await as(ids.hr, "select status from tasks where id=$1", [task.id])).rows).toEqual([{ status: "SUBMITTED" }]);
+    await command(ids.hr, "task.status", {
+      id: task.id,
       status: "APPROVED",
       comments: "Revisado",
     });

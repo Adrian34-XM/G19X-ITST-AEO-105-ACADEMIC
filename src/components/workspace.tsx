@@ -6,6 +6,7 @@
  * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
  */
 import { ModuleBadge } from "./module-badge";
+import { CandidateSession } from "./candidate-session";
 import { ApplicationAccess } from "./application-access";
 import { TaskConversation } from "./task-conversation";
 import { TaskCalendar } from "./task-calendar";
@@ -137,7 +138,7 @@ function AIResult({ result }: { result: unknown }) {
       <span className="eyebrow">✧ RECOMENDACIÓN IA · REVISIÓN HUMANA</span>
       {typeof r.score === "number" && (
         <h3>
-          {r.score}/100 · {String(r.match_level)}
+          {Number.isInteger(r.score) ? `${r.score}/100` : "Puntuación antigua: requiere reevaluación"} · {stateLabel(String(r.match_level))}
         </h3>
       )}
       {r.status != null && <Badge status={String(r.status)} />}
@@ -186,6 +187,7 @@ export function Workspace({
   );
   const [reportFiltersOpen, setReportFiltersOpen] = useState(false);
   const [taskSection, setTaskSection] = useState("active");
+  const [taskCorrection, setTaskCorrection] = useState<{ id: string; comments: string } | null>(null);
   const [taskLayout, setTaskLayout] = useState<"list" | "calendar">("list");
   const taskHistory = taskSection === "history";
   const taskMatches = (t: Row) =>
@@ -195,6 +197,7 @@ export function Workspace({
         ? t.status === "SUBMITTED"
         : !["APPROVED", "SUBMITTED"].includes(value(t, "status"));
   const [applicationStatus, setApplicationStatus] = useState("POSTULADO");
+  const [evidenceAnalysis, setEvidenceAnalysis] = useState<Record<string, { busy: boolean; error?: string; result?: unknown }>>({});
   const [submittedVacancies, setSubmittedVacancies] = useState<string[]>([]);
   const [navigationSearch, setNavigationSearch] = useState("");
   const authorized = profile ? scopeData(rawData, profile) : rawData;
@@ -308,23 +311,29 @@ export function Workspace({
         const previous = authorized.applications?.find((a) => a.id === payload.id);
         setSubmittedVacancies((current) => current.filter((id) => id !== previous?.vacancy_id));
       }
+      return true;
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "No se pudo completar.");
+      return false;
     } finally {
       setBusy(false);
     }
   }
   async function analyze(kind: string, id: string) {
+    if (kind === "evidence") setEvidenceAnalysis((current) => ({ ...current, [id]: { busy: true } }));
     setBusy(true);
     setNotice("Analizando la información autorizada…");
     try {
-      await request("/api/ai/" + kind, { id });
+      const response = await request("/api/ai/" + kind, { id });
+      if (!response.result) throw new Error("La IA no devolvió un análisis. Intenta nuevamente.");
+      if (kind === "evidence") setEvidenceAnalysis((current) => ({ ...current, [id]: { busy: false, result: response.result } }));
       refresh();
       setNotice(
         "Análisis disponible. Revisa la recomendación antes de decidir.",
       );
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "No se pudo analizar.");
+      if (kind === "evidence") setEvidenceAnalysis((current) => ({ ...current, [id]: { busy: false, error: e instanceof Error ? e.message : "No se pudo analizar." } }));
     } finally {
       setBusy(false);
     }
@@ -646,23 +655,51 @@ export function Workspace({
                 <button
                   className="secondary"
                   disabled={busy}
-                  onClick={() => {
-                    const comments = window.prompt(
-                      "Motivo y correcciones necesarias",
-                    );
-                    if (comments?.trim())
-                      void act("task.status", {
-                        id: t.id,
-                        status: "REJECTED",
-                        comments,
-                      });
-                  }}
+                  aria-expanded={taskCorrection?.id === t.id}
+                  aria-controls={`task-correction-${t.id}`}
+                  onClick={() => setTaskCorrection({ id: t.id, comments: "" })}
                 >
                   Solicitar corrección
                 </button>
               </>
             )}
           </div>
+          {canManage && t.status === "SUBMITTED" && taskCorrection?.id === t.id && (
+            <form
+              id={`task-correction-${t.id}`}
+              className="record"
+              aria-label="Solicitar correcciones de la entrega"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                const comments = taskCorrection.comments.trim();
+                if (busy || !comments) return;
+                if (await act("task.status", { id: t.id, status: "REJECTED", comments })) {
+                  setTaskCorrection(null);
+                  setNotice("Correcciones solicitadas. El colaborador podrá ver tus indicaciones y subir una nueva evidencia.");
+                }
+              }}
+            >
+              <h4>¿Qué debe corregir el colaborador?</h4>
+              <p>Indica qué falta y qué debe incluir en su nueva entrega. Este mensaje aparecerá en su tarea.</p>
+              <label htmlFor={`task-comments-${t.id}`}>Motivo y correcciones necesarias</label>
+              <textarea
+                id={`task-comments-${t.id}`}
+                rows={4}
+                maxLength={4000}
+                required
+                autoFocus
+                disabled={busy}
+                value={taskCorrection.comments}
+                onChange={(event) => setTaskCorrection({ id: t.id, comments: event.target.value })}
+              />
+              <div className="actions">
+                <button type="submit" disabled={busy || !taskCorrection.comments.trim()}>
+                  {busy ? "Enviando…" : "Enviar correcciones"}
+                </button>
+                <button type="button" className="secondary" disabled={busy} onClick={() => setTaskCorrection(null)}>Cancelar</button>
+              </div>
+            </form>
+          )}
           {own && ["IN_PROGRESS", "REJECTED"].includes(value(t, "status")) && (
             <Upload bucket="task-evidence" id={t.id} onSaved={refresh} />
           )}
@@ -685,11 +722,13 @@ export function Workspace({
                         disabled={busy}
                         onClick={() => analyze("evidence", e.id)}
                       >
-                        ✧ Analizar evidencia
+                        {evidenceAnalysis[e.id]?.busy ? "Analizando evidencia…" : "✧ Analizar evidencia"}
                       </button>
                     )}
                   </div>
-                  <AIResult result={e.ai_result} />
+                  {evidenceAnalysis[e.id]?.busy && <p role="status">La IA está contrastando el archivo con las instrucciones de esta tarea…</p>}
+                  {evidenceAnalysis[e.id]?.error && <div role="alert" className="error"><strong>No se pudo generar el análisis.</strong><p>{evidenceAnalysis[e.id].error}</p></div>}
+                  <AIResult result={evidenceAnalysis[e.id]?.result ?? e.ai_result} />
                 </div>
               ))}
           </div>
@@ -811,6 +850,7 @@ export function Workspace({
           </div>
         </header>
         <main className="content">
+          {candidate && <CandidateSession />}
           {candidate &&
             !authorized.candidates?.some(
               (c) =>
@@ -892,7 +932,7 @@ export function Workspace({
           {hr && ["overview", "employees", "applications"].includes(view) && (
             <HiringAssignmentNotices data={authorized} onSaved={refresh} />
           )}
-          {view === "overview" && profile && (
+          {view === "overview" && profile && !candidate && (
             <OperationsPanel data={data} profile={profile} area="overview" />
           )}
           {view === "overview" && (
@@ -1402,9 +1442,21 @@ export function Workspace({
               )}
 
               {view === "applications" && !detail && (
-                <section aria-label="Postulaciones por estado">
-                  <div className="actions task-history-controls">
-                    {Object.entries(applicationSections).map(
+                <section className="applications-hub" aria-label="Postulaciones por estado">
+                  <div className="applications-intro">
+                    <div><span className="eyebrow">{hr ? "SELECCIÓN DE TALENTO" : "TU SIGUIENTE OPORTUNIDAD"}</span>
+                    <h2>{hr ? "Cada candidatura, un siguiente paso" : "Así van tus postulaciones"}</h2>
+                    <p>{hr ? "Selecciona una etapa, revisa el CV y decide el siguiente paso. Las evaluaciones de IA son apoyo para tu revisión." : "Consulta el avance de tus solicitudes. Puedes retirar una postulación activa y volver a enviarla si la vacante sigue abierta."}</p></div>
+                    {candidate && <Link className="button" href="/candidate/jobs">Explorar vacantes ↗</Link>}
+                  </div>
+                  <div className="applications-metrics">
+                    <div><strong>{tableRows.length}</strong><span>Postulaciones en esta vista</span></div>
+                    <div><strong>{tableRows.filter((a) => !["CONTRATADO", "RECHAZADO", "RETIRADO"].includes(value(a,"status"))).length}</strong><span>En proceso</span></div>
+                    <div><strong>{tableRows.filter((a) => a.status === "ENTREVISTA").length}</strong><span>En entrevista</span></div>
+                    <div><strong>{tableRows.filter((a) => ["CONTRATADO", "RECHAZADO", "RETIRADO"].includes(value(a,"status"))).length}</strong><span>En historial</span></div>
+                  </div>
+                  <div className="applications-stage-nav" aria-label="Seleccionar etapa">
+                    {Object.entries(applicationSections).filter(([status]) => !candidate || status !== "CONTRATADO").map(
                       ([status, title]) => (
                         <button
                           key={status}
@@ -1414,13 +1466,13 @@ export function Workspace({
                           aria-pressed={applicationStatus === status}
                           onClick={() => setApplicationStatus(status)}
                         >
-                          {title} (
-                          {tableRows.filter((a) => a.status === status).length})
+                          <span>{title}</span>
+                          <span className="applications-stage-count">{tableRows.filter((a) => a.status === status).length}</span>
                         </button>
                       ),
                     )}
                   </div>
-                  <h2>{applicationSections[applicationStatus]}</h2>
+                  <div className="applications-stage-heading"><h3>{applicationSections[applicationStatus]}</h3><span>{applicationRows.length} resultados</span></div>
                 </section>
               )}
               {view === "applications" && hr && !detail && (
@@ -1435,10 +1487,11 @@ export function Workspace({
                 />
               )}
               {view === "applications" && (
-                <div className="record-grid">
+                <div className="record-grid applications-grid">
                   {applicationRows.map((a) => (
                     <article
-                      className="record"
+                      className="record application-card"
+                      data-status={value(a, "status")}
                       key={a.id}
                       id={`postulacion-${a.id}`}
                     >
@@ -1463,6 +1516,15 @@ export function Workspace({
                           "es-MX",
                         )}
                       </p>
+                      {candidate && <p className="application-next-step">{({
+                        POSTULADO: "Tu solicitud fue recibida. Puedes consultar aquí su avance.",
+                        EN_REVISION: "Tu postulación está en revisión por el equipo de selección.",
+                        PRESELECCIONADO: "Tu perfil fue preseleccionado. Consulta el apartado de entrevistas para seguir el proceso.",
+                        ENTREVISTA: "Revisa los detalles de tu entrevista en el apartado de entrevistas.",
+                        CONTRATADO: "Esta postulación concluyó con una contratación.",
+                        RECHAZADO: "El proceso terminó para esta vacante. Puedes explorar otras oportunidades.",
+                        RETIRADO: "Retiraste esta solicitud. Si la vacante sigue abierta, puedes volver a postularte desde Vacantes.",
+                      } as Record<string,string>)[value(a,"status")]}</p>}
                       {hr && (
                         <>
                           <p>
@@ -1502,7 +1564,7 @@ export function Workspace({
                           </div>
                         </>
                       )}
-                      <AIResult result={a.ai_result} />
+                      {hr && a.ai_result != null && <details className="application-analysis"><summary>Consultar evaluación de IA</summary><AIResult result={a.ai_result} /></details>}
                       {candidate &&
                         [
                           "POSTULADO",

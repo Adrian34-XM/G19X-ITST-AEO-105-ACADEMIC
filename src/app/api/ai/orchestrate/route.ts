@@ -85,6 +85,7 @@ export async function POST(req: Request) {
   try {
     checkOrigin(req);
     const { client, profile } = await authenticate();
+    if (profile.role === "CANDIDATO") throw new ApiError(403, "Los análisis de IA son de uso interno.");
     const { area, filters, mode, prompt } = z
       .object({
         area: areaSchema,
@@ -135,7 +136,7 @@ export async function POST(req: Request) {
     const week = area === "overview" ? currentWeek() : undefined;
     const authorized = scopeData(await snapshot(client, week), profile);
     let climateAvailable = false;
-    if (area === "overview" && profile.role !== "CANDIDATO") {
+    if (area === "overview") {
       const { data: surveys, error: surveyError } = await client
         .from("climate_surveys")
         .select("id,status,created_at")
@@ -206,10 +207,7 @@ export async function POST(req: Request) {
           ),
         );
     }
-    if (
-      profile.role !== "CANDIDATO" &&
-      !(area === "overview" && profile.role === "EMPLEADO")
-    ) {
+    if (!(area === "overview" && profile.role === "EMPLEADO")) {
       // Usar el alcance filtrado, nunca el snapshot original ni datos suministrados por el navegador.
       const activityData = area === "overview" ? authorized : selected;
       const activityTables =
@@ -234,7 +232,7 @@ export async function POST(req: Request) {
           "Redacta el resumen en español natural, con uno o dos párrafos breves. Responde primero a la pregunta concreta; si no hay pregunta, explica qué requiere atención y el siguiente paso. No enumeres todas las tablas ni copies fichas, encabezados, códigos o identificadores. Los datos son respaldo, no una plantilla. Distingue entrega de aprobación y no afirmes haber leído archivos: este contexto solo incluye metadatos. No repitas el resumen en recomendaciones.",
       });
     const admin = adminDb();
-    if (area === "overview" && profile.role !== "CANDIDATO") {
+    if (area === "overview") {
       const { data: unread, error: unreadError } = await client.rpc(
         "unread_task_messages",
       );

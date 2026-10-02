@@ -157,22 +157,21 @@ it("genera un prompt revisable y no guarda el texto de instrucciones en el histo
   });
 });
 
-it("el resumen de vista general funciona para los cinco roles", async () => {
+it("el resumen funciona para roles internos y se deniega al candidato", async () => {
   for (const role of [
     "SUPERUSER",
     "RH_ADMIN",
     "JEFE",
     "EMPLEADO",
-    "CANDIDATO",
   ]) {
     state.role = role;
     const r = await POST(req("overview"));
     expect(r.status).toBe(200);
   }
-  const context = state.generate.mock.calls.at(-1)![0];
-  expect(context.role).toBe("CANDIDATO");
-  expect(context.data.tasks).toBeUndefined();
-  expect(context.limitations).toContain("No es un historial completo");
+  state.role = "CANDIDATO";
+  state.generate.mockClear();
+  expect((await POST(req("overview"))).status).toBe(403);
+  expect(state.generate).not.toHaveBeenCalled();
 });
 it("reutiliza el mismo contexto y vuelve a generar tras cambiar el rol", async () => {
   const first = await POST(req("overview"));

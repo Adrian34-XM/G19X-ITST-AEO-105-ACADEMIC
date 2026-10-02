@@ -3169,3 +3169,40 @@ tbody tr:hover {
   color: #842323;
 }
 .candidate-cv-warning p { margin: 12px 0 18px; }
+
+/* Postulaciones: resumen, etapas y expedientes con jerarquía visual por rol. */
+.applications-hub { margin: 20px 0; padding: 26px; border: 1px solid #d5e5df; border-radius: 22px; background: linear-gradient(120deg,#edf8f3,#fff 75%); }
+.applications-intro { display:flex; align-items:center; justify-content:space-between; gap:24px; }
+.applications-intro h2 { margin:8px 0; font-size:clamp(22px,2.5vw,30px); }
+.applications-intro p { max-width:760px; color:#52665e; line-height:1.6; }
+.applications-intro > .button { flex-shrink:0; }
+.applications-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:24px 0; }
+.applications-metrics > div { display:flex; flex-direction:column; gap:6px; background:#ffffffd9; border:1px solid #dce9e3; padding:18px; border-radius:14px; }
+.applications-metrics strong { color:#176449; font-size:28px; }
+.applications-metrics span { color:#52665e; font-size:13px; }
+.applications-stage-nav { display:flex; flex-wrap:wrap; gap:8px; }
+.applications-stage-nav button { display:flex; align-items:center; gap:10px; border-radius:12px; text-align:left; }
+.applications-stage-nav button[aria-pressed="true"] { background:#176449; color:white; box-shadow:0 4px 12px #17644920; }
+.applications-stage-count { min-width:24px; padding:2px 6px; border-radius:7px; background:#0000000d; text-align:center; }
+.applications-stage-heading { display:flex; justify-content:space-between; gap:12px; align-items:center; border-top:1px solid #dce9e3; padding-top:20px; margin-top:20px; }
+.applications-stage-heading span { color:#52665e; font-size:14px; }
+.applications-grid { align-items:start; grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr)); }
+.application-card { border-top:4px solid #508db5; padding:24px; border-radius:16px; box-shadow:0 6px 20px #163b2908; }
+.application-card[data-status="PRESELECCIONADO"], .application-card[data-status="CONTRATADO"] { border-top-color:#248061; }
+.application-card[data-status="ENTREVISTA"] { border-top-color:#8563bd; }
+.application-card[data-status="RECHAZADO"] { border-top-color:#c56b71; }
+.application-card[data-status="RETIRADO"] { border-top-color:#8c9893; }
+.application-card h3 { line-height:1.4; overflow-wrap:anywhere; }
+.application-card .actions { flex-wrap:wrap; margin-top:16px; }
+.application-next-step { background:#f3f7f5; padding:16px; border-radius:12px; line-height:1.6; }
+.application-analysis { margin:20px 0; padding:14px; border:1px solid #e1daef; background:#faf8ff; border-radius:12px; }
+.application-analysis summary { cursor:pointer; color:#63459d; font-weight:600; }
+.application-analysis .ai-result { margin-top:14px; }
+@media(max-width:640px) {
+ .applications-hub { padding:18px; }
+ .applications-intro { align-items:flex-start; flex-direction:column; }
+ .applications-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .applications-stage-nav { flex-wrap:nowrap; overflow-x:auto; padding-bottom:10px; }
+ .applications-stage-nav button { flex-shrink:0; }
+ .application-card { padding:18px; }
+}

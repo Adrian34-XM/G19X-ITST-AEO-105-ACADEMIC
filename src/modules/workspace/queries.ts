@@ -55,6 +55,8 @@ export async function snapshot(client: SupabaseClient, week?: { start: string; e
           : query
       ).limit(1000);
       if (error) throw new Error("DATA_UNAVAILABLE");
+      if (profile?.role === "CANDIDATO" && table === "applications")
+        return [table, (data ?? []).map(({ ai_result: _internal, ...row }) => row)] as const;
       return [table, data] as const;
     }),
   );

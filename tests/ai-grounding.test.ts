@@ -1,7 +1,11 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { generate } from "@/lib/ai/provider";
-import { unsupportedEvidenceClaim } from "@/lib/ai/grounding";
+import {
+  groundingContext,
+  groundingSystemPrompt,
+  unsupportedEvidenceClaim,
+} from "@/lib/ai/grounding";
 const schema = z.object({ summary: z.string() });
 const response = (content: unknown) =>
   Response.json({ message: { content: JSON.stringify(content) } });
@@ -72,8 +76,9 @@ it.each([
     ).rejects.toThrow("no pudo respaldarse");
     expect(fetcher).toHaveBeenCalledTimes(2);
     const review = JSON.parse(fetcher.mock.calls[1][1].body);
-    expect(review.messages[1].content).toContain("proposed_answer");
-    expect(review.messages[1].content).toContain("sources");
+    expect(review.messages.at(-1).content).toContain("proposed_answer");
+    expect(review.messages.at(-1).content).toContain("sources");
+    expect(review.messages[0].content).toBe(groundingSystemPrompt);
   },
 );
 it("falla de forma cerrada si el revisor se contradice o no responde", async () => {
@@ -90,6 +95,41 @@ it("falla de forma cerrada si el revisor se contradice o no responde", async () 
         .mockResolvedValueOnce(response(verdict)),
     );
     await expect(generate({}, schema)).rejects.toThrow();
+  }
+});
+
+it("separa requisitos y recomendación de hechos sin ocultar una propuesta de aprobación", () => {
+  const source = {
+    task: { description: "Documentar instalación" },
+    evidence: "CV ficticio",
+    evidence_text_truncated: true,
+  };
+  for (const status of ["NEEDS_REVIEW", "APPROVED"]) {
+    const result = {
+      status,
+      confidence: 0.8,
+      reason: "Comentario del modelo",
+      observations: [],
+    };
+    const review = groundingContext(source, result, "analysis", false);
+    expect(review.sources).toEqual({
+      requirements_to_verify_not_completed_facts: source.task,
+      submitted_document: source.evidence,
+      text_truncated: true,
+      attachment_available: false,
+    });
+    expect(review.proposed_answer).toMatchObject({
+      reason: result.reason,
+      observations: [],
+    });
+    expect(review.proposed_answer).not.toHaveProperty("confidence");
+    expect(review.proposed_answer).not.toHaveProperty("status");
+    expect(JSON.stringify(review.proposed_answer)).toContain(
+      status === "APPROVED"
+        ? "acredita lo solicitado"
+        : "No se propone aprobar",
+    );
+    expect(result.status).toBe(status);
   }
 });
 it("conserva la redacción del modelo solo tras pasar revisión y comparte el adjunto autorizado", async () => {
@@ -109,9 +149,9 @@ it("conserva la redacción del modelo solo tras pasar revisión y comparte el ad
   expect(result.result).toEqual({
     summary: "Se observa una tabla; no acredita finalización.",
   });
-  expect(JSON.parse(fetcher.mock.calls[1][1].body).messages[1].images).toEqual([
-    "fixture",
-  ]);
+  expect(
+    JSON.parse(fetcher.mock.calls[1][1].body).messages.at(-1).images,
+  ).toEqual(["fixture"]);
 });
 it("el borrador se revisa como propuesta, la selección determinista no solicita revisión narrativa", async () => {
   vi.stubEnv("AI_PROVIDER", "ollama");
@@ -122,26 +162,41 @@ it("el borrador se revisa como propuesta, la selección determinista no solicita
   vi.stubGlobal("fetch", fetcher);
   await generate({ topic: "Bienvenida" }, schema, undefined, "draft");
   expect(
-    JSON.parse(fetcher.mock.calls[1][1].body).messages[1].content,
+    JSON.parse(fetcher.mock.calls[1][1].body).messages.at(-1).content,
   ).toContain("BORRADOR");
   fetcher.mockClear().mockResolvedValue(response({ summary: "tasks" }));
   await generate({}, schema, undefined, "selection");
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
-it.each([true, false])("la reparación única del resumen vuelve a validarse: %s", async (supported) => {
-  vi.stubEnv("AI_PROVIDER", "ollama");
-  const fetcher = vi.fn()
-    .mockResolvedValueOnce(response({summary:"Hay 18 pendientes"}))
-    .mockResolvedValueOnce(response({supported:false,issues:["Solo hay dos pendientes"]}))
-    .mockResolvedValueOnce(response({summary:"Hay dos pendientes"}))
-    .mockResolvedValueOnce(response({supported,issues:supported ? [] : ["No respaldado"]}));
-  vi.stubGlobal("fetch",fetcher);
-  const result = generate({pending:2},schema,undefined,"analysis",true);
-  if(supported) expect((await result).result).toEqual({summary:"Hay dos pendientes"});
-  else await expect(result).rejects.toThrow("no pudo respaldarse");
-  expect(fetcher).toHaveBeenCalledTimes(4);
-  const review = JSON.parse(fetcher.mock.calls[3][1].body);
-  const reviewContext = JSON.parse(review.messages[1].content);
-  expect(reviewContext.sources).toEqual({pending:2});
-});
+it.each([true, false])(
+  "la reparación única del resumen vuelve a validarse: %s",
+  async (supported) => {
+    vi.stubEnv("AI_PROVIDER", "ollama");
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(response({ summary: "Hay 18 pendientes" }))
+      .mockResolvedValueOnce(
+        response({ supported: false, issues: ["Solo hay dos pendientes"] }),
+      )
+      .mockResolvedValueOnce(response({ summary: "Hay dos pendientes" }))
+      .mockResolvedValueOnce(
+        response({ supported, issues: supported ? [] : ["No respaldado"] }),
+      );
+    vi.stubGlobal("fetch", fetcher);
+    const result = generate(
+      { pending: 2 },
+      schema,
+      undefined,
+      "analysis",
+      true,
+    );
+    if (supported)
+      expect((await result).result).toEqual({ summary: "Hay dos pendientes" });
+    else await expect(result).rejects.toThrow("no pudo respaldarse");
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    const review = JSON.parse(fetcher.mock.calls[3][1].body);
+    const reviewContext = JSON.parse(review.messages.at(-1).content);
+    expect(reviewContext.sources).toEqual({ pending: 2 });
+  },
+);

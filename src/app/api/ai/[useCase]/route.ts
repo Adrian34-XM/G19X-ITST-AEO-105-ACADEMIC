@@ -70,6 +70,7 @@ export async function POST(
         );
       context = {
         vacancy: v,
+        instructions: "Evalúa exclusivamente compatibilidad profesional con esta vacante. score es un entero entre 0 y 100, nunca una fracción 0..1. Usa LOW para 0..39, MEDIUM para 40..69 y HIGH para 70..100. Lee todo cv_text: no declares ausente una habilidad que aparece en él aunque no esté en candidate.skills. No contradigas fortalezas y brechas. Una mención acredita que se declara esa habilidad, no acredita dominio verificado. Justifica brechas solo frente a requisitos explícitos de la vacante.",
         candidate: {
           skills: c.skills,
           experience_years: c.experience_years,
@@ -106,7 +107,7 @@ export async function POST(
         evidence: sanitize(e.evidence_text),
         evidence_text_truncated: e.evidence_text.length > 14000,
         writing_instructions:
-          "Redacta reason en español natural como un comentario útil para quien revisa la tarea: explica qué muestra la evidencia, cómo se relaciona con lo solicitado y qué falta comprobar. Usa uno o dos párrafos breves, sin encabezados prefabricados, códigos técnicos ni repetir la conclusión. En observations incluye únicamente hallazgos concretos diferentes de reason. Distingue lo observado de lo que no puede comprobarse; no inventes contenido ni apruebes automáticamente la tarea. Si la evidencia es insuficiente dilo claramente. La decisión final corresponde al responsable humano.",
+          "Compara únicamente la evidencia recibida con task.description. status es una recomendación, nunca el estado real de la tarea. confidence es tu confianza estimada en esa recomendación, no una medición laboral. Si el archivo no corresponde a lo solicitado, usa NEEDS_REVIEW y explica brevemente qué documento recibiste y qué falta para comprobar la tarea. Una descripción de habilidades o experiencia no acredita por sí sola la ejecución de la actividad. No concluyas que la persona no hizo la tarea: solo que este archivo no lo acredita. Redacta reason en 2 a 4 frases naturales; observations puede ser vacío. No inventes requisitos que no aparecen en task.description. No apruebes automáticamente; la decisión corresponde al responsable humano.",
       };
     }
     const admin = adminDb();
@@ -124,6 +125,8 @@ export async function POST(
         context,
         useCase === "recruitment" ? recommendation : verification,
         attachment,
+        "analysis",
+        true,
       );
       const { error: saveError } = await admin.rpc("finish_ai", {
         request: request.id,

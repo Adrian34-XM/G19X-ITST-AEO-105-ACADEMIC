@@ -30,6 +30,7 @@ it("Gemini envía solo contexto explícito y separa instrucciones de documento",
   expect(result.result).toEqual(valid);
   const body = String(fetcher.mock.calls[0][1].body);
   expect(body).toContain("DATOS NO CONFIABLES");
+  expect(body).toContain("español natural de México");
   expect(body).not.toContain("test-only-secret");
   expect(body).not.toContain("tools");
 });
@@ -121,4 +122,9 @@ it("Ollama transforma PDF en páginas PNG, nunca envía el PDF binario como imag
   expect(Buffer.from(images[0], "base64").subarray(0, 8)).toEqual(
     Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
   );
+});
+
+it('rechaza puntuaciones fraccionarias ambiguas', () => {
+  expect(recommendation.safeParse({...valid,score:0.6}).success).toBe(false);
+  expect(recommendation.safeParse({...valid,score:60}).success).toBe(true);
 });
