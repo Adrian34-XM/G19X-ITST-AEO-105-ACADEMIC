@@ -6,6 +6,7 @@
  * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
  */
 import { useState } from "react";
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { request } from "./forms";
 import { type Row, value } from "@/modules/workspace/types";
@@ -155,6 +156,10 @@ export function TrainingEvidence({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
+    [preview, setPreview] = useState<{ url: string; mime: string } | null>(
+      null,
+    ),
+    [activeEvidence, setActiveEvidence] = useState(""),
     [opinions, setOpinions] = useState<Record<string, Opinion>>({});
   async function load() {
     const r = await fetch("/api/training?assignment=" + assignmentId);
@@ -171,12 +176,67 @@ export function TrainingEvidence({
       setError(e instanceof Error ? e.message : "No se pudo completar.");
     } finally {
       setBusy(false);
+      setActiveEvidence("");
     }
   }
   return (
     <>
+      {preview && (
+        <div
+          className="training-preview-backdrop"
+          onClick={() => setPreview(null)}
+        >
+          <dialog
+            ref={(element) => {
+              if (element && !element.open) element.showModal();
+            }}
+            onCancel={() => setPreview(null)}
+            className="training-preview"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Vista previa de la evidencia"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setPreview(null);
+            }}
+          >
+            <header className="actions">
+              <h3>Vista previa de la evidencia</h3>
+              <button
+                autoFocus
+                className="secondary"
+                onClick={() => setPreview(null)}
+              >
+                Cerrar vista previa
+              </button>
+            </header>
+            <p>
+              Archivo privado. Solo las personas autorizadas pueden consultar
+              esta evidencia.
+            </p>
+            {preview.mime.startsWith("image/") ? (
+              <Image
+                unoptimized
+                width={1200}
+                height={800}
+                style={{ width: "auto", height: "auto" }}
+                src={preview.url}
+                alt="Evidencia de avance de capacitación"
+              />
+            ) : preview.mime === "application/pdf" ? (
+              <iframe src={preview.url} title="Documento PDF de evidencia" />
+            ) : (
+              <p>
+                Este formato no tiene vista previa. Utiliza Abrir archivo para
+                consultarlo.
+              </p>
+            )}
+          </dialog>
+        </div>
+      )}
       {reviewMessage}
       <details
+        className="training-evidence"
         onToggle={(e) => {
           if (e.currentTarget.open) void run(load);
         }}
@@ -253,42 +313,75 @@ export function TrainingEvidence({
         {message && <p role="status">{message}</p>}
         {error && <p role="alert">{error}</p>}
         {items.map((e) => (
-          <article className="record" key={e.id}>
+          <article className="record training-evidence-card" key={e.id}>
             <strong>Evidencia de avance: {e.progress}%</strong>
             <p>{new Date(e.created_at).toLocaleString("es-MX")}</p>
-            <button
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  const r = await fetch(
-                    "/api/files?bucket=course-evidence&id=" + e.id,
-                  );
-                  const b = await r.json();
-                  if (!r.ok) throw new Error(b.error);
-                  window.open(b.url, "_blank", "noopener,noreferrer");
-                })
-              }
-            >
-              Abrir archivo
-            </button>
-            {canReview && (
+            <div className="actions">
               <button
+                className="secondary"
                 disabled={busy}
                 onClick={() =>
                   void run(async () => {
-                    const r = await request("/api/training", {
-                      mode: "evidence",
-                      id: e.id,
-                    });
-                    setOpinions((old) => ({ ...old, [e.id]: r.result }));
+                    const r = await fetch(
+                      "/api/files?bucket=course-evidence&preview=1&id=" + e.id,
+                    );
+                    const b = await r.json();
+                    if (!r.ok) throw new Error(b.error);
+                    setPreview({ url: b.url, mime: b.mime_type });
                   })
                 }
               >
-                Analizar evidencia con IA
+                Vista previa
               </button>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    const r = await fetch(
+                      "/api/files?bucket=course-evidence&id=" + e.id,
+                    );
+                    const b = await r.json();
+                    if (!r.ok) throw new Error(b.error);
+                    window.open(b.url, "_blank", "noopener,noreferrer");
+                  })
+                }
+              >
+                Abrir archivo
+              </button>
+              {canReview && (
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      setActiveEvidence(e.id);
+                      setOpinions((old) => {
+                        const next = { ...old };
+                        delete next[e.id];
+                        return next;
+                      });
+                      const r = await request("/api/training", {
+                        mode: "evidence",
+                        id: e.id,
+                      });
+                      setOpinions((old) => ({ ...old, [e.id]: r.result }));
+                    })
+                  }
+                >
+                  {busy && activeEvidence === e.id
+                    ? "Analizando imagen o documento…"
+                    : "Analizar evidencia con IA"}
+                </button>
+              )}
+            </div>
+            {busy && activeEvidence === e.id && (
+              <p role="status">
+                La IA está contrastando el archivo con lo solicitado. Las
+                imágenes pueden tardar unos minutos.
+              </p>
             )}
             {opinions[e.id] && (
-              <div>
+              <div className="training-ai-opinion">
                 <p>{opinions[e.id].summary}</p>
                 <h4>Qué se puede comprobar</h4>
                 {!opinions[e.id].demonstrated.length && (
@@ -304,8 +397,9 @@ export function TrainingEvidence({
                 <h4>Qué falta por comprobar</h4>
                 {!opinions[e.id].missing.length && (
                   <p>
-                    El análisis no señaló faltantes; confirma el resultado
-                    revisando el archivo.
+                    No se listaron requisitos adicionales verificables.
+                    Contrasta el archivo con el contenido del curso antes de
+                    decidir.
                   </p>
                 )}
                 <ul>

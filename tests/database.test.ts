@@ -2142,3 +2142,202 @@ it("requiere CV y permite retirar solo la postulación propia, conservando histo
     }),
   ).rejects.toThrow();
 });
+it("recorrido de incorporación: documentos múltiples, cuestionario, correcciones, responsables e historial", async () => {
+  const worker = crypto.randomUUID(),
+    boss = crypto.randomUUID();
+  await db.exec(
+    `reset role; select set_config('request.jwt.claim.sub','${ids.admin}',false)`,
+  );
+  for (const [uid, role] of [
+    [worker, "EMPLEADO"],
+    [boss, "JEFE"],
+  ]) {
+    await db.query(
+      "insert into auth.users(id,email,raw_user_meta_data) values($1,$2,$3)",
+      [
+        uid,
+        uid + "@journey.test",
+        JSON.stringify({ full_name: "Recorrido onboarding" }),
+      ],
+    );
+    await db.query("update profiles set role=$1,active=true where id=$2", [
+      role,
+      uid,
+    ]);
+  }
+  const bossEmployee = (
+    await db.query<{ id: string }>(
+      "insert into employees(profile_id,position_id) values($1,$2) returning id",
+      [boss, pos],
+    )
+  ).rows[0].id;
+  const eid = (
+    await db.query<{ id: string }>(
+      "insert into employees(profile_id,position_id,manager_id) values($1,$2,$3) returning id",
+      [worker, pos, bossEmployee],
+    )
+  ).rows[0].id;
+  const rpc = async (user: string, op: string, payload: unknown) =>
+    (
+      await as(user, "select onboarding_command($1,$2::jsonb) result", [
+        op,
+        JSON.stringify(payload),
+      ])
+    ).rows[0] as { result: { id: string } };
+  const oid = (await rpc(ids.hr, "plan.start", { employee_id: eid })).result.id;
+  await rpc(ids.hr, "plan.apply", {
+    id: oid,
+    start_date: mexicoDate(new Date().toISOString()),
+    steps: [
+      {
+        title: "Documentos y lectura",
+        description: "Entregar dos documentos y aprobar la lectura.",
+        owner_role: "EMPLOYEE",
+        requires_document: true,
+        days: 5,
+      },
+      {
+        title: "Bienvenida del jefe",
+        description: "Revisar bienvenida.",
+        owner_role: "MANAGER",
+        requires_document: false,
+        days: 5,
+      },
+      {
+        title: "Revisión administrativa",
+        description: "Revisar accesos.",
+        owner_role: "HR",
+        requires_document: false,
+        days: 5,
+      },
+    ],
+  });
+  const items = (
+    await as(
+      ids.hr,
+      "select id,owner_role from onboarding_items where onboarding_id=$1",
+      [oid],
+    )
+  ).rows as { id: string; owner_role: string }[];
+  const personal = items.find((i) => i.owner_role === "EMPLOYEE")!;
+  const review = (user: string, status: string, comments = "Revisado") =>
+    rpc(user, "item.review", { id: personal.id, status, comments });
+  await expect(
+    rpc(ids.other, "item.complete", { id: personal.id }),
+  ).rejects.toThrow();
+  await expect(
+    rpc(worker, "item.complete", { id: personal.id }),
+  ).rejects.toThrow("DOCUMENT_REQUIRED");
+  const attach = async (suffix: string) => {
+    const path = worker + "/" + suffix + ".pdf";
+    await as(
+      worker,
+      "insert into storage.objects(bucket_id,name) values('onboarding-documents',$1)",
+      [path],
+    );
+    await rpc(worker, "document.attach", { id: personal.id, path });
+    return (
+      await as(
+        ids.hr,
+        "select id from onboarding_documents where item_id=$1 and file_path=$2",
+        [personal.id, path],
+      )
+    ).rows[0] as { id: string };
+  };
+  const first = await attach("primero"),
+    second = await attach("segundo");
+  await as(ids.hr, "select onboarding_learning_command($1,$2::jsonb)", [
+    "save",
+    JSON.stringify({
+      id: personal.id,
+      material_path: ids.hr + "/reglamento.pdf",
+      instructions: "Leer el reglamento",
+      minimum: 80,
+      questions: [
+        { question: "Pregunta ficticia", options: ["A", "B"], correct: 1 },
+      ],
+    }),
+  ]);
+  const attempt = async (answer: number) =>
+    (
+      await as(
+        worker,
+        "select onboarding_learning_command($1,$2::jsonb) result",
+        ["attempt", JSON.stringify({ id: personal.id, answers: [answer] })],
+      )
+    ).rows[0] as { result: { passed: boolean } };
+  expect((await attempt(0)).result.passed).toBe(false);
+  await expect(
+    rpc(worker, "item.complete", { id: personal.id }),
+  ).rejects.toThrow("LEARNING_REQUIRED");
+  expect((await attempt(1)).result.passed).toBe(true);
+  await rpc(worker, "item.complete", { id: personal.id });
+  await expect(review(worker, "COMPLETED")).rejects.toThrow();
+  await expect(review(boss, "COMPLETED")).rejects.toThrow();
+  await expect(review(ids.hr, "COMPLETED")).rejects.toThrow(/DOCUMENT_/);
+  await rpc(ids.hr, "document.review", {
+    id: first.id,
+    status: "APPROVED",
+    comments: "Correcto",
+  });
+  await expect(review(ids.hr, "COMPLETED")).rejects.toThrow(
+    "DOCUMENT_REVIEW_PENDING",
+  );
+  await rpc(ids.hr, "document.review", {
+    id: second.id,
+    status: "REJECTED",
+    comments: "Adjuntar documento corregido",
+  });
+  await review(ids.hr, "IN_PROGRESS", "Corrige el segundo documento");
+  expect(
+    (
+      await as(
+        worker,
+        "select status,review_comments from onboarding_items where id=$1",
+        [personal.id],
+      )
+    ).rows[0],
+  ).toMatchObject({
+    status: "IN_PROGRESS",
+    review_comments: "Corrige el segundo documento",
+  });
+  const corrected = await attach("corregido");
+  await rpc(worker, "item.complete", { id: personal.id });
+  await rpc(ids.hr, "document.review", {
+    id: corrected.id,
+    status: "APPROVED",
+    comments: "Corrección verificada",
+  });
+  await review(ids.hr, "COMPLETED");
+  expect(
+    (await as(worker, "select status from onboarding where id=$1", [oid]))
+      .rows[0],
+  ).toEqual({ status: "IN_PROGRESS" });
+  for (const item of items.filter((i) => i.id !== personal.id)) {
+    await expect(
+      rpc(worker, "item.complete", { id: item.id }),
+    ).rejects.toThrow();
+    await rpc(item.owner_role === "MANAGER" ? boss : ids.hr, "item.complete", {
+      id: item.id,
+    });
+    await rpc(ids.hr, "item.review", {
+      id: item.id,
+      status: "COMPLETED",
+      comments: "Confirmado",
+    });
+  }
+  expect(
+    (await as(worker, "select status from onboarding where id=$1", [oid]))
+      .rows[0],
+  ).toEqual({ status: "COMPLETED" });
+  expect(
+    (
+      await as(worker, "select id from onboarding_documents where item_id=$1", [
+        personal.id,
+      ])
+    ).rows,
+  ).toHaveLength(3);
+  expect(
+    (await as(ids.other, "select id from onboarding where id=$1", [oid])).rows,
+  ).toHaveLength(0);
+});

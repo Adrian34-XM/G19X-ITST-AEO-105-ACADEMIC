@@ -135,6 +135,54 @@ export async function GET(req: Request) {
       .single();
     if (error || !data?.[field])
       throw new ApiError(404, "Archivo no encontrado.");
+    const mimeType =
+      (
+        {
+          pdf: "application/pdf",
+          png: "image/png",
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          txt: "text/plain",
+        } as Record<string, string>
+      )[String(data[field]).split(".").pop()?.toLowerCase() || ""] ||
+      "application/octet-stream";
+    if (url.searchParams.has("preview")) {
+      const { error: auditError } = await client.rpc("command", {
+        op: "audit.access",
+        payload: { id, resource: table },
+      });
+      if (auditError) databaseError(auditError);
+      if (url.searchParams.get("preview") === "content") {
+        const { data: file, error: readError } = await client.storage
+          .from(kind)
+          .download(data[field]);
+        if (readError || !file)
+          throw new ApiError(403, "No tienes acceso al archivo.");
+        if (file.size > 5242880)
+          throw new ApiError(
+            422,
+            "El archivo supera el límite de vista previa.",
+          );
+        return new Response(await file.arrayBuffer(), {
+          headers: {
+            "Content-Type": mimeType,
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Disposition": "inline",
+            "X-Frame-Options": "SAMEORIGIN",
+            "Content-Security-Policy":
+              "default-src 'none'; frame-ancestors 'self'; base-uri 'none'",
+          },
+        });
+      }
+      return NextResponse.json(
+        {
+          url: "/api/files?bucket=" + kind + "&id=" + id + "&preview=content",
+          mime_type: mimeType,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const { data: signed, error: signError } = await client.storage
       .from(kind)
       .createSignedUrl(data[field], 60, { download: true });
@@ -149,7 +197,11 @@ export async function GET(req: Request) {
     publicUrl.protocol = publicOrigin.protocol;
     publicUrl.host = publicOrigin.host;
     return NextResponse.json(
-      { url: publicUrl.toString(), expires_in: 60 },
+      {
+        url: publicUrl.toString(),
+        expires_in: 60,
+        mime_type: mimeType,
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (e) {

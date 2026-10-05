@@ -74,6 +74,8 @@ it("IA devuelve propuesta validada sin asignar, enviar expedientes ni guardar un
     "position",
     "task",
   ]);
+  expect(state.generate.mock.calls[0][3]).toBe("onboarding-draft");
+  expect(state.generate.mock.calls[0][4]).toBe(true);
 });
 it("empleado y candidato no generan planes IA", async () => {
   for (const role of ["EMPLEADO", "CANDIDATO"]) {

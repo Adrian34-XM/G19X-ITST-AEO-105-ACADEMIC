@@ -3206,3 +3206,108 @@ tbody tr:hover {
  .applications-stage-nav button { flex-shrink:0; }
  .application-card { padding:18px; }
 }
+/* Capacitación: separa seguimiento, evidencias y decisión del responsable. */
+.training-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 24px 0;
+}
+.training-metrics button {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
+  text-align: left;
+  border-radius: 16px;
+}
+.training-metrics strong {
+  font-size: 1.8rem;
+}
+.training-metrics button[aria-pressed="true"] {
+  background: #e4f4ed;
+  border-color: #19765d;
+  color: #155b49;
+}
+.training-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  padding: 18px;
+  background: #f5f8fa;
+  border-radius: 16px;
+  margin-bottom: 24px;
+}
+.training-assignment-card {
+  margin-top: 20px;
+  border-left: 4px solid #19765d;
+}
+.training-evidence,
+.training-review-form {
+  margin-top: 18px;
+}
+.training-evidence-card {
+  background: #f8fafc;
+  margin-top: 16px;
+}
+.training-evidence-card .actions {
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+.training-ai-opinion {
+  background: #f5f1ff;
+  border: 1px solid #ddd4f7;
+  border-left: 4px solid #8b67c4;
+  padding: 20px;
+  border-radius: 14px;
+  margin-top: 18px;
+}
+.training-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #102a35bb;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.training-preview {
+  background: white;
+  border-radius: 20px;
+  padding: 24px;
+  width: min(100%, 1000px);
+  max-height: 92vh;
+  overflow: auto;
+}
+.training-preview iframe {
+  width: 100%;
+  height: 65vh;
+  border: 0;
+}
+.training-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 65vh;
+  object-fit: contain;
+  margin: auto;
+}
+@media (max-width: 640px) {
+  .training-filters {
+    grid-template-columns: 1fr;
+  }
+  .training-metrics button {
+    padding: 12px;
+  }
+  .training-preview-backdrop {
+    padding: 10px;
+  }
+}
+
+.training-preview { margin: auto; border: 0; }
+.training-preview::backdrop { background: #102a35bb; }
+
+.training-metrics button:nth-child(1) { background: #fff8eb; color: #835516; }
+.training-metrics button:nth-child(2) { background: #eef5ff; color: #295c94; }
+.training-metrics button:nth-child(3) { background: #eaf7ef; color: #246849; }
+.training-metrics button[aria-pressed='true'] { outline: 2px solid currentColor; outline-offset: 2px; }

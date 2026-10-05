@@ -6,7 +6,10 @@ const state = vi.hoisted(() => ({
   allowed: true,
   visible: true,
   text: "Ejercicio completado con pruebas",
+  path: "owner/file.txt",
   generate: vi.fn(),
+  attachment: vi.fn(),
+  vision: vi.fn(),
   rpc: vi.fn(),
   update: vi.fn(),
 }));
@@ -27,7 +30,7 @@ vi.mock("@/lib/auth", async (original) => ({
                       assignment_id: "assignment",
                       progress: 50,
                       evidence_text: state.text,
-                      file_path: "owner/file.png",
+                      file_path: state.path,
                     }
                   : table === "course_assignments"
                     ? {
@@ -53,7 +56,16 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 vi.mock("@/lib/ai/provider", () => ({
   generate: state.generate,
+  OllamaProvider: class {
+    generate = state.vision;
+  },
+  GeminiProvider: class {
+    generate = state.vision;
+  },
   sanitize: (s: string) => s,
+}));
+vi.mock("@/lib/ai/attachments", () => ({
+  authorizedAttachment: state.attachment,
 }));
 const req = (mode = "evidence") =>
   new Request("http://localhost/api/training", {
@@ -67,6 +79,18 @@ beforeEach(() => {
   state.allowed = true;
   state.visible = true;
   state.text = "Ejercicio completado con pruebas";
+  state.path = "owner/file.txt";
+  state.vision.mockResolvedValue({
+    model: "vision-test",
+    result: {
+      visible_content: "Captura de organigrama, sin entregables educativos",
+      limitations: [],
+    },
+  });
+  state.attachment.mockResolvedValue({
+    mimeType: "image/png",
+    data: "cHJ1ZWJh",
+  });
   state.rpc.mockImplementation(async (name: string) => ({
     data:
       name === "owns_employee"
@@ -157,4 +181,69 @@ it("no presenta evidencia suficiente cuando la IA enumera faltantes", async () =
   const r = await POST(req());
   expect(r.status).toBe(200);
   expect((await r.json()).result.recommendation).toBe("MORE_EVIDENCE");
+});
+
+it("el análisis de evidencia permite una corrección revisada sin cambiar avance", async () => {
+  expect((await POST(req())).status).toBe(200);
+  expect(state.generate.mock.calls[0][4]).toBe(true);
+  expect(state.generate.mock.calls[0][0]).toHaveProperty(
+    "requirements_to_verify_not_completed_facts",
+  );
+});
+
+it("una imagen sin texto se envía al modelo visual con autorización", async () => {
+  state.text = "";
+  state.path = "owner/file.png";
+  expect((await POST(req())).status).toBe(200);
+  expect(state.attachment).toHaveBeenCalledWith(
+    expect.anything(),
+    "course-evidence",
+    "owner/file.png",
+  );
+  expect(state.vision.mock.calls[0][2]).toEqual({
+    mimeType: "image/png",
+    data: "cHJ1ZWJh",
+  });
+  expect(state.generate.mock.calls[0][2]).toBeUndefined();
+  expect(state.generate.mock.calls[0][0].evidence).toHaveProperty(
+    "visual_observations_from_ai",
+  );
+});
+it("no descarga imágenes de personas fuera del equipo", async () => {
+  state.text = "";
+  state.allowed = false;
+  expect((await POST(req())).status).toBe(403);
+  expect(state.attachment).not.toHaveBeenCalled();
+});
+
+it("fallo de lectura visual no produce una evaluación ni cambia avance", async () => {
+  state.text = "";
+  state.vision.mockRejectedValue(new Error("PROVIDER_FAILED"));
+  expect((await POST(req())).status).toBe(502);
+  expect(state.generate).not.toHaveBeenCalled();
+  expect(state.update).toHaveBeenCalledWith({ status: "FAILED" });
+});
+
+it("una imagen se lee visualmente aunque tenga texto declarado en metadatos", async () => {
+  state.path = "owner/file.png";
+  state.text = "Texto declarado que no sustituye al archivo";
+  expect((await POST(req())).status).toBe(200);
+  expect(state.vision).toHaveBeenCalled();
+  expect(state.generate.mock.calls[0][0].evidence).toHaveProperty(
+    "visual_observations_from_ai",
+  );
+});
+
+it("el respaldo visual local solo se usa si está habilitado", async () => {
+  vi.stubEnv("AI_PROVIDER", "gemini");
+  vi.stubEnv("AI_FALLBACK", "true");
+  state.path = "owner/file.png";
+  state.vision.mockRejectedValueOnce(new Error("PROVIDER_FAILED"));
+  try {
+    expect((await POST(req())).status).toBe(200);
+    expect(state.vision).toHaveBeenCalledTimes(2);
+    expect(state.generate.mock.calls[0][5]).toBe("vision-test");
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });

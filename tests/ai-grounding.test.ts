@@ -1,9 +1,11 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { trainingOpinion } from "@/lib/ai/training-opinion";
 import { generate } from "@/lib/ai/provider";
 import {
   groundingContext,
   groundingSystemPrompt,
+  onboardingDraftSystemPrompt,
   unsupportedEvidenceClaim,
 } from "@/lib/ai/grounding";
 const schema = z.object({ summary: z.string() });
@@ -29,6 +31,39 @@ it("compara números escritos en letras sin modificar la respuesta original ni n
 });
 const response = (content: unknown) =>
   Response.json({ message: { content: JSON.stringify(content) } });
+it.each([true, false])(
+  "revisa planes nuevos como propuestas y sigue bloqueando políticas inventadas: %s",
+  async (supported) => {
+    vi.stubEnv("AI_PROVIDER", "ollama");
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        response({
+          summary: supported
+            ? "Proponer una práctica Scrum el día 3"
+            : "La empresa concede 30 días de vacaciones",
+        }),
+      )
+      .mockResolvedValueOnce(
+        response({
+          supported,
+          issues: supported ? [] : ["Beneficio existente inventado"],
+        }),
+      );
+    vi.stubGlobal("fetch", fetcher);
+    const answer = generate(
+      { position: "Desarrollo", context: "Inducción Scrum" },
+      schema,
+      undefined,
+      "onboarding-draft",
+    );
+    if (supported) await expect(answer).resolves.toHaveProperty("result");
+    else await expect(answer).rejects.toThrow("no pudo respaldarse");
+    expect(JSON.parse(fetcher.mock.calls[1][1].body).messages[0].content).toBe(
+      onboardingDraftSystemPrompt,
+    );
+  },
+);
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -218,5 +253,99 @@ it.each([true, false])(
     const review = JSON.parse(fetcher.mock.calls[3][1].body);
     const reviewContext = JSON.parse(review.messages.at(-1).content);
     expect(reviewContext.sources).toEqual({ pending: 2 });
+  },
+);
+
+it("la recomendación y los requisitos pendientes no se confunden con hechos cumplidos", () => {
+  const result = {
+    summary: "La imagen no acredita el ejercicio.",
+    demonstrated: [],
+    missing: ["Resultado del ejercicio"],
+    recommendation: "MORE_EVIDENCE",
+  };
+  const review = groundingContext(
+    { reported_progress: 100, evidence: "Captura de interfaz" },
+    result,
+    "training-evidence",
+    true,
+  );
+  expect(review.factual_answer).toEqual({
+    summary: result.summary,
+    demonstrated: [],
+  });
+  expect(review.metadata_not_completion).toHaveProperty(
+    "reported_progress_unverified",
+    100,
+  );
+  expect(result.recommendation).toBe("MORE_EVIDENCE");
+});
+
+it("revisión visual específica libera modelos y conserva el rechazo de hechos falsos", async () => {
+  vi.stubEnv("AI_PROVIDER", "ollama");
+  vi.stubEnv("OLLAMA_MODEL", "qwen2.5:3b");
+  const fetcher = vi
+    .fn()
+    .mockResolvedValueOnce(
+      response({ summary: "El archivo no muestra el ejercicio." }),
+    )
+    .mockResolvedValueOnce(response({ supported: true, issues: [] }));
+  vi.stubGlobal("fetch", fetcher);
+  await generate(
+    { evidence: "Organigrama" },
+    schema,
+    undefined,
+    "analysis",
+    false,
+    "gemma3:4b",
+  );
+  const generation = JSON.parse(fetcher.mock.calls[0][1].body);
+  const review = JSON.parse(fetcher.mock.calls[1][1].body);
+  expect(generation.model).toBe("gemma3:4b");
+  expect(review.model).toBe("gemma3:4b");
+  expect(generation.keep_alive).toBe(0);
+  expect(review.keep_alive).toBe(0);
+  expect(review.options.num_ctx).toBe(8192);
+});
+
+it.each([{ factually_consistent: true }, { factually_consistent: false }])(
+  "capacitación distingue ausencia de prueba de una afirmación falsa: %j",
+  async ({ factually_consistent }) => {
+    vi.stubEnv("AI_PROVIDER", "ollama");
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        response({
+          summary: "La imagen no permite confirmar el curso.",
+          demonstrated: [],
+          missing: ["Presentación"],
+          recommendation: "MORE_EVIDENCE",
+        }),
+      )
+      .mockResolvedValueOnce(
+        response({
+          explanation: "Comparación factual de prueba",
+          factually_consistent,
+        }),
+      );
+    vi.stubGlobal("fetch", fetcher);
+    const operation = generate(
+      {
+        requirements_to_verify_not_completed_facts: {
+          content: "Agenda una presentación",
+        },
+        evidence: "Solo se muestra un organigrama",
+      },
+      trainingOpinion,
+      undefined,
+      "training-evidence",
+    );
+    if (!factually_consistent)
+      await expect(operation).rejects.toThrow("no pudo respaldarse");
+    else await expect(operation).resolves.toHaveProperty("result");
+    const review = JSON.parse(fetcher.mock.calls[1][1].body);
+    expect(review.format.properties).toHaveProperty("factually_consistent");
+    const input = JSON.parse(review.messages[1].content);
+    expect(input.factual_answer).not.toHaveProperty("missing");
+    expect(input).not.toHaveProperty("source_course_requirements");
   },
 );

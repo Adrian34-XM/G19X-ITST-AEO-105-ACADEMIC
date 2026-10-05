@@ -663,31 +663,72 @@ export function TrainingProgress({
         .includes(query.toLocaleLowerCase()),
   );
   return (
-    <section className="panel">
+    <section className="panel training-follow-up">
       <h2>Seguimiento y revisión de capacitaciones</h2>
-      <label>
-        Buscar persona o curso
-        <input value={query} onChange={(e) => setQuery(e.target.value)} />
-      </label>
-      <label>
-        Estado
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">Todos</option>
-          <option value="REVIEW">Avances pendientes de revisión</option>
-          {["ASSIGNED", "IN_PROGRESS", "SUBMITTED", "COMPLETED"].map((s) => (
-            <option key={s} value={s}>
-              {s === "COMPLETED" ? "Historial de completadas" : stateLabel(s)}
-            </option>
-          ))}
-        </select>
-      </label>
+      <p>
+        Encuentra a la persona, consulta su evidencia y registra tu revisión. La
+        IA orienta; tú validas el avance.
+      </p>
+      <div className="training-metrics">
+        {[
+          [
+            "REVIEW",
+            "Por revisar",
+            (data.course_assignments ?? []).filter(
+              (a) => a.progress_review_pending || a.status === "SUBMITTED",
+            ).length,
+          ],
+          [
+            "IN_PROGRESS",
+            "En progreso",
+            (data.course_assignments ?? []).filter(
+              (a) => a.status === "IN_PROGRESS",
+            ).length,
+          ],
+          [
+            "COMPLETED",
+            "Completadas",
+            (data.course_assignments ?? []).filter(
+              (a) => a.status === "COMPLETED",
+            ).length,
+          ],
+        ].map(([id, label, count]) => (
+          <button
+            key={String(id)}
+            className="secondary"
+            aria-pressed={status === id}
+            onClick={() => setStatus(String(id))}
+          >
+            <strong>{count}</strong>
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="training-filters">
+        <label>
+          Buscar persona o curso
+          <input value={query} onChange={(e) => setQuery(e.target.value)} />
+        </label>
+        <label>
+          Estado
+          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">Todos</option>
+            <option value="REVIEW">Avances pendientes de revisión</option>
+            {["ASSIGNED", "IN_PROGRESS", "SUBMITTED", "COMPLETED"].map((s) => (
+              <option key={s} value={s}>
+                {s === "COMPLETED" ? "Historial de completadas" : stateLabel(s)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       {error && (
         <p role="alert" className="error">
           {error}
         </p>
       )}
       {rows.map((a) => (
-        <article className="record" key={a.id}>
+        <article className="record training-assignment-card" key={a.id}>
           <Link href={`${home[profile.role]}/employees/${a.employee_id}`}>
             {value(person(a.employee_id) ?? { id: "" }, "full_name")}
           </Link>
@@ -702,6 +743,11 @@ export function TrainingProgress({
           <p>
             {stateLabel(value(a, "status"))} · {value(a, "progress")}%
           </p>
+          <progress
+            max={100}
+            value={Number(a.progress) || 0}
+            aria-label="Avance de la capacitación"
+          />
           <p>{value(a, "review_comments")}</p>
           {a.progress_review_pending === true && (
             <p role="status">
@@ -723,70 +769,73 @@ export function TrainingProgress({
           {(a.progress_review_pending || a.status === "SUBMITTED") &&
             (isHR(profile.role) || profile.role === "JEFE") &&
             person(a.employee_id)?.id !== profile.id && (
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const f = new FormData(e.currentTarget);
-                  setBusy(true);
-                  setError("");
-                  try {
-                    const response = await fetch("/api/training", {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        assignment: a.id,
-                        decision: f.get("decision"),
-                        percentage: Number(f.get("percentage")),
-                        comments: f.get("comments"),
-                      }),
-                    });
-                    const result = await response.json();
-                    if (!response.ok)
-                      throw new Error(
-                        result.error || "No se pudo guardar la revisión.",
+              <details className="training-review-form">
+                <summary>Revisar y validar este avance</summary>
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const f = new FormData(e.currentTarget);
+                    setBusy(true);
+                    setError("");
+                    try {
+                      const response = await fetch("/api/training", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          assignment: a.id,
+                          decision: f.get("decision"),
+                          percentage: Number(f.get("percentage")),
+                          comments: f.get("comments"),
+                        }),
+                      });
+                      const result = await response.json();
+                      if (!response.ok)
+                        throw new Error(
+                          result.error || "No se pudo guardar la revisión.",
+                        );
+                      onSaved();
+                    } catch (e) {
+                      setError(
+                        e instanceof Error ? e.message : "No se pudo revisar.",
                       );
-                    onSaved();
-                  } catch (e) {
-                    setError(
-                      e instanceof Error ? e.message : "No se pudo revisar.",
-                    );
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                <label>
-                  Comprobación del avance
-                  <textarea name="comments" required maxLength={2000} />
-                </label>
-                <label>
-                  Resultado
-                  <select name="decision">
-                    <option value="ACCEPT">Aceptar avance</option>
-                    <option value="REJECT">
-                      Rechazar y solicitar correcciones
-                    </option>
-                  </select>
-                </label>
-                <label>
-                  Porcentaje validado (%)
-                  <input
-                    name="percentage"
-                    type="number"
-                    min={0}
-                    max={100}
-                    defaultValue={Number(a.progress)}
-                    required
-                  />
-                </label>
-                <p>
-                  Al aceptar puedes ajustar el porcentaje respaldado por las
-                  evidencias. Solo el 100% aceptado completa la capacitación. Al
-                  rechazar, indica el último porcentaje aprobado o uno menor y
-                  explica qué debe corregirse.
-                </p>
-                <button disabled={busy}>Guardar revisión</button>
-              </form>
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  <label>
+                    Comprobación del avance
+                    <textarea name="comments" required maxLength={2000} />
+                  </label>
+                  <label>
+                    Resultado
+                    <select name="decision">
+                      <option value="ACCEPT">Aceptar avance</option>
+                      <option value="REJECT">
+                        Rechazar y solicitar correcciones
+                      </option>
+                    </select>
+                  </label>
+                  <label>
+                    Porcentaje validado (%)
+                    <input
+                      name="percentage"
+                      type="number"
+                      min={0}
+                      max={100}
+                      defaultValue={Number(a.progress)}
+                      required
+                    />
+                  </label>
+                  <p>
+                    Al aceptar puedes ajustar el porcentaje respaldado por las
+                    evidencias. Solo el 100% aceptado completa la capacitación.
+                    Al rechazar, indica el último porcentaje aprobado o uno
+                    menor y explica qué debe corregirse.
+                  </p>
+                  <button disabled={busy}>Guardar revisión</button>
+                </form>
+              </details>
             )}
         </article>
       ))}

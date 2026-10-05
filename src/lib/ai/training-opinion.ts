@@ -9,7 +9,12 @@ export const trainingOpinion = z
   .object({
     summary: z.string().min(1).max(2000),
     demonstrated: z.array(z.string().max(500)).max(6),
-    missing: z.array(z.string().max(500)).max(6),
+    missing: z
+      .array(z.string().max(500))
+      .max(6)
+      .describe(
+        "Copia literalmente un requisito de la descripción o contenido del curso que no se pueda comprobar. No agregues exigencias nuevas ni prefijos.",
+      ),
     recommendation: z.enum(["SUFFICIENT", "MORE_EVIDENCE", "HUMAN_REVIEW"]),
   })
   .strict();
@@ -46,5 +51,23 @@ export function reviewTrainingOpinion(result: unknown) {
       HUMAN_REVIEW:
         "La información disponible requiere una revisión del responsable antes de validar el avance.",
     }[parsed.recommendation];
+  return parsed;
+}
+
+/** Solo presenta faltantes respaldados por el texto de la capacitación, sin crear obligaciones nuevas. */
+export function verifiedTrainingOpinion(result: unknown, requirements: string) {
+  const parsed = reviewTrainingOpinion(result);
+  const normalize = (text: string) =>
+    text
+      .normalize("NFKC")
+      .toLocaleLowerCase("es-MX")
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const available = normalize(requirements);
+  parsed.missing = parsed.missing.filter((item) => {
+    const quote = normalize(item);
+    return quote.length >= 6 && available.includes(quote);
+  });
   return parsed;
 }
