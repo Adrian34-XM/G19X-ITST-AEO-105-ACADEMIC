@@ -9,3 +9,19 @@ supabase/.temp/
 supabase/.branches/
 *.tsbuildinfo
 .local/
+
+# Archivos locales, credenciales privadas y respaldos: no publicar.
+*.lnk
+*.pem
+*.key
+*.pfx
+*.p12
+*.dump
+*.sql.gz
+*.bak
+backups/
+uploads/
+
+# Documentación informativa generada: conservar únicamente en la carpeta local.
+/docs/
+/IDEAS_PARA_EL_SISTEMA.md

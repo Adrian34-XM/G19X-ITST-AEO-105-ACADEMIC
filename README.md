@@ -1,135 +1,262 @@
-# Nexo · Sistema de RRHH con IA
+# Nexo · Sistema de Recursos Humanos con IA
 
-**Ideas y evolución del alcance:** [Ideas para el sistema](IDEAS_PARA_EL_SISTEMA.md) consolida las propuestas iniciales y las ampliaciones solicitadas hasta el 21 de septiembre de 2026.
+Aplicación web para reclutamiento, equipo y organigrama, incorporación, capacitación, tareas y evidencias, desempeño, analíticas y ambiente laboral. Incluye roles de superusuario, RH, jefe, empleado y candidato. La IA aporta análisis sujetos a revisión humana; no contrata ni aprueba entregas automáticamente.
 
-**Activación de mejoras:** consulta [la guía de operaciones RH](docs/ACTIVAR_MEJORAS_RH.md) para habilitar superadministración, encuestas, agenda y adjuntos de vacantes en Supabase.
+Tecnologías: Node.js 24, Next.js 16, React 19, TypeScript, Supabase Auth, PostgreSQL y Storage privado. La IA puede usar Ollama local o Gemini.
 
-Aplicación Next.js/React/TypeScript con Supabase Auth, PostgreSQL, RLS y Storage privado. El código conecta reclutamiento, contratación, onboarding, cursos, tareas, evidencias, recomendaciones IA y desempeño.
+## 1. Requisitos
 
-**Documentación del código:** consulta [la guía en español](docs/CODIGO.md) para entender los módulos, permisos, base de datos y flujo de IA. Las pruebas locales no garantizan la disponibilidad de servicios externos; comprueba cada entorno antes de utilizarlo.
+Instala antes de comenzar:
 
-## Inicio local
+- Git.
+- Node.js **24** con npm. Comprueba `node --version` y `npm --version`.
+- Un navegador actualizado, por ejemplo Edge, Chrome o Firefox.
+- Para Supabase local: Docker Desktop en Windows/macOS, o Docker Engine y Compose en Linux. En Windows utiliza contenedores Linux y configura WSL 2 según lo que solicite Docker Desktop.
+- Para IA local: Ollama instalado en el equipo, o el servicio Ollama de Docker descrito más adelante. Necesitas espacio para descargar modelos y RAM disponible; el consumo depende del modelo y de la concurrencia.
+- Internet para descargar dependencias, imágenes de Docker y modelos. Gemini y Supabase alojado también requieren conexión durante su uso.
 
-**Actualización de paneles y orquestación:** aplica `supabase/migrations/202609170001_orchestration_audit.sql` en el SQL Editor del proyecto remoto (o con el flujo normal de migraciones local). Es necesaria para las recomendaciones generales, el catálogo formativo y la auditoría exclusiva de SUPERUSER. Consulta `docs/CODIGO.md` para los alcances por rol. Las migraciones previas deben estar instaladas.
+Puedes elegir **Supabase local** (apartados 2–5) o **Supabase alojado** (apartado 8). No necesitas instalar PostgreSQL por separado para la opción local: lo administra la CLI de Supabase en Docker.
 
-Requisitos: Node.js 24, npm, Docker Desktop con motor Linux funcionando. Instalar dependencias con `npm ci`.
+## 2. Obtener el proyecto
 
-```powershell
-npx supabase start
-npm run setup:local
-npx supabase db reset
-npm run seed
-docker compose --profile ai up -d ollama
-docker compose exec ollama ollama pull qwen2.5:3b
-npm run dev
+Sustituye la URL de ejemplo por la dirección real del repositorio:
+
+```sh
+git clone <URL_DEL_REPOSITORIO> arquitectura-rh
+cd arquitectura-rh
+npm ci
 ```
 
-`supabase db reset` elimina los datos de la instancia local de este proyecto. Utilízalo solo para la instalación inicial o para reiniciar deliberadamente la demostración; no ejecutarlo sobre datos que quieras conservar.
+Ejecuta todos los comandos siguientes desde esa carpeta. `npm ci` utiliza las versiones de `package-lock.json`. La CLI de Supabase ya está incluida como dependencia de desarrollo; no necesitas instalarla globalmente.
 
-Abre [Nexo](http://localhost:3000/login). Supabase Studio estará en [Studio local](http://localhost:54323). `setup:local` lee el estado de Supabase y escribe `.env.local`, sin imprimir claves ni sobrescribir archivos existentes. Genera una contraseña aleatoria en `DEMO_PASSWORD`.
+En PowerShell, si aparece un error de ejecución de `npm.ps1` o `npx.ps1`, utiliza `npm.cmd` y `npx.cmd` en lugar de `npm` y `npx`.
 
-Si prefieres configurar a mano, copia `.env.example` a `.env.local` y completa `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (o la clave heredada `NEXT_PUBLIC_SUPABASE_ANON_KEY`), `SUPABASE_SERVICE_ROLE_KEY` y `DEMO_PASSWORD` (12 caracteres como mínimo). No subas `.env.local` al control de versiones. No pegues claves secretas en la interfaz ni en el chat. La clave publicable sirve para Auth y consultas con RLS; no permite migrar el esquema ni crear usuarios administrativos.
+## 3. Preparar Supabase local
 
-El seed usa Auth Admin y sube archivos TXT reales a los buckets privados. Crea 3 áreas, 5 puestos, 3 vacantes, 5 candidatos con 5 postulaciones, 2 entrevistas, 5 empleados y un jefe, 5 cursos, 10 tareas, 10 evidencias, onboarding y 2 encuestas reservadas para P1. Rechaza una segunda ejecución cuando existen cuentas demo, para no resetear roles ni deshacer contrataciones.
+Inicia Docker y espera a que su motor esté disponible. Después ejecuta:
 
-## Usuarios demo
+```sh
+npx supabase start
+npm run setup:local
+```
 
-Todos usan la contraseña configurada en `DEMO_PASSWORD`, consultable en tu `.env.local`:
+El primer arranque puede tardar mientras descarga imágenes. `setup:local` obtiene las claves de la instancia local, crea `.env.local` y genera una contraseña aleatoria para las cuentas demo. No imprime secretos ni sobrescribe un `.env.local` existente.
 
-- `admin@nexo.test`: SUPERUSER; usuarios, roles, áreas, puestos y auditoría.
-- `rh@nexo.test`: RH_ADMIN; procesos de RH.
-- `jefe@nexo.test`: JEFE; empleados asignados a su equipo, tareas y desempeño.
-- `empleado1@nexo.test` a `empleado5@nexo.test`: EMPLEADO.
-- `candidato1@nexo.test` a `candidato5@nexo.test`: CANDIDATO.
+Si copiaste un `.env.local` de otra instalación, el script no lo actualizará: revisa que sus URL y claves correspondan a la instancia que vas a utilizar. No mezcles credenciales de Supabase local con las de un proyecto alojado.
 
-Para demostrar la contratación usa `candidato1@nexo.test`, que empieza en POSTULADO, o registra una cuenta nueva. La contraseña de un candidato contratado no cambia: se actualiza su rol y al volver a entrar accede a `/employee`.
+### Instalación inicial de las tablas
 
-## Supabase alojado
+En una instancia local nueva, aplica todas las migraciones y los datos SQL iniciales:
 
-Usa un proyecto de pruebas separado. Configura URL y claves, enlaza la CLI con ese proyecto y aplica las migraciones de `supabase/migrations` mediante `supabase db push`. El seed SQL crea áreas, puestos y cursos; `scripts/seed.mjs` crea cuentas y archivos. Para permitir ese seed sobre un proyecto remoto se requiere `ALLOW_REMOTE_DEMO=true`. No actives esta variable sobre producción.
+```sh
+npx supabase db reset --local
+npm run seed
+```
 
-El registro usa Supabase Auth y nunca confía en un rol enviado por el cliente. En local se desactiva la confirmación por correo. En un proyecto alojado, si mantienes la confirmación, el usuario confirma su correo y vuelve a `/login`; configura la URL del sitio en Supabase Auth. Las rutas consultan `getUser()` y el perfil activo actual.
+**`db reset --local` borra los datos de esta instancia local.** Este paso es para la instalación inicial o un reinicio deliberado de la demostración. No lo repitas para arrancar diariamente ni sobre datos que quieras conservar.
 
-## IA
+Las migraciones están en `supabase/migrations/` y se ejecutan en orden. Incluyen auditoría, permisos, evidencias, encuestas, conversaciones y fotos de perfil. No ejecutes únicamente una migración de mejoras en una base vacía: depende de las anteriores.
 
-Para Gemini:
+`npm run seed` crea cuentas confirmadas y registros ficticios para probar el sistema. Rechaza una segunda ejecución cuando detecta cuentas demo existentes. La contraseña es el valor de `DEMO_PASSWORD` en tu archivo local; cambiar esa variable después no cambia las contraseñas de usuarios ya creados.
+
+## 4. Configurar las variables
+
+Abre `.env.local` en tu editor. Añade esta variable si el script de configuración no la incluyó:
+
+```env
+APP_URL=http://127.0.0.1:3000
+```
+
+El archivo contiene las siguientes variables principales. Los valores de este ejemplo son referencias, no credenciales utilizables:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=CLAVE_ANON_DE_TU_INSTANCIA_LOCAL
+SUPABASE_SERVICE_ROLE_KEY=CLAVE_PRIVADA_DE_TU_INSTANCIA_LOCAL
+APP_URL=http://127.0.0.1:3000
+AI_PROVIDER=ollama
+OLLAMA_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=qwen2.5:3b
+AI_FALLBACK=false
+DEMO_PASSWORD=CONTRASENA_LOCAL_DE_AL_MENOS_12_CARACTERES
+```
+
+Conserva los valores reales generados por `setup:local`; no los reemplaces por estos ejemplos. También se admite `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` en lugar de la clave heredada `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Si defines ambas, la clave publicable tiene prioridad.
+
+`SUPABASE_SERVICE_ROLE_KEY` es privada y el sistema actual la necesita para operaciones administrativas. No le añadas el prefijo `NEXT_PUBLIC_`, no la copies al navegador y no la publiques. Las cuentas normales acceden mediante sesión y políticas RLS.
+
+Para una configuración manual puedes copiar `.env.example` a `.env.local`: en PowerShell, `Copy-Item .env.example .env.local`; en Bash, `cp .env.example .env.local`. Completa las claves reales y una contraseña demo propia antes del seed.
+
+## 5. Configurar la IA
+
+### Opción A: Ollama instalado en el equipo
+
+Instala Ollama desde [su sitio oficial](https://ollama.com/download), inicia su servicio y descarga el modelo de texto:
+
+```sh
+ollama pull qwen2.5:3b
+ollama list
+```
+
+Utiliza `AI_PROVIDER=ollama`, `OLLAMA_URL=http://127.0.0.1:11434` y `OLLAMA_MODEL=qwen2.5:3b` en `.env.local`.
+
+Para analizar imágenes o PDF escaneados, descarga además un modelo de visión:
+
+```sh
+ollama pull gemma3:4b
+```
+
+Y añade:
+
+```env
+OLLAMA_VISION_MODEL=gemma3:4b
+```
+
+El modelo visual requiere recursos adicionales y es opcional para probar el resto de la plataforma. Los PDF con texto y archivos TXT pueden procesarse por extracción textual; un análisis textual no interpreta automáticamente las imágenes internas. La conversión de PDF para visión admite hasta seis páginas.
+
+Si Ollama ya está activo, no ejecutes otra instancia de `ollama serve` ni otro contenedor sobre el mismo puerto. Para descargar un modelo basta con que el servicio existente esté disponible.
+
+### Opción B: Ollama con Docker
+
+Puedes usar esta opción en lugar de instalar Ollama directamente. Comprueba que el puerto 11434 esté libre:
+
+```sh
+docker compose --profile ai up -d ollama
+docker compose exec ollama ollama pull qwen2.5:3b
+```
+
+Para visión, ejecuta también `docker compose exec ollama ollama pull gemma3:4b` y configura `OLLAMA_VISION_MODEL`. La aplicación sigue ejecutándose con npm en el equipo.
+
+Para detener este servicio: `docker compose stop ollama`. Los modelos descargados permanecen en el volumen de Docker.
+
+### Opción C: Gemini
+
+Configura una clave válida del proveedor, únicamente en el servidor:
 
 ```env
 AI_PROVIDER=gemini
-GEMINI_API_KEY=tu_clave_solo_servidor
+GEMINI_API_KEY=TU_CLAVE_PRIVADA
 GEMINI_MODEL=gemini-2.5-flash
 AI_FALLBACK=false
 ```
 
-Para Ollama usa `AI_PROVIDER=ollama`, `OLLAMA_URL=http://127.0.0.1:11434` y un modelo descargado que soporte salida JSON. El modelo de texto por defecto es `qwen2.5:3b`. Para imágenes y PDF escaneados, configura `OLLAMA_VISION_MODEL` con un modelo visual instalado. Ollama recibe los PDF como imágenes renderizadas localmente, hasta seis páginas; Gemini admite el PDF/imagen autorizado como entrada multimodal. Los PDF con texto y TXT pueden analizarse por extracción textual. Un documento mixto procesado como texto no implica que se hayan interpretado todas sus imágenes.
+El modelo indicado debe estar disponible para tu cuenta. El servicio puede tener cuotas o costes. Puedes habilitar `AI_FALLBACK=true` si también has configurado y descargado un modelo de Ollama local; de otro modo conserva `false`.
 
-El fallback Gemini → Ollama solo se activa con `AI_FALLBACK=true`. Gemini y Ollama de texto tienen 45 segundos de espera; Ollama con visión dispone de 180 segundos. No hay reintentos infinitos. El flujo de análisis por recurso limita a 5 solicitudes por usuario y minuto y una pendiente reciente por recurso; el orquestador tiene su propio límite de 3 por minuto. Los resultados se validan con Zod antes de persistir. Se reutiliza la recomendación almacenada; los cambios de CV, habilidades o requisitos invalidan la recomendación. La IA no aprueba tareas, no contrata ni administra roles.
+La aplicación puede arrancar aunque no haya un proveedor de IA disponible, pero los análisis de IA fallarán hasta que lo configures. La IA no sustituye las validaciones humanas ni garantiza respuestas correctas para cualquier prompt.
 
-Antes de IA se aplican autenticación, rol, consulta RLS y contexto mínimo. No se envían correos, nombres de perfiles ni claves como campos de contexto. El CV autorizado puede contener datos personales propios del documento. Las instrucciones dentro de documentos se tratan como datos no confiables. El proveedor no dispone de herramientas ni acceso a la base de datos. Esta separación limita los efectos de prompt injection; no supone que un modelo nunca pueda producir una recomendación incorrecta.
+## 6. Arrancar y entrar
 
-## Docker
-
-Supabase se administra con su CLI; Compose administra Next.js y, opcionalmente, Ollama. Después de `supabase start`, migraciones y seed:
-
-```powershell
-docker compose --profile ai up -d --build
-docker compose exec ollama ollama pull qwen2.5:3b
+```sh
+npm run dev -- --hostname 127.0.0.1
 ```
 
-La app usa `SUPABASE_INTERNAL_URL=http://host.docker.internal:54321` dentro del contenedor y conserva la URL pública para enlaces firmados accesibles por el navegador. La imagen utiliza build standalone y un usuario sin privilegios. `.dockerignore` excluye secretos. El build Docker no se verificó en esta sesión porque el motor no estuvo disponible.
+Deja esa terminal abierta y visita [http://127.0.0.1:3000/login](http://127.0.0.1:3000/login). El listado público de vacantes está en `/jobs`.
 
-## Guion de demostración
+Supabase Studio está normalmente en [http://127.0.0.1:54323](http://127.0.0.1:54323). Ejecuta `npx supabase status` para consultar las direcciones de tu instalación; su salida también contiene claves y no debe compartirse públicamente.
 
-1. Registrar un candidato en `/register`, o entrar como `candidato1@nexo.test`.
-2. En **Mi perfil**, guardar habilidades y experiencia; subir CV PDF/TXT privado.
-3. En **Oportunidades**, postularse; revisar **Postulaciones**. El candidato demo ya tiene una postulación.
-4. Salir y entrar como `rh@nexo.test`. En **Postulaciones**, abrir el CV privado y pulsar **Evaluar candidato**. Revisar score, fortalezas, brechas y resumen.
-5. Cambiar a **En revisión** y luego **Preseleccionado**. Pulsar **Agendar entrevista**, seleccionar entrevistador y una hora sin conflicto (se reserva un intervalo de una hora).
-6. Pulsar **Confirmar contratación**. PostgreSQL crea empleado, onboarding, cuatro elementos de checklist, cursos obligatorios y una tarea inicial en la misma transacción, y registra auditoría.
-7. Entrar de nuevo con la cuenta del candidato, ahora empleado. En **Onboarding**, consultar actividades, adjuntar los documentos exigidos y aprobar la evaluación si existe. Enviar la actividad y verificar la revisión del responsable.
-8. En **Capacitación**, leer contenido y adjuntar evidencia del avance. El responsable acepta o rechaza con observaciones; únicamente la validación autorizada confirma la finalización.
-9. En **Tareas**, iniciar la tarea y subir evidencia. Pasa a **En revisión**.
-10. Como RH, entrar a **Tareas**, abrir el archivo y ejecutar **Analizar evidencia**. Revisar resultado, confianza y observaciones; aprobar la entrega o solicitar correcciones con motivo.
-11. Revisar **Desempeño**, **Analíticas** y **Auditoría**. La métrica es 60% tareas aprobadas + 40% cursos completados.
-12. Intentar abrir `/rh` con un candidato, consultar un empleado ajeno por API o modificar roles con un usuario normal: deben rechazarse. Un jefe gestiona su jerarquía subordinada autorizada; poder consultar sus registros propios no le permite aprobarse avances.
+### Usuarios de demostración
 
-## API
+Todos utilizan la contraseña generada en `DEMO_PASSWORD` al ejecutar el seed:
 
-Las operaciones de la interfaz usan `POST /api/commands` con `{op,payload}`. Los schemas rechazan campos extra y el RPC `command` vuelve a validar rol, propiedad y transiciones en PostgreSQL. Las tablas no permiten escrituras directas al rol `authenticated`.
+- `admin@nexo.test`: superusuario.
+- `rh@nexo.test`: administración de RH.
+- `jefe@nexo.test`: jefe del equipo.
+- `empleado1@nexo.test` a `empleado5@nexo.test`: empleados.
+- `candidato1@nexo.test` a `candidato5@nexo.test`: candidatos.
 
-También existen rutas de dominio: vacantes (GET/POST/PATCH/DELETE), postulaciones (GET/POST/status/hire), entrevistas (GET/POST/PATCH/DELETE como cancelación), empleados (GET/PATCH), onboarding propio y completar elementos, cursos y asignaciones, tareas y estado, archivos privados, `/api/performance/me`, `/api/performance/employee/:id` y `/api/analytics/kpis`. La contratación canónica es `POST /api/applications/:id/hire`.
+Estos correos son ficticios y no son buzones reales. El seed confirma las cuentas para permitir la demostración. Una contratación cambia el rol y la pantalla del candidato; no cambia su contraseña.
 
-Los listados REST devuelven `{data,page,page_size:50}`; `page` empieza en 0. Las páginas del MVP consultan hasta 1.000 registros por tabla en el workspace; no están diseñadas aún para operaciones masivas. Ver [decisiones y trazabilidad](docs/DECISIONES.md) para el alcance y sus límites.
+### Registro, invitaciones y recuperación
 
-Archivos: `POST /api/files` recibe `multipart/form-data` con `bucket`, `file` e `id` para tarea/onboarding. `GET /api/files?bucket=...&id=...` devuelve `{url,expires_in:60}` solo tras autorizar el recurso. No se aceptan rutas de archivo suministradas para firmar; se recupera la ruta almacenada de un registro visible por RLS.
+La configuración local actual **sí exige confirmación de correo para registros nuevos**. Consulta la dirección del capturador local de correo que muestra `npx supabase status` y abre allí los mensajes de prueba: no se envían a un buzón Gmail real desde el capturador local.
 
-IA: `POST /api/ai/recruitment` y `/api/ai/evidence`, cuerpo `{id}`. Las rutas de compatibilidad `/api/ai/recruitment/recommend`, `/api/ai/recruitment/summary` y `/api/ai/task-verification` usan el mismo contrato. Un resumen de candidato forma parte de la recomendación.
+`APP_URL` debe coincidir con la dirección usada para abrir la aplicación. Las plantillas locales se encuentran en `supabase/templates/`. El enlace de acceso llega a `/auth/confirm`.
 
-## Pruebas
+## 7. Uso diario, actualizaciones y parada
 
-```powershell
-npm run lint
+Para arrancar otra vez, inicia Docker, ejecuta `npx supabase start`, inicia Ollama si lo usas y ejecuta `npm run dev -- --hostname 127.0.0.1`. No repitas el reset ni el seed.
+
+Para incorporar cambios del repositorio, guarda primero tus cambios locales, actualiza la rama y ejecuta `npm ci`. Si hay migraciones nuevas, realiza un respaldo y aplícalas a la instancia local con:
+
+```sh
+npx supabase migration up --local
+```
+
+Reinicia Next.js después de cambiar `.env.local`. Para detenerlo, pulsa `Ctrl+C` en su terminal. Para detener Supabase local, usa `npx supabase stop`; no añadas opciones que eliminen datos si quieres conservarlos. Para Ollama instalado directamente, descarga un modelo de memoria con `ollama stop qwen2.5:3b` o `ollama stop gemma3:4b`; esto no desinstala el modelo ni cierra el servicio.
+
+## 8. Alternativa: Supabase alojado
+
+Esta opción utiliza la base de datos en Supabase y la aplicación en tu máquina. No necesita Docker para la base de datos; sí conexión a Internet.
+
+1. Crea un proyecto de Supabase separado para esta instalación.
+2. Copia `.env.example` a `.env.local`. Completa la URL del proyecto, su clave pública y su clave `service_role` privada. Configura `APP_URL=http://127.0.0.1:3000` y el proveedor de IA elegido.
+3. Autentica y enlaza la CLI con el proyecto correcto; sustituye el identificador del ejemplo:
+
+```sh
+npx supabase login
+npx supabase link --project-ref <IDENTIFICADOR_DEL_PROYECTO>
+npx supabase db push
+```
+
+El enlace puede solicitar la contraseña de PostgreSQL del proyecto; no es la contraseña de una cuenta Nexo. Revisa el destino antes de aplicar cambios. Para una instalación nueva, aplica **todas** las migraciones de `supabase/migrations/` mediante este flujo. No combines este procedimiento con los instaladores SQL agregados, que pueden intentar crear los mismos objetos.
+
+4. En Supabase Auth configura la URL del sitio y permite `http://127.0.0.1:3000/auth/confirm` como URL de redirección. Si usas `localhost`, configura también esa variante y utiliza el mismo origen en `APP_URL`.
+5. Configura las plantillas de confirmación, invitación y recuperación tomando como referencia `supabase/templates/`. En un servicio alojado estas plantillas no se instalan automáticamente por ejecutar migraciones SQL. Configura el envío de correo y, para pruebas fuera de las restricciones del servicio predeterminado, un proveedor SMTP propio.
+6. Para cargar la demostración **solo en un proyecto de pruebas vacío**, ejecuta primero `supabase/seed.sql` en su SQL Editor. Después establece `DEMO_PASSWORD` y `ALLOW_REMOTE_DEMO=true` en `.env.local` y ejecuta `npm run seed`. Retira `ALLOW_REMOTE_DEMO` cuando termines. No ejecutes el seed de demostración sobre una instalación con datos reales.
+7. Arranca la aplicación con el comando del apartado 6.
+
+La contraseña y las claves son propias de cada instalación. Clonar el repositorio no copia usuarios, documentos, modelos, configuración SMTP ni datos de la base anterior. Para reutilizar una base alojada existente, usa sus credenciales autorizadas y aplica únicamente migraciones pendientes; no ejecutes el seed.
+
+Para diagnosticar una instalación, ejecuta `supabase/verificar-migraciones.sql` en el SQL Editor. No modifica datos; muestra requisitos ausentes. El archivo no sustituye la ejecución ordenada de las migraciones, incluida la de fotos de perfil `202610060001_profile_photos.sql`.
+
+## 9. Comprobar la instalación
+
+```sh
+npm run test:supabase
 npm run typecheck
+npm run lint
 npm test
 npm run build
-npx playwright install chromium
-npm run test:e2e
 ```
 
-- Unitarias: cálculos, roles, estados, schemas, mass assignment y validación de archivos.
-- Base de datos: migraciones reales ejecutadas en PGlite (PostgreSQL embebido); RLS, contratación, conflicto de agenda, rollback inyectado a mitad de contratación, aislamiento, Storage policies y auditoría inmutable. Se crean esquemas de prueba para `auth.uid` y Storage; esto no sustituye una prueba contra Supabase completo.
-- API: contratos de los handlers, rechazo previo de CSRF y falta de autenticación, JSON inválido, límites y redacción de errores. El cliente de Auth está sustituido únicamente dentro de estas pruebas.
-- IA: contratos de proveedores, salida inválida, fallback y errores con transporte simulado. `tests/vision-live.test.ts` permite probar un modelo real al habilitar `RUN_LOCAL_VISION=true`; no se ejecuta por defecto.
-- E2E: `e2e/core.spec.ts` conserva un recorrido amplio con servicios y credenciales reales. Algunas expectativas proceden del flujo anterior de revisiones y permisos: no usar su mera existencia como certificación de todos los recorridos actuales.
+La comprobación de Supabase es de disponibilidad y permisos anónimos; no demuestra todos los recorridos autenticados. Las pruebas habituales de IA simulan el transporte. Algunas pruebas reales y de navegador necesitan cuentas o archivos locales de preparación que no se distribuyen en Git.
 
-Ver [resultado de verificación](docs/VERIFICACION.md). No declarar terminado el MVP hasta que pase el E2E con Supabase y un proveedor real.
+Para pruebas de navegador, instala Chromium con `npx playwright install chromium`. En Windows, la configuración utiliza Edge por defecto; si quieres utilizar Chromium, define `E2E_BROWSER_CHANNEL=chromium` en el entorno de la terminal antes de `npm run test:e2e`.
 
-## Alcance y documentación
+Para comprobar manualmente los recorridos: entra como candidato, completa el perfil y sube un CV antes de postularte; continúa como RH con la entrevista y contratación; verifica el acceso del nuevo empleado, la incorporación y sus entregas. Como jefe o RH revisa tareas y capacitaciones, y comprueba como superusuario la auditoría. Una respuesta de IA no equivale a aprobación humana.
 
-El sistema incluye organigrama, encuestas de clima, propuestas formativas, análisis de evidencias y gráficas asistidas por IA. Nómina, biometría, SSO, ERP, videollamadas, modelos propios y multitenancy no forman parte de esta implementación.
+Para arrancar una compilación de producción en la misma máquina, detén `npm run dev`, ejecuta `npm run build` y después `npm run start -- --hostname 127.0.0.1`. No ejecutes ambos servidores en el puerto 3000 al mismo tiempo. Esto prueba el modo de producción local; no configura un alojamiento público.
 
-Consulta la [guía del código](docs/CODIGO.md), el [índice por archivo](docs/MAPA_CODIGO.md), la [explicación de SQL](docs/BASE_DATOS_CODIGO.md) y el [mapa de pruebas y configuración](docs/PRUEBAS_CODIGO.md).
+## 10. Problemas frecuentes
 
-## Referencias técnicas
+- **No se encontró el sitio:** comprueba que Next.js siga activo, que no haya errores en la terminal y que estés usando el puerto anunciado. Si 3000 está ocupado, detén tu instancia anterior o cambia el puerto y actualiza `APP_URL` y las redirecciones de Auth.
+- **Docker no está disponible:** abre Docker Desktop, activa el motor Linux y vuelve a ejecutar `npx supabase start`.
+- **Faltan tablas o funciones SQL:** verifica que las migraciones se aplicaron al mismo proyecto cuya URL aparece en `.env.local`. No ejecutes una mejora aislada sobre una base vacía.
+- **Faltan claves o el acceso administrativo falla:** revisa URL, clave pública y `SUPABASE_SERVICE_ROLE_KEY`. Las claves de distintos proyectos no son intercambiables. Reinicia Next.js después de editar el entorno.
+- **No llega un correo:** en local revisa el capturador de correo; en alojado revisa confirmación, SMTP, destinatario, cuotas y registros de Auth. Las direcciones `@nexo.test` son ficticias.
+- **El enlace de correo está incompleto o caducado:** utiliza el mensaje más reciente, revisa las plantillas y `APP_URL`, y solicita un enlace nuevo. Los enlaces tienen vigencia y pueden ser de un solo uso.
+- **Ollama dice que 11434 está ocupado:** ya hay otro servicio usando ese puerto. Utiliza la instancia existente o detén el servicio que tú hayas iniciado antes de arrancar otra.
+- **La IA tarda o consume mucha memoria:** cierra otros procesos pesados, evita análisis simultáneos y descarga de memoria modelos que no utilices. Mantén el modelo ligero de texto; usa visión solo cuando sea necesaria.
+- **No puede analizar una imagen:** comprueba que `OLLAMA_VISION_MODEL` esté configurado y que ese modelo aparezca en `ollama list`, o utiliza un proveedor multimodal configurado.
+- **Un análisis es rechazado por falta de respaldo:** la validación no pudo confirmar la respuesta. Revisa los datos y el alcance de la pregunta; no desactives las comprobaciones para aceptar cifras inventadas.
+- **El seed dice que ya existen usuarios:** no es un comando de arranque diario. Usa las cuentas existentes. Un reset solo procede en una instancia local de pruebas cuyos datos puedas borrar.
 
-Se contrastaron las integraciones con [Supabase SSR](https://supabase.com/docs/guides/auth/server-side/creating-a-client), [validación de identidad](https://supabase.com/docs/reference/javascript/auth-getuser), [JSON estructurado de Gemini](https://ai.google.dev/gemini-api/docs/structured-output), [PDF en Gemini](https://ai.google.dev/gemini-api/docs/generate-content/document-processing) y [visión en Ollama](https://docs.ollama.com/capabilities/vision). Para Next.js se consultó la documentación distribuida con la versión instalada en `node_modules/next/dist/docs`.
+## 11. Publicar el código sin secretos
+
+`.env.local`, `.local/`, documentación informativa local, respaldos y archivos privados deben permanecer fuera del repositorio. Conserva `.env.example` con valores de ejemplo, nunca con claves reales. Revisa `git status --short` y `git diff --cached --stat` antes de cada commit.
+
+Las reglas de `.gitignore` no eliminan archivos ya versionados ni copias del historial. Si una credencial llega a un commit, revócala o reemplázala y limpia el historial antes de publicar. No subas CV, evidencias o capturas con datos personales. Los archivos de `tests/fixtures/` deben seguir siendo ficticios.
+
+Publica únicamente la rama prevista; evita `git push --mirror`, que puede incluir referencias privadas de herramientas. En un alojamiento configura los secretos mediante variables privadas de entorno, sin subir `.env.local`.
+
+## Referencias
+
+- [Instalación de Node.js](https://nodejs.org/).
+- [Docker](https://docs.docker.com/get-started/get-docker/).
+- [Supabase: desarrollo local](https://supabase.com/docs/guides/local-development).
+- [Supabase: claves y seguridad](https://supabase.com/docs/guides/getting-started/api-keys).
+- [Supabase: SMTP](https://supabase.com/docs/guides/auth/auth-smtp).
+- [Ollama](https://ollama.com/download).
+- [Gemini API](https://ai.google.dev/gemini-api/docs).
+
+Las funciones de nómina, biometría, ERP y multitenancy no forman parte de esta implementación. Revisa y prueba tu instalación antes de usarla con datos reales.

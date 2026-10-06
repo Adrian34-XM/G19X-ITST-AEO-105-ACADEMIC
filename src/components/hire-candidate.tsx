@@ -5,6 +5,7 @@
  * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
  */
 import { useState } from "react";
+import { Bell } from "lucide-react";
 import { request } from "./forms";
 import { type Snapshot, value } from "@/modules/workspace/types";
 export function HireCandidate({
@@ -192,35 +193,71 @@ export function HiringAssignmentNotices({
   const pending = (data.employees ?? []).filter(
     (e) => e.assignment_pending === true && e.status === "ACTIVE",
   );
-  if (!pending.length) return null;
+  const [open, setOpen] = useState(false);
   return (
-    <section
-      className="panel"
-      aria-label="Asignaciones pendientes de contratación"
+    <div
+      className="hiring-notifications"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+          setOpen(false);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") setOpen(false);
+      }}
     >
-      <h2>Personas contratadas · asignación pendiente ({pending.length})</h2>
-      <p>Revisa y confirma el área y puesto de cada nueva contratación.</p>
-      <div className="record-grid">
-        {pending.map((e) => (
-          <article className="record" key={e.id}>
-            <h3>
-              {value(
-                (data.profiles ?? []).find((p) => p.id === e.profile_id) ?? {
-                  id: "",
-                },
-                "full_name",
-              ) || "Nuevo colaborador"}
-            </h3>
-            <p>Contratación completada. Falta confirmar su asignación.</p>
-            <HireCandidate
-              employeeId={e.id}
-              positionId={String(e.position_id ?? "")}
-              data={data}
-              onSaved={onSaved}
-            />
-          </article>
-        ))}
-      </div>
-    </section>
+      <button
+        className="icon-button notification-trigger"
+        type="button"
+        aria-label={`Asignaciones pendientes: ${pending.length}`}
+        aria-expanded={open}
+        aria-controls="hiring-notification-panel"
+        onClick={() => setOpen(!open)}
+      >
+        <Bell size={21} />
+        {pending.length > 0 && (
+          <span className="notification-count">{pending.length}</span>
+        )}
+      </button>
+      {open && (
+        <section
+          id="hiring-notification-panel"
+          className="panel notification-popover"
+          aria-label="Asignaciones pendientes de contratación"
+        >
+          <h2>
+            Personas contratadas · asignación pendiente ({pending.length})
+          </h2>
+          <p>Revisa y confirma el área y puesto de cada nueva contratación.</p>
+          {!pending.length && (
+            <p className="muted">
+              No hay contrataciones pendientes de asignación.
+            </p>
+          )}
+          <div className="record-grid">
+            {pending.map((e) => (
+              <article className="record" key={e.id}>
+                <h3>
+                  {value(
+                    (data.profiles ?? []).find(
+                      (p) => p.id === e.profile_id,
+                    ) ?? {
+                      id: "",
+                    },
+                    "full_name",
+                  ) || "Nuevo colaborador"}
+                </h3>
+                <p>Contratación completada. Falta confirmar su asignación.</p>
+                <HireCandidate
+                  employeeId={e.id}
+                  positionId={String(e.position_id ?? "")}
+                  data={data}
+                  onSaved={onSaved}
+                />
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
   );
 }

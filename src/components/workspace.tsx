@@ -809,6 +809,152 @@ export function Workspace({
       </article>
     );
   }
+  const directory = (
+    <div
+      className={`panel table-wrap ${view === "employees" ? "team-directory" : ""}`}
+    >
+      {view === "employees" && (
+        <div className="team-directory-heading">
+          <h2>Integrantes del equipo</h2>
+          <label>
+            Buscar persona o puesto
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Nombre o puesto…"
+            />
+          </label>
+          <p className="muted">{tableRows.length} personas en esta vista</p>
+        </div>
+      )}
+      <table>
+        <thead>
+          <tr>
+            <th>{view === "audit" ? "Acción" : "Nombre"}</th>
+            <th>Detalle</th>
+            <th>Estado / fecha</th>
+            <th>
+              <span className="sr-only">Acciones</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {tableRows.map((r) => (
+            <tr key={r.id}>
+              <td>
+                <strong>
+                  {view === "employees" || view === "candidates"
+                    ? name(r.profile_id)
+                    : value(r, "full_name") ||
+                      value(r, "name") ||
+                      value(r, "action")}
+                </strong>
+              </td>
+              <td>
+                {view === "employees"
+                  ? value(find("positions", r.position_id), "name")
+                  : view === "audit"
+                    ? value(r, "resource_type")
+                    : value(r, "email") ||
+                      value(find("departments", r.department_id), "name") ||
+                      value(r, "skills")}
+              </td>
+              <td>
+                {r.status ? (
+                  <Badge status={value(r, "status")} />
+                ) : r.role ? (
+                  <Badge status={value(r, "role")} />
+                ) : (
+                  new Date(value(r, "created_at")).toLocaleDateString("es-MX")
+                )}
+              </td>
+              <td>
+                {((hr && ["positions", "departments"].includes(view)) ||
+                  (admin &&
+                    ["users", "positions", "departments"].includes(view)) ||
+                  (hr &&
+                    view === "employees" &&
+                    profile &&
+                    canEditStaff(authorized, profile, r) &&
+                    (r.profile_id !== profile?.id || admin))) && (
+                  <button
+                    className="secondary"
+                    onClick={() => edit(tableView, r)}
+                  >
+                    Editar
+                  </button>
+                )}
+                {view === "departments" && hr && (
+                  <button
+                    className="secondary"
+                    disabled={
+                      busy ||
+                      (authorized.positions ?? []).some(
+                        (p) => p.department_id === r.id,
+                      )
+                    }
+                    title="Solo se pueden eliminar áreas sin puestos ni otros registros vinculados"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `¿Eliminar el área «${value(r, "name")}»? Esta acción no se puede deshacer.`,
+                        )
+                      )
+                        void act("department.delete", {
+                          id: r.id,
+                        });
+                    }}
+                  >
+                    Eliminar área
+                  </button>
+                )}
+                {view === "positions" && hr && (
+                  <button
+                    className="secondary"
+                    disabled={
+                      busy ||
+                      (authorized.employees ?? []).some(
+                        (e) => e.position_id === r.id,
+                      )
+                    }
+                    title={
+                      (authorized.employees ?? []).some(
+                        (e) => e.position_id === r.id,
+                      )
+                        ? "Puesto asignado a una persona"
+                        : "Eliminar puesto sin asignaciones"
+                    }
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `¿Eliminar el puesto «${value(r, "name")}»? Esta acción no se puede deshacer.`,
+                        )
+                      )
+                        void act("position.delete", { id: r.id });
+                    }}
+                  >
+                    Eliminar puesto
+                  </button>
+                )}
+                {view === "candidates" && hr && (
+                  <button
+                    className="secondary"
+                    onClick={() => openFile("cvs", r.id)}
+                  >
+                    Ver CV
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {!tableRows.length && (
+        <p className="empty">No hay registros que coincidan con tu búsqueda.</p>
+      )}
+    </div>
+  );
   return (
     <div
       className="app-layout"
@@ -916,6 +1062,9 @@ export function Workspace({
             <strong>{titles[view] ?? "Detalle"}</strong>
           </div>
           <div className="user">
+            {hr && (
+              <HiringAssignmentNotices data={authorized} onSaved={refresh} />
+            )}
             <ThemeToggle />
             <Link
               href={profile ? `/${root}/profile` : "/login"}
@@ -1024,9 +1173,6 @@ export function Workspace({
                 ×
               </button>
             </div>
-          )}
-          {hr && ["overview", "employees", "applications"].includes(view) && (
-            <HiringAssignmentNotices data={authorized} onSaved={refresh} />
           )}
           {view === "overview" && (
             <>
@@ -1555,21 +1701,25 @@ export function Workspace({
                   />
                 </details>
               )}
-              {view === "interviews" &&
-                hr &&
-                interviewSection === "SCHEDULED" && (
-                  <details className="panel">
-                    <summary>
-                      Agendar o consultar entrevistas en el calendario
-                    </summary>
-                    <InterviewCalendar
-                      data={data}
-                      onSelect={(row) => edit("interviews", row)}
-                    />
-                  </details>
-                )}
+              {view === "interviews" && hr && (
+                <section className="panel interview-agenda">
+                  <h2>Calendario de entrevistas</h2>
+                  <InterviewCalendar
+                    data={data}
+                    onSelect={(row) => edit("interviews", row)}
+                  />
+                </section>
+              )}
               {["jobs", "vacancies"].includes(view) && (
                 <div className="vacancies-layout">
+                  {view === "vacancies" && hr && (
+                    <VacancyAssistant
+                      data={data}
+                      onDraft={(values) =>
+                        setSpec({ ...formFor("vacancies", data), values })
+                      }
+                    />
+                  )}
                   <div className="record-grid vacancy-list">
                     {availableVacancies.map(vacancyCard)}
                     {!availableVacancies.length && (
@@ -1580,14 +1730,6 @@ export function Workspace({
                       </p>
                     )}
                   </div>
-                  {view === "vacancies" && hr && (
-                    <VacancyAssistant
-                      data={data}
-                      onDraft={(values) =>
-                        setSpec({ ...formFor("vacancies", data), values })
-                      }
-                    />
-                  )}
                 </div>
               )}
 
@@ -1898,11 +2040,14 @@ export function Workspace({
                 !detail &&
                 profile &&
                 (hr || manager) && (
-                  <TeamTree
-                    data={authorized}
-                    profile={profile}
-                    selectedIds={(data.employees ?? []).map((e) => e.id)}
-                  />
+                  <div className="team-workspace">
+                    <TeamTree
+                      data={authorized}
+                      profile={profile}
+                      selectedIds={(data.employees ?? []).map((e) => e.id)}
+                    />
+                    {directory}
+                  </div>
                 )}
               {view === "employees" && detail && profile && (
                 <EmployeeProfile
@@ -2841,150 +2986,7 @@ export function Workspace({
                 "departments",
                 "candidates",
               ].includes(view) &&
-                !(view === "employees" && detail) && (
-                  <div className="panel table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>{view === "audit" ? "Acción" : "Nombre"}</th>
-                          <th>Detalle</th>
-                          <th>Estado / fecha</th>
-                          <th>
-                            <span className="sr-only">Acciones</span>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {tableRows.map((r) => (
-                          <tr key={r.id}>
-                            <td>
-                              <strong>
-                                {view === "employees" || view === "candidates"
-                                  ? name(r.profile_id)
-                                  : value(r, "full_name") ||
-                                    value(r, "name") ||
-                                    value(r, "action")}
-                              </strong>
-                            </td>
-                            <td>
-                              {view === "employees"
-                                ? value(
-                                    find("positions", r.position_id),
-                                    "name",
-                                  )
-                                : view === "audit"
-                                  ? value(r, "resource_type")
-                                  : value(r, "email") ||
-                                    value(
-                                      find("departments", r.department_id),
-                                      "name",
-                                    ) ||
-                                    value(r, "skills")}
-                            </td>
-                            <td>
-                              {r.status ? (
-                                <Badge status={value(r, "status")} />
-                              ) : r.role ? (
-                                <Badge status={value(r, "role")} />
-                              ) : (
-                                new Date(
-                                  value(r, "created_at"),
-                                ).toLocaleDateString("es-MX")
-                              )}
-                            </td>
-                            <td>
-                              {((hr &&
-                                ["positions", "departments"].includes(view)) ||
-                                (admin &&
-                                  [
-                                    "users",
-                                    "positions",
-                                    "departments",
-                                  ].includes(view)) ||
-                                (hr &&
-                                  view === "employees" &&
-                                  profile &&
-                                  canEditStaff(authorized, profile, r) &&
-                                  (r.profile_id !== profile?.id || admin))) && (
-                                <button
-                                  className="secondary"
-                                  onClick={() => edit(tableView, r)}
-                                >
-                                  Editar
-                                </button>
-                              )}
-                              {view === "departments" && hr && (
-                                <button
-                                  className="secondary"
-                                  disabled={
-                                    busy ||
-                                    (authorized.positions ?? []).some(
-                                      (p) => p.department_id === r.id,
-                                    )
-                                  }
-                                  title="Solo se pueden eliminar áreas sin puestos ni otros registros vinculados"
-                                  onClick={() => {
-                                    if (
-                                      window.confirm(
-                                        `¿Eliminar el área «${value(r, "name")}»? Esta acción no se puede deshacer.`,
-                                      )
-                                    )
-                                      void act("department.delete", {
-                                        id: r.id,
-                                      });
-                                  }}
-                                >
-                                  Eliminar área
-                                </button>
-                              )}
-                              {view === "positions" && hr && (
-                                <button
-                                  className="secondary"
-                                  disabled={
-                                    busy ||
-                                    (authorized.employees ?? []).some(
-                                      (e) => e.position_id === r.id,
-                                    )
-                                  }
-                                  title={
-                                    (authorized.employees ?? []).some(
-                                      (e) => e.position_id === r.id,
-                                    )
-                                      ? "Puesto asignado a una persona"
-                                      : "Eliminar puesto sin asignaciones"
-                                  }
-                                  onClick={() => {
-                                    if (
-                                      window.confirm(
-                                        `¿Eliminar el puesto «${value(r, "name")}»? Esta acción no se puede deshacer.`,
-                                      )
-                                    )
-                                      void act("position.delete", { id: r.id });
-                                  }}
-                                >
-                                  Eliminar puesto
-                                </button>
-                              )}
-                              {view === "candidates" && hr && (
-                                <button
-                                  className="secondary"
-                                  onClick={() => openFile("cvs", r.id)}
-                                >
-                                  Ver CV
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {!tableRows.length && (
-                      <p className="empty">
-                        No hay registros que coincidan con tu búsqueda.
-                      </p>
-                    )}
-                  </div>
-                )}
+                view !== "employees" && { directory }}
             </>
           )}
           <footer className="page-footer">

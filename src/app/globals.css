@@ -3530,3 +3530,36 @@ thead th { font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
   .content .record-grid, .content .applications-grid, .survey-list, .onboarding-process-list, .training-follow-up { grid-template-columns: minmax(0, 1fr); }
 }
 .vacancies-layout > .vacancy-assistant { margin: 0; }
+.hiring-notifications { position: relative; }
+.notification-trigger { position: relative; }
+.notification-count { position: absolute; top: -5px; right: -5px; background: var(--green); color: white; border-radius: 20px; min-width: 20px; padding: 2px 5px; font-size: 11px; }
+.notification-popover { position: absolute; top: calc(100% + 12px); right: 0; width: min(390px, calc(100vw - 32px)); max-height: 65vh; overflow-y: auto; z-index: 30; box-shadow: 0 16px 45px #0003; padding: 20px; text-align: left; }
+.notification-popover h2 { font-size: 17px; }
+.notification-popover .record-grid { grid-template-columns: 1fr; gap: 12px; }
+.notification-popover .record { padding: 16px; }
+.notification-popover h3 { font-size: 15px; overflow-wrap: anywhere; }
+.vacancies-layout > .vacancy-assistant { grid-column: 1 / -1; grid-row: 1; }
+.vacancies-layout > .vacancy-list { grid-column: 1 / -1; }
+.team-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; align-items: start; }
+.team-workspace > * { min-width: 0; }
+.team-directory-heading { margin-bottom: 16px; }
+.team-directory-heading h2 { font-size: 19px; }
+.team-directory { max-height: 75vh; overflow: auto; }
+.team-directory thead { position: sticky; top: 0; z-index: 1; background: var(--surface); }
+.team-directory td, .team-directory th { padding: 12px 8px; overflow-wrap: anywhere; }
+@media (min-width: 900px) {
+  .team-workspace { grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); }
+  .team-directory { position: sticky; top: 94px; }
+}
+
+.team-directory button { white-space: nowrap; }
+.team-workspace .org-heading { flex-wrap: wrap; gap: 12px; }
+.team-workspace .org-heading > div { flex: 1 1 240px; }
+.team-directory table { min-width: 0; }
+.team-directory thead { display: none; }
+.team-directory tbody { display: grid; gap: 12px; }
+.team-directory tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+.team-directory td { border: 0; padding: 4px 0; }
+.team-directory td:nth-child(1), .team-directory td:nth-child(2) { grid-column: 1 / -1; }
+.team-directory td:nth-child(2) { color: var(--muted); font-size: 13px; }
+.team-directory td:nth-child(4) { text-align: right; }
