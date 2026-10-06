@@ -515,6 +515,9 @@ function SurveyCard({
   const eligible = (data.employees ?? []).filter(
     (e) =>
       e.status === "ACTIVE" &&
+      !participation.some(
+        (p) => p.survey_id === s.id && p.employee_id === e.id,
+      ) &&
       (isHR(profile.role) || e.profile_id !== profile.id) &&
       (data.profiles ?? []).some(
         (p) =>
@@ -540,6 +543,17 @@ function SurveyCard({
     setBusy(true);
     setError("");
     try {
+      if (
+        op === "publish" &&
+        recipients.some((id) =>
+          participation.some(
+            (p) => p.survey_id === s.id && p.employee_id === id,
+          ),
+        )
+      )
+        throw new Error(
+          "Una persona seleccionada ya respondió esta encuesta. Quítala de la selección antes de publicar.",
+        );
       await request("/api/climate", { op, payload });
       if (op === "respond") {
         setSent(true);
@@ -583,7 +597,8 @@ function SurveyCard({
               Asignar destinatarios · {recipients.length} seleccionados
             </summary>
             <p className="muted">
-              Busca personas y revisa la selección antes de publicar.
+              Busca personas y revisa la selección antes de publicar. Quienes ya
+              respondieron esta encuesta no pueden recibirla otra vez.
             </p>
             <div className="survey-assignment-grid">
               <fieldset disabled={busy}>

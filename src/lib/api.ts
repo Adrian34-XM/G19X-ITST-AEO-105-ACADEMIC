@@ -160,7 +160,14 @@ export function failure(error: unknown) {
   if (error instanceof ZodError)
     return NextResponse.json(
       {
-        error: "Datos inválidos.",
+        error: error.issues.some(
+          (i) =>
+            i.code === "custom" &&
+            i.message ===
+              "Selecciona un día hábil de México (lunes a viernes, sin descansos obligatorios).",
+        )
+          ? "Selecciona un día hábil de México (lunes a viernes, sin descansos obligatorios)."
+          : "Datos inválidos.",
         fields: error.issues.map((i) => ({
           path: i.path.join("."),
           message: i.message,

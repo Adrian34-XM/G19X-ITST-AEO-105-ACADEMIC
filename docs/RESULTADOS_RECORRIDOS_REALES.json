@@ -1,13 +1,13 @@
 {
-  "date": "2026-09-23T19:04:49.977Z",
-  "label": "PRUEBA RECORRIDOS 1790190228438",
+  "date": "2026-10-06T00:36:20.054Z",
+  "label": "PRUEBA RECORRIDOS 1791244934530",
   "users": {
-    "admin": "cbde8c68-4408-420b-8cdb-dc79ebb8d6ec",
-    "rh": "0234a44f-2257-4e44-b425-c9a4e9e6f5b8",
-    "manager": "f83596e2-b516-46b0-82cb-048b39bf1db2",
-    "employee": "6e301fff-0254-4ac4-bcbc-9f755d897ba8",
-    "outside": "e8da6552-3d7d-40c0-9e7b-838a474a5490",
-    "candidate": "ec77719a-c0fb-41ca-9f6b-81df9e171cf8"
+    "admin": "e92e3fd6-793c-42dd-a4ee-2c05a7b527fe",
+    "rh": "d6918556-0ce9-403c-80b5-a3839adb8cf3",
+    "manager": "7b873e40-82ab-4f84-8fa3-78fd8269ccb4",
+    "employee": "19aec8c5-cd49-47c6-8288-2d775a1e2d96",
+    "outside": "d494dad5-71bf-400e-a19f-b0c400b5e029",
+    "candidate": "2687d05a-2936-4de5-b480-346c69fbb316"
   },
   "results": [
     {
@@ -16,27 +16,27 @@
       "detail": ""
     },
     {
-      "name": "Alta y login RH_ADMIN",
+      "name": "Login de cuenta confirmada RH_ADMIN",
       "ok": true,
       "detail": ""
     },
     {
-      "name": "Alta y login JEFE",
+      "name": "Login de cuenta confirmada JEFE",
       "ok": true,
       "detail": ""
     },
     {
-      "name": "Alta y login EMPLEADO",
+      "name": "Login de cuenta confirmada EMPLEADO",
       "ok": true,
       "detail": ""
     },
     {
-      "name": "Alta y login EMPLEADO",
+      "name": "Login de cuenta confirmada EMPLEADO",
       "ok": true,
       "detail": ""
     },
     {
-      "name": "Alta y login CANDIDATO",
+      "name": "Login de cuenta confirmada CANDIDATO",
       "ok": true,
       "detail": ""
     },
@@ -161,6 +161,11 @@
       "detail": ""
     },
     {
+      "name": "CV ficticio describe experiencia profesional explícita",
+      "ok": true,
+      "detail": ""
+    },
+    {
       "name": "IA real evalúa postulación",
       "ok": true,
       "detail": ""
@@ -176,12 +181,12 @@
       "detail": ""
     },
     {
-      "name": "Contratación crea empleado y actualiza rol",
+      "name": "Contratación cambia el rol y asigna jefe y área",
       "ok": true,
       "detail": ""
     },
     {
-      "name": "Postulación queda en historial contratado",
+      "name": "Postulación contratada queda en historial",
       "ok": true,
       "detail": ""
     },
@@ -191,17 +196,17 @@
       "detail": ""
     },
     {
-      "name": "Encuesta permite un destinatario",
-      "ok": true,
-      "detail": ""
-    },
-    {
       "name": "No permite responder dos veces",
       "ok": true,
       "detail": ""
     },
     {
-      "name": "Grupo pequeño no expone comentarios",
+      "name": "No reasigna una encuesta ya respondida",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Grupo pequeño no expone comentarios ni promedios",
       "ok": true,
       "detail": ""
     },
@@ -231,14 +236,43 @@
       "detail": ""
     },
     {
-      "name": "Auditoría bloqueada para RH",
+      "name": "RH no entra a auditoría",
       "ok": true,
       "detail": ""
     },
     {
-      "name": "Superadmin abre auditoría",
+      "name": "Superadministrador abre auditoría",
       "ok": true,
       "detail": ""
     }
-  ]
+  ],
+  "previous_failures": [
+    {
+      "name": "Continuación",
+      "ok": false,
+      "detail": "/api/ai/recruitment: esperado 200, recibido 422: La respuesta de IA no pudo respaldarse con los datos disponibles. No se guardó esa evaluación; revisa los registros o archivos e intenta nuevamente."
+    }
+  ],
+  "validation": {
+    "date": "2026-10-06T00:52:29.242Z",
+    "automatic": {
+      "passed": 259,
+      "skipped": 23
+    },
+    "browser": {
+      "passed": 7
+    },
+    "local_ai": {
+      "passed": 7,
+      "model": "qwen2.5:3b",
+      "synthetic_documents": true
+    },
+    "production_build": "passed",
+    "lint": "passed",
+    "email_flows": "excluded_by_user",
+    "migrations": {
+      "fresh_database": "passed",
+      "hosted_schema": "pending_user_sql_probe"
+    }
+  }
 }

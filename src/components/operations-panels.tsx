@@ -46,8 +46,15 @@ type Advice = {
   }[];
 };
 function requireSummary(result: Advice | null | undefined): Advice {
-  if (!result || typeof result.summary !== "string" || !result.summary.trim() || !Array.isArray(result.recommendations))
-    throw new Error("La IA no devolvió un resumen válido. Vuelve a intentarlo; no se mostrará información inventada.");
+  if (
+    !result ||
+    typeof result.summary !== "string" ||
+    !result.summary.trim() ||
+    !Array.isArray(result.recommendations)
+  )
+    throw new Error(
+      "La IA no devolvió un resumen válido. Vuelve a intentarlo; no se mostrará información inventada.",
+    );
   return result;
 }
 // Comparte únicamente solicitudes en curso de la misma cuenta; no persiste datos en el navegador.
@@ -292,10 +299,11 @@ export function OperationsPanel({
       )}
       {area === "overview" && (
         <p className="muted">
-          Resumen de registros creados esta semana, de lunes a domingo en horario
-          de Ciudad de México, y su estado actual. Incluye postulaciones nuevas o
-          reactivadas. Los pendientes de semanas anteriores siguen disponibles
-          en las notificaciones y en cada módulo.
+          Resumen de registros creados esta semana, de lunes a domingo en
+          horario de Ciudad de México, y su estado actual.{" "}
+          {isHR(profile.role) && "Incluye postulaciones nuevas o reactivadas. "}
+          Los pendientes de semanas anteriores siguen disponibles en las
+          notificaciones y en cada módulo.
         </p>
       )}
       {busy && area === "overview" && (
@@ -307,7 +315,10 @@ export function OperationsPanel({
         <div className="error" role="alert">
           <strong>No se pudo generar el resumen de IA.</strong>
           <p>{error}</p>
-          <p>Las notificaciones siguen disponibles abajo. Puedes volver a intentarlo con «Actualizar resumen».</p>
+          <p>
+            Las notificaciones siguen disponibles abajo. Puedes volver a
+            intentarlo con «Actualizar resumen».
+          </p>
         </div>
       )}
       {advice && (

@@ -1,8 +1,19 @@
 import { expect, it } from "vitest";
 import {
+  overviewSummaryInput,
+  compactOverview,
+} from "@/lib/ai/overview-summary";
+import {
   overviewContext,
   readableOverview,
 } from "../src/modules/workspace/overview";
+it("quita frases repetidas sin fabricar ni reescribir el comentario del modelo", () => {
+  expect(
+    compactOverview(
+      "Esta semana hay una tarea nueva. Sugiero revisar su entrega. Esta semana hay una tarea nueva. Sugiero revisar su entrega.",
+    ),
+  ).toBe("Esta semana hay una tarea nueva. Sugiero revisar su entrega.");
+});
 
 it("sustituye UUID por títulos autorizados y oculta referencias desconocidas", () => {
   const id = "c77ae0ec-6011-4161-8d5c-7d99c7cdf32f";
@@ -59,6 +70,28 @@ it("agrupa indicadores por área sin incluir tareas de otros equipos", () => {
     people: 2,
   });
   expect(result.data.tasks[0].title).toBe("Revisar accesos");
+  const summary = overviewSummaryInput(result, "");
+  expect(summary.areas).toEqual([
+    { nombre: "Tecnología", tareas_sin_finalizar: 1, tareas_atrasadas: 1 },
+  ]);
+  expect(summary.nuevas_postulaciones).toBeUndefined();
+});
+it("no presenta ceros semanales como ausencia general de pendientes", () => {
+  const context = overviewContext(
+    {
+      departments: [{ id: "d", name: "Tecnología" }],
+      positions: [{ id: "p", department_id: "d" }],
+      employees: [{ id: "e", profile_id: "me", position_id: "p" }],
+      tasks: [],
+      applications: [],
+    },
+    { id: "me", role: "RH_ADMIN", full_name: "RH", email: "test@nexo.test" },
+    "2026-10-05",
+  );
+  const input = overviewSummaryInput(context, "");
+  expect(input.areas).toEqual([]);
+  expect(input.nuevas_postulaciones).toBe(0);
+  expect(input.limitation).toContain("no afirmes que no hay pendientes");
 });
 it("resume señales autorizadas sin textos privados ni expedientes de otra jerarquía", () => {
   const result = overviewContext(

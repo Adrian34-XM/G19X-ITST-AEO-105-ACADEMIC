@@ -31,6 +31,30 @@ it("compara números escritos en letras sin modificar la respuesta original ni n
 });
 const response = (content: unknown) =>
   Response.json({ message: { content: JSON.stringify(content) } });
+it("reintenta una vez un JSON inválido sin sustituir fuentes y sigue rechazando hechos falsos", async () => {
+  vi.stubEnv("AI_PROVIDER", "ollama");
+  const fetcher = vi
+    .fn()
+    .mockResolvedValueOnce(
+      Response.json({ message: { content: "{incompleto" } }),
+    )
+    .mockResolvedValueOnce(response({ summary: "Hay veinte pendientes" }))
+    .mockResolvedValueOnce(
+      response({
+        supported: false,
+        issues: ["La fuente tiene dos pendientes"],
+      }),
+    );
+  vi.stubGlobal("fetch", fetcher);
+  await expect(generate({ pending: 2 }, schema)).rejects.toThrow(
+    "no pudo respaldarse",
+  );
+  expect(fetcher).toHaveBeenCalledTimes(3);
+  expect(
+    JSON.parse(JSON.parse(fetcher.mock.calls[1][1].body).messages[1].content)
+      .sources,
+  ).toEqual({ pending: 2 });
+});
 it.each([true, false])(
   "revisa planes nuevos como propuestas y sigue bloqueando políticas inventadas: %s",
   async (supported) => {

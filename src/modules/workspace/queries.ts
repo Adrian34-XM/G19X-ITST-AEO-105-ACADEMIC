@@ -29,7 +29,10 @@ export const tables = [
   "audit_logs",
 ] as const;
 /** Obtiene hasta 1000 filas por tabla con los permisos del cliente recibido. */
-export async function snapshot(client: SupabaseClient, week?: { start: string; end: string }): Promise<Snapshot> {
+export async function snapshot(
+  client: SupabaseClient,
+  week?: { start: string; end: string },
+): Promise<Snapshot> {
   const { data: identity } = await client.auth.getUser();
   const { data: profile } = identity.user
     ? await client
@@ -45,7 +48,17 @@ export async function snapshot(client: SupabaseClient, week?: { start: string; e
       let query = client.from(table).select("*");
       // Catálogos y relaciones permanecen para resolver permisos y áreas. Los movimientos
       // se filtran en SQL, antes de descargarlos; no se interpreta creación como finalización.
-      if (week && !["profiles", "departments", "positions", "candidates", "employees", "courses"].includes(table)) {
+      if (
+        week &&
+        ![
+          "profiles",
+          "departments",
+          "positions",
+          "candidates",
+          "employees",
+          "courses",
+        ].includes(table)
+      ) {
         const date = table === "applications" ? "applied_at" : "created_at";
         query = query.gte(date, week.start).lt(date, week.end);
       }
@@ -56,7 +69,14 @@ export async function snapshot(client: SupabaseClient, week?: { start: string; e
       ).limit(1000);
       if (error) throw new Error("DATA_UNAVAILABLE");
       if (profile?.role === "CANDIDATO" && table === "applications")
-        return [table, (data ?? []).map(({ ai_result: _internal, ...row }) => row)] as const;
+        return [
+          table,
+          (data ?? []).map((row) =>
+            Object.fromEntries(
+              Object.entries(row).filter(([field]) => field !== "ai_result"),
+            ),
+          ),
+        ] as const;
       return [table, data] as const;
     }),
   );

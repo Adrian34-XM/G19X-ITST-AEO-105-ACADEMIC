@@ -203,6 +203,8 @@ export async function POST(req: Request) {
                 : workforceMetrics(data),
           },
           chartAdvice,
+          undefined,
+          "selection",
         );
         const advice = chartAdvice.parse(answer.result);
         const charts = requestedCharts(body.prompt, advice.charts);

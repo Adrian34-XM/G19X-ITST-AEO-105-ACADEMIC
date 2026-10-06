@@ -64,6 +64,8 @@ const inputSchema = z.discriminatedUnion("op", [
 ]);
 function dbError(e: { code?: string; message: string }) {
   const messages: Record<string, string> = {
+    CLIMATE_ALREADY_RESPONDED:
+      "Una persona seleccionada ya respondió esta encuesta. No se puede volver a asignar; revisa los destinatarios.",
     CLIMATE_RECIPIENT_REQUIRED:
       "Selecciona al menos una persona para publicar.",
     CLIMATE_MINIMUM:
@@ -143,6 +145,20 @@ export async function POST(req: Request) {
     }
     if (input.op !== "respond") requireRole(profile.role, ["RH_ADMIN", "JEFE"]);
     if (!input.op.startsWith("ai.")) {
+      if (input.op === "publish") {
+        const { data: completed, error } = await client
+          .from("climate_participation")
+          .select("employee_id")
+          .eq("survey_id", input.payload.id)
+          .in("employee_id", input.payload.employees)
+          .limit(1);
+        if (error) dbError(error);
+        if (completed?.length)
+          throw new ApiError(
+            422,
+            "Una persona seleccionada ya respondió esta encuesta. No se puede volver a asignar; revisa los destinatarios.",
+          );
+      }
       const { data, error } = await client.rpc("climate_command", {
         op: input.op,
         payload: input.payload,

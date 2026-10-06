@@ -14,7 +14,12 @@ import { adminDb } from "@/lib/supabase/server";
 import { checkOrigin, databaseError, failure, readJson } from "@/lib/api";
 import { generate, sanitize, type Attachment } from "@/lib/ai/provider";
 import { authorizedAttachment } from "@/lib/ai/attachments";
-import { recommendation, verification } from "@/lib/ai/schemas";
+import { recruitmentContext } from "@/lib/ai/recruitment-context";
+import {
+  recommendation,
+  evidenceOpinion,
+  recruitmentOpinion,
+} from "@/lib/ai/schemas";
 export async function POST(
   req: Request,
   ctx: { params: Promise<{ useCase: string }> },
@@ -35,6 +40,7 @@ export async function POST(
       .parse(await readJson(req));
     let context: unknown;
     let attachment: Attachment | undefined;
+    let declaredStrengths: string[] = [];
     async function attach(bucket: string, path: string) {
       attachment = await authorizedAttachment(client, bucket, path);
     }
@@ -58,6 +64,18 @@ export async function POST(
           .single(),
       ]);
       if (!c || !v) throw new ApiError(404, "Contexto no disponible.");
+      declaredStrengths = (v.skills ?? [])
+        .filter((skill: string) =>
+          (c.skills ?? []).some(
+            (declared: string) =>
+              declared.trim().toLocaleLowerCase("es") ===
+              skill.trim().toLocaleLowerCase("es"),
+          ),
+        )
+        .map(
+          (skill: string) =>
+            `El perfil declara ${skill}, una habilidad solicitada por la vacante; requiere comprobación humana.`,
+        );
       if (
         !c.cv_text?.trim() &&
         !c.cv_path &&
@@ -68,16 +86,7 @@ export async function POST(
           422,
           "No hay información profesional suficiente para evaluar esta postulación. Añade el CV o datos profesionales antes de analizarla.",
         );
-      context = {
-        vacancy: v,
-        instructions: "Evalúa exclusivamente compatibilidad profesional con esta vacante. score es un entero entre 0 y 100, nunca una fracción 0..1. Usa LOW para 0..39, MEDIUM para 40..69 y HIGH para 70..100. Lee todo cv_text: no declares ausente una habilidad que aparece en él aunque no esté en candidate.skills. No contradigas fortalezas y brechas. Una mención acredita que se declara esa habilidad, no acredita dominio verificado. Justifica brechas solo frente a requisitos explícitos de la vacante.",
-        candidate: {
-          skills: c.skills,
-          experience_years: c.experience_years,
-          cv_text: sanitize(c.cv_text),
-          cv_text_truncated: c.cv_text.length > 14000,
-        },
-      };
+      context = recruitmentContext(c, v);
       if (!c.cv_text.trim() && c.cv_path) await attach("cvs", c.cv_path);
     } else {
       const { data: e } = await client
@@ -121,22 +130,60 @@ export async function POST(
     });
     if (error) databaseError(error);
     try {
-      const { result, model } = await generate(
+      const answer = await generate(
         context,
-        useCase === "recruitment" ? recommendation : verification,
+        useCase === "recruitment" ? recruitmentOpinion : evidenceOpinion,
         attachment,
-        "analysis",
+        "professional-evidence",
         true,
       );
+      const model = answer.model;
+      const scored =
+        useCase === "recruitment"
+          ? recommendation.parse({
+              ...recruitmentOpinion.parse(answer.result),
+              strengths: declaredStrengths,
+              gaps: [],
+            })
+          : null;
+      const result = scored
+        ? {
+            ...scored,
+            match_level:
+              scored.score >= 70
+                ? "HIGH"
+                : scored.score >= 40
+                  ? "MEDIUM"
+                  : "LOW",
+          }
+        : answer.result;
       const { error: saveError } = await admin.rpc("finish_ai", {
         request: request.id,
         output: result,
         model_name: model,
         succeeded: true,
       });
-      if (saveError) throw new Error("AI_SAVE_FAILED");
+      if (saveError) {
+        console.error("ai_save_failed", { code: saveError.code });
+        throw new Error("AI_SAVE_FAILED");
+      }
       return NextResponse.json({ result, cached: false });
     } catch (e) {
+      console.error("ai_analysis_failed", {
+        type: e instanceof Error ? e.name : "Unknown",
+        reason:
+          e instanceof Error &&
+          /^(AI_[A-Z_]+|PROVIDER_FAILED|VISION_NOT_CONFIGURED)$/.test(e.message)
+            ? e.message
+            : "GENERATION_OR_VALIDATION",
+      });
+      if (e instanceof z.ZodError)
+        console.error("ai_contract_failed", {
+          fields: e.issues.map((issue) => ({
+            path: issue.path.join("."),
+            code: issue.code,
+          })),
+        });
       await admin.rpc("finish_ai", {
         request: request.id,
         output: {},

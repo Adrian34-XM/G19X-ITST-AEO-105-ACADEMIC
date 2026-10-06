@@ -158,12 +158,7 @@ it("genera un prompt revisable y no guarda el texto de instrucciones en el histo
 });
 
 it("el resumen funciona para roles internos y se deniega al candidato", async () => {
-  for (const role of [
-    "SUPERUSER",
-    "RH_ADMIN",
-    "JEFE",
-    "EMPLEADO",
-  ]) {
+  for (const role of ["SUPERUSER", "RH_ADMIN", "JEFE", "EMPLEADO"]) {
     state.role = role;
     const r = await POST(req("overview"));
     expect(r.status).toBe(200);
@@ -216,6 +211,16 @@ it("los mensajes nuevos invalidan el resumen guardado", async () => {
   expect(state.generate).toHaveBeenCalledTimes(1);
   expect(state.generate.mock.calls[0][0].unread_task_messages).toEqual(unread);
 });
+it("el resumen del jefe delimita las cifras a altas semanales y conserva mensajes sin leer", async () => {
+  expect((await POST(req("overview"))).status).toBe(200);
+  const context = state.generate.mock.calls[0][0];
+  expect(context.instructions).toContain("no representan todos los pendientes");
+  expect(context.limitation).toContain(
+    "pendientes anteriores no están incluidos",
+  );
+  expect(context.data).toBeUndefined();
+  expect(context.nuevas_postulaciones).toBeUndefined();
+});
 
 it("vista general del empleado usa alcance personal sin instrucciones ni agrupaciones por áreas", async () => {
   state.role = "EMPLEADO";
@@ -225,9 +230,15 @@ it("vista general del empleado usa alcance personal sin instrucciones ni agrupac
   expect(context.personal_records.departments).toBeUndefined();
   expect(context.personal_records.positions).toBeUndefined();
   expect(context.verified_activity_context).toBeUndefined();
-  expect(context.instructions).toContain(
-    "registros personales proporcionados",
-  );
+  expect(context.instructions).toContain("registros personales proporcionados");
   expect(context.instructions).not.toContain("visión GENERAL por áreas");
   expect(context.personal_records.tasks).toHaveLength(1);
+});
+it("no guarda novedades de reclutamiento inventadas para el jefe", async () => {
+  state.generate.mockResolvedValue({
+    model: "test",
+    result: { summary: "Hay cinco postulaciones nuevas.", recommendations: [] },
+  });
+  expect((await POST(req("overview"))).status).toBe(422);
+  expect(state.update).toHaveBeenCalledWith({ status: "FAILED" });
 });

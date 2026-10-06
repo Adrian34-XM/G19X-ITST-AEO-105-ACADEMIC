@@ -65,6 +65,15 @@ afterAll(async () => {
   await db.close();
 });
 describe("PostgreSQL real: transacciones, RLS y aislamiento", () => {
+  it("el diagnóstico del esquema reconoce todas las migraciones locales", async () => {
+    await db.exec("reset role");
+    const result = await db.query(
+      await readFile("supabase/verificar-migraciones.sql", "utf8"),
+    );
+    expect(
+      result.rows.filter((row) => (row as { estado: string }).estado !== "OK"),
+    ).toEqual([]);
+  });
   it("registro ignora el rol del metadata", async () => {
     const r = await as(ids.candidate, "select role from profiles");
     expect(r.rows).toEqual([{ role: "CANDIDATO" }]);
@@ -357,17 +366,35 @@ describe("PostgreSQL real: transacciones, RLS y aislamiento", () => {
       status: "REJECTED",
       comments: "Incluye los pasos de configuración y el resultado obtenido.",
     });
-    expect((await as(ids.candidate, "select status,comments from tasks where id=$1", [task.id])).rows).toEqual([
-      { status: "REJECTED", comments: "Incluye los pasos de configuración y el resultado obtenido." },
+    expect(
+      (
+        await as(
+          ids.candidate,
+          "select status,comments from tasks where id=$1",
+          [task.id],
+        )
+      ).rows,
+    ).toEqual([
+      {
+        status: "REJECTED",
+        comments: "Incluye los pasos de configuración y el resultado obtenido.",
+      },
     ]);
-    await as(ids.candidate, "insert into storage.objects(bucket_id,name) values($1,$2)", ["task-evidence", ids.candidate + "/correction.txt"]);
+    await as(
+      ids.candidate,
+      "insert into storage.objects(bucket_id,name) values($1,$2)",
+      ["task-evidence", ids.candidate + "/correction.txt"],
+    );
     await command(ids.candidate, "file.attach", {
       id: task.id,
       bucket: "task-evidence",
       path: ids.candidate + "/correction.txt",
       text: "Pasos de configuración y resultado corregidos",
     });
-    expect((await as(ids.hr, "select status from tasks where id=$1", [task.id])).rows).toEqual([{ status: "SUBMITTED" }]);
+    expect(
+      (await as(ids.hr, "select status from tasks where id=$1", [task.id]))
+        .rows,
+    ).toEqual([{ status: "SUBMITTED" }]);
     await command(ids.hr, "task.status", {
       id: task.id,
       status: "APPROVED",
@@ -877,6 +904,17 @@ describe("PostgreSQL real: transacciones, RLS y aislamiento", () => {
       ratings: [4, 3, 5],
       comment: "Mejorar comunicación",
     });
+    await db.exec("reset role");
+    await db.query(
+      "update public.climate_assignments set employee_id=employee_id where survey_id=$1 and employee_id=$2",
+      [smallSurvey.climate_command.id, people[0].employee],
+    );
+    await expect(
+      db.query(
+        "update public.climate_assignments set employee_id=employee_id where survey_id=$1 and employee_id=$2",
+        [sid, people[0].employee],
+      ),
+    ).rejects.toThrow("CLIMATE_ALREADY_RESPONDED");
     await expect(
       climate(people[0].user, "respond", {
         id: sid,
@@ -2124,14 +2162,26 @@ it("requiere CV y permite retirar solo la postulación propia, conservando histo
     application,
   ]);
   expect(result.rows[0]).toEqual({ status: "RETIRADO" });
-  expect(await command(user, "application.create", { vacancy_id: vacancyId })).toBe(application);
-  const reopened = await as(user, "select status from applications where id=$1", [application]);
+  expect(
+    await command(user, "application.create", { vacancy_id: vacancyId }),
+  ).toBe(application);
+  const reopened = await as(
+    user,
+    "select status from applications where id=$1",
+    [application],
+  );
   expect(reopened.rows[0]).toEqual({ status: "POSTULADO" });
-  await expect(command(user, "application.create", { vacancy_id: vacancyId })).rejects.toThrow();
+  await expect(
+    command(user, "application.create", { vacancy_id: vacancyId }),
+  ).rejects.toThrow();
   await as(user, "select withdraw_application($1)", [application]);
   await db.exec("reset role");
-  await db.query("update vacancies set status='CLOSED' where id=$1", [vacancyId]);
-  await expect(command(user, "application.create", { vacancy_id: vacancyId })).rejects.toThrow("VACANCY_CLOSED");
+  await db.query("update vacancies set status='CLOSED' where id=$1", [
+    vacancyId,
+  ]);
+  await expect(
+    command(user, "application.create", { vacancy_id: vacancyId }),
+  ).rejects.toThrow("VACANCY_CLOSED");
   await expect(
     as(user, "select withdraw_application($1)", [application]),
   ).rejects.toThrow("INVALID_TRANSITION");

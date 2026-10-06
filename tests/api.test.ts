@@ -4,8 +4,23 @@
 import { it, expect, vi, beforeEach } from "vitest";
 import { checkOrigin, readJson, failure } from "@/lib/api";
 import { ApiError } from "@/lib/auth";
+import { schemas } from "@/modules/commands/schemas";
 import { POST } from "@/app/api/commands/route";
 const { getUser } = vi.hoisted(() => ({ getUser: vi.fn() }));
+it("explica al usuario por qué no puede asignar una tarea en sábado", async () => {
+  const parsed = schemas["task.save"].safeParse({
+    title: "Entrega",
+    description: "Criterio",
+    employee_id: "10000000-0000-4000-8000-000000000001",
+    priority: "HIGH",
+    due_date: "2026-10-10",
+  });
+  expect(parsed.success).toBe(false);
+  if (!parsed.success)
+    expect((await failure(parsed.error).json()).error).toContain(
+      "día hábil de México",
+    );
+});
 vi.mock("@/lib/supabase/server", () => ({
   db: vi.fn(async () => ({ auth: { getUser } })),
 }));

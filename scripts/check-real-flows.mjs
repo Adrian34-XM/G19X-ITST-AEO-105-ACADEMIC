@@ -7,7 +7,7 @@
 /** Integración real con registros aislados. Ejecutar solo con autorización para crear datos de prueba. */
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
-import { writeFile } from "node:fs/promises";
+import { writeFile, mkdir } from "node:fs/promises";
 const base = "http://127.0.0.1:3000";
 const db = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -16,7 +16,7 @@ const db = createClient(
 );
 const stamp = Date.now().toString();
 const label = `PRUEBA RECORRIDOS ${stamp}`;
-const password = `Prueba!${randomUUID()}`;
+const password = process.env.NEXO_FLOW_PASSWORD || `Prueba!${randomUUID()}`;
 const results = [];
 function check(name, ok, detail = "") {
   results.push({ name, ok, detail });
@@ -95,7 +95,8 @@ async function download(s, bucket, id) {
 }
 const users = {};
 try {
-  // Solo la cuenta inicial se prepara por administración; el resto usa la API de alta del superusuario.
+  // Precondición del recorrido: cuentas ficticias confirmadas, sin enviar correos.
+  // El flujo de invitación/confirmación se verifica por separado.
   const root = data(
     await db.auth.admin.createUser({
       email: `qa-${stamp}-admin@nexo.test`,
@@ -117,14 +118,21 @@ try {
     ["candidate", "CANDIDATO"],
   ]) {
     const email = `qa-${stamp}-${key}@nexo.test`;
-    const created = await api(
-      users.admin,
-      "/api/admin/users",
-      { email, password, full_name: label + " " + key, role },
-      201,
-    );
+    const created = data(
+      await db.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: label + " " + key },
+      }),
+    ).user;
+    await cmd(users.admin, "profile.admin", {
+      id: created.id,
+      role,
+      active: true,
+    });
     users[key] = { id: created.id, ...(await login(email)) };
-    check("Alta y login " + role, true);
+    check("Login de cuenta confirmada " + role, true);
   }
   const dep = await cmd(users.admin, "department.save", { name: label });
   const pos = await cmd(users.admin, "position.save", {
@@ -339,7 +347,8 @@ try {
     position_id: pos.id,
     title: label,
     description: "Vacante sintética",
-    requirements: "Experiencia de prueba con TypeScript",
+    requirements:
+      "Conocimiento de TypeScript y al menos un año de experiencia general.",
     skills: ["TypeScript"],
     experience_required: 1,
     status: "PUBLISHED",
@@ -349,7 +358,13 @@ try {
     skills: ["TypeScript"],
     experience_years: 2,
   });
-  await upload(users.candidate, "cvs");
+  await upload(
+    users.candidate,
+    "cvs",
+    undefined,
+    undefined,
+    "Documento sintético de prueba. Currículum ficticio: declaro dos años desarrollando aplicaciones con TypeScript. Sin información personal.",
+  );
   const candidate = data(
     await db
       .from("candidates")
@@ -493,6 +508,20 @@ try {
   results.push({ name: "Ejecución", ok: false, detail: e.message });
   process.exitCode = 1;
 } finally {
+  await mkdir(".local", { recursive: true });
+  await writeFile(
+    ".local/real-flow-fixture.json",
+    JSON.stringify({
+      label,
+      password,
+      users: Object.fromEntries(
+        Object.entries(users).map(([key, user]) => [
+          key,
+          { id: user.id, email: `qa-${stamp}-${key}@nexo.test` },
+        ]),
+      ),
+    }),
+  );
   await writeFile(
     "docs/RESULTADOS_RECORRIDOS_REALES.json",
     JSON.stringify(

@@ -182,6 +182,7 @@ export function overviewContext(
           tasks_awaiting_review: tasks.filter((t) => t.status === "SUBMITTED")
             .length,
           approved_tasks: tasks.filter((t) => t.status === "APPROVED").length,
+          pending_tasks: tasks.filter((t) => t.status !== "APPROVED").length,
           pending_training: courses.filter((c) => c.status !== "COMPLETED")
             .length,
           completed_training: courses.filter((c) => c.status === "COMPLETED")

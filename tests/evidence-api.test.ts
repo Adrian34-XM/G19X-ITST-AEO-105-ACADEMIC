@@ -20,17 +20,32 @@ vi.mock("@/lib/auth", async (original) => ({
           eq: () => ({
             single: async () => ({
               data:
-                table === "task_evidence"
-                  ? {
-                      task_id: "task",
-                      employee_id: "employee",
-                      evidence_text: "Documento ficticio",
-                      file_path: "private/test.pdf",
-                    }
-                  : {
-                      description: "Documentar instalación",
-                      status: state.status,
-                    },
+                table === "applications"
+                  ? { candidate_id: "candidate", vacancy_id: "vacancy" }
+                  : table === "candidates"
+                    ? {
+                        skills: ["TypeScript"],
+                        experience_years: 2,
+                        cv_text: "CV ficticio",
+                        cv_path: "",
+                      }
+                    : table === "vacancies"
+                      ? {
+                          skills: ["TypeScript"],
+                          experience_required: 1,
+                          requirements: "Un año de experiencia general",
+                        }
+                      : table === "task_evidence"
+                        ? {
+                            task_id: "task",
+                            employee_id: "employee",
+                            evidence_text: "Documento ficticio",
+                            file_path: "private/test.pdf",
+                          }
+                        : {
+                            description: "Documentar instalación",
+                            status: state.status,
+                          },
             }),
           }),
         }),
@@ -82,7 +97,10 @@ it("devuelve al botón el análisis validado y lo guarda sin aprobar la tarea", 
     succeeded: true,
   });
   expect(state.rpc).toHaveBeenCalledTimes(2);
-  expect(state.generate.mock.calls[0].slice(3)).toEqual(["analysis", true]);
+  expect(state.generate.mock.calls[0].slice(3)).toEqual([
+    "professional-evidence",
+    true,
+  ]);
 });
 it.each(["EMPLEADO", "CANDIDATO"])("no permite analizar a %s", async (role) => {
   state.role = role;
@@ -110,4 +128,28 @@ it("una respuesta no respaldada marca la ejecución fallida y no guarda la evalu
     model_name: "",
     succeeded: false,
   });
+});
+it("la puntuación y su nivel concuerdan y las fortalezas solo describen coincidencias declaradas", async () => {
+  state.role = "RH_ADMIN";
+  state.generate.mockResolvedValue({
+    model: "test",
+    result: {
+      score: 60,
+      match_level: "HIGH",
+      summary: "El perfil declara TypeScript. RH puede comprobar su dominio.",
+    },
+  });
+  const response = await POST(
+    new Request("http://localhost/api/ai/recruitment", {
+      method: "POST",
+      body: JSON.stringify({ id: "10000000-0000-4000-8000-000000000001" }),
+    }),
+    { params: Promise.resolve({ useCase: "recruitment" }) },
+  );
+  expect(response.status).toBe(200);
+  const result = (await response.json()).result;
+  expect(result).toMatchObject({ score: 60, match_level: "MEDIUM", gaps: [] });
+  expect(result.strengths).toEqual([
+    "El perfil declara TypeScript, una habilidad solicitada por la vacante; requiere comprobación humana.",
+  ]);
 });
