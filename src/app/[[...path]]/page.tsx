@@ -13,6 +13,7 @@ import { db, configured } from "@/lib/supabase/server";
 import { authenticate } from "@/lib/auth";
 import { home, mayEnter } from "@/lib/permissions";
 import { snapshot } from "@/modules/workspace/queries";
+import { ownManagerName } from "@/modules/workspace/own-manager";
 import { Workspace } from "@/components/workspace";
 import { AuthForm } from "@/components/auth-form";
 export const dynamic = "force-dynamic";
@@ -102,6 +103,8 @@ export default async function Page({
   if (!mayEnter(auth.profile.role, pathname)) redirect(home[auth.profile.role]);
   if (path[1] === "recommendations") redirect(`${home[auth.profile.role]}/applications`);
   const data = await snapshot(auth.client);
+  if (path[1] === "profile")
+    data.own_manager_names = await ownManagerName(auth.client);
   return (
     <Workspace
       key={path.join("/")}

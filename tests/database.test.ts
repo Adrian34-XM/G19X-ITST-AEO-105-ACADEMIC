@@ -65,6 +65,67 @@ afterAll(async () => {
   await db.close();
 });
 describe("PostgreSQL real: transacciones, RLS y aislamiento", () => {
+  it("la foto es propia, privada y no concede permiso para editar el perfil laboral", async () => {
+    const path = ids.candidate + "/40000000-0000-4000-8000-000000000001.png",
+      foreign = ids.other + "/40000000-0000-4000-8000-000000000002.png";
+    await as(
+      ids.candidate,
+      "insert into storage.objects(bucket_id,name) values('profile-photos',$1)",
+      [path],
+    );
+    await as(
+      ids.other,
+      "insert into storage.objects(bucket_id,name) values('profile-photos',$1)",
+      [foreign],
+    );
+    await as(ids.candidate, "select public.set_profile_photo($1)", [path]);
+    await as(ids.other, "select public.set_profile_photo($1)", [foreign]);
+    expect(
+      (
+        await as(
+          ids.candidate,
+          "select name from storage.objects where bucket_id='profile-photos'",
+        )
+      ).rows,
+    ).toEqual([{ name: path }]);
+    await expect(
+      as(ids.candidate, "select public.set_profile_photo($1)", [foreign]),
+    ).rejects.toThrow();
+    await expect(
+      as(ids.candidate, "select public.set_profile_photo($1)", [
+        ids.candidate + "/40000000-0000-4000-8000-000000000003.png",
+      ]),
+    ).rejects.toThrow();
+    await expect(
+      as(ids.candidate, "update profiles set full_name='Cambio' where id=$1", [
+        ids.candidate,
+      ]),
+    ).rejects.toThrow();
+    expect(
+      (
+        await as(
+          ids.hr,
+          "select name from storage.objects where bucket_id='profile-photos'",
+        )
+      ).rows,
+    ).toHaveLength(2);
+    await as(ids.candidate, "select public.set_profile_photo(null)");
+    expect(
+      (
+        await as(
+          ids.candidate,
+          "select photo_path,role from profiles where id=$1",
+          [ids.candidate],
+        )
+      ).rows[0],
+    ).toEqual({ photo_path: null, role: "CANDIDATO" });
+    await as(ids.other, "select public.set_profile_photo(null)");
+    await db.exec("reset role");
+    await db.query(
+      "delete from storage.objects where bucket_id='profile-photos' and name in ($1,$2)",
+      [path, foreign],
+    );
+  });
   it("el diagnóstico del esquema reconoce todas las migraciones locales", async () => {
     await db.exec("reset role");
     const result = await db.query(

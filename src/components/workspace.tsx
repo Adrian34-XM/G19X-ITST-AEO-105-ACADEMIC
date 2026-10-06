@@ -34,6 +34,8 @@ import {
 import { HireCandidate, HiringAssignmentNotices } from "./hire-candidate";
 import { BulkAssignment } from "./bulk-assignment";
 import { EmployeeProfile } from "./employee-profile";
+import { ProfileAvatar, ProfilePhotoEditor } from "./profile-photo";
+import { ThemeToggle } from "./theme-toggle";
 import { isHR } from "@/lib/permissions";
 import Link from "next/link";
 import { useState } from "react";
@@ -138,7 +140,10 @@ function AIResult({ result }: { result: unknown }) {
       <span className="eyebrow">✧ RECOMENDACIÓN IA · REVISIÓN HUMANA</span>
       {typeof r.score === "number" && (
         <h3>
-          {Number.isInteger(r.score) ? `${r.score}/100` : "Puntuación antigua: requiere reevaluación"} · {stateLabel(String(r.match_level))}
+          {Number.isInteger(r.score)
+            ? `${r.score}/100`
+            : "Puntuación antigua: requiere reevaluación"}{" "}
+          · {stateLabel(String(r.match_level))}
         </h3>
       )}
       {r.status != null && <Badge status={String(r.status)} />}
@@ -187,7 +192,10 @@ export function Workspace({
   );
   const [reportFiltersOpen, setReportFiltersOpen] = useState(false);
   const [taskSection, setTaskSection] = useState("active");
-  const [taskCorrection, setTaskCorrection] = useState<{ id: string; comments: string } | null>(null);
+  const [taskCorrection, setTaskCorrection] = useState<{
+    id: string;
+    comments: string;
+  } | null>(null);
   const [taskLayout, setTaskLayout] = useState<"list" | "calendar">("list");
   const taskHistory = taskSection === "history";
   const taskMatches = (t: Row) =>
@@ -197,7 +205,9 @@ export function Workspace({
         ? t.status === "SUBMITTED"
         : !["APPROVED", "SUBMITTED"].includes(value(t, "status"));
   const [applicationStatus, setApplicationStatus] = useState("POSTULADO");
-  const [evidenceAnalysis, setEvidenceAnalysis] = useState<Record<string, { busy: boolean; error?: string; result?: unknown }>>({});
+  const [evidenceAnalysis, setEvidenceAnalysis] = useState<
+    Record<string, { busy: boolean; error?: string; result?: unknown }>
+  >({});
   const [submittedVacancies, setSubmittedVacancies] = useState<string[]>([]);
   const [navigationSearch, setNavigationSearch] = useState("");
   const authorized = profile ? scopeData(rawData, profile) : rawData;
@@ -304,12 +314,21 @@ export function Workspace({
       await request("/api/commands", { op, payload });
       refresh();
       if (op === "application.create") {
-        setSubmittedVacancies((current) => [...current, String(payload.vacancy_id)]);
-        setNotice("Postulación enviada. Puedes revisarla en Mis postulaciones.");
+        setSubmittedVacancies((current) => [
+          ...current,
+          String(payload.vacancy_id),
+        ]);
+        setNotice(
+          "Postulación enviada. Puedes revisarla en Mis postulaciones.",
+        );
       }
       if (op === "application.withdraw") {
-        const previous = authorized.applications?.find((a) => a.id === payload.id);
-        setSubmittedVacancies((current) => current.filter((id) => id !== previous?.vacancy_id));
+        const previous = authorized.applications?.find(
+          (a) => a.id === payload.id,
+        );
+        setSubmittedVacancies((current) =>
+          current.filter((id) => id !== previous?.vacancy_id),
+        );
       }
       return true;
     } catch (e) {
@@ -320,20 +339,33 @@ export function Workspace({
     }
   }
   async function analyze(kind: string, id: string) {
-    if (kind === "evidence") setEvidenceAnalysis((current) => ({ ...current, [id]: { busy: true } }));
+    if (kind === "evidence")
+      setEvidenceAnalysis((current) => ({ ...current, [id]: { busy: true } }));
     setBusy(true);
     setNotice("Analizando la información autorizada…");
     try {
       const response = await request("/api/ai/" + kind, { id });
-      if (!response.result) throw new Error("La IA no devolvió un análisis. Intenta nuevamente.");
-      if (kind === "evidence") setEvidenceAnalysis((current) => ({ ...current, [id]: { busy: false, result: response.result } }));
+      if (!response.result)
+        throw new Error("La IA no devolvió un análisis. Intenta nuevamente.");
+      if (kind === "evidence")
+        setEvidenceAnalysis((current) => ({
+          ...current,
+          [id]: { busy: false, result: response.result },
+        }));
       refresh();
       setNotice(
         "Análisis disponible. Revisa la recomendación antes de decidir.",
       );
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "No se pudo analizar.");
-      if (kind === "evidence") setEvidenceAnalysis((current) => ({ ...current, [id]: { busy: false, error: e instanceof Error ? e.message : "No se pudo analizar." } }));
+      if (kind === "evidence")
+        setEvidenceAnalysis((current) => ({
+          ...current,
+          [id]: {
+            busy: false,
+            error: e instanceof Error ? e.message : "No se pudo analizar.",
+          },
+        }));
     } finally {
       setBusy(false);
     }
@@ -485,11 +517,19 @@ export function Workspace({
       ? tableRows
       : tableRows.filter((a) => a.status === applicationStatus),
   );
-  const availableVacancies = filtered("vacancies").filter((v) => !candidate || (
-    !submittedVacancies.includes(v.id) &&
-    !(authorized.applications ?? []).some((a) => a.vacancy_id === v.id && a.status !== "RETIRADO" &&
-      (authorized.candidates ?? []).some((c) => c.id === a.candidate_id && c.profile_id === profile?.id))
-  ));
+  const availableVacancies = filtered("vacancies").filter(
+    (v) =>
+      !candidate ||
+      (!submittedVacancies.includes(v.id) &&
+        !(authorized.applications ?? []).some(
+          (a) =>
+            a.vacancy_id === v.id &&
+            a.status !== "RETIRADO" &&
+            (authorized.candidates ?? []).some(
+              (c) => c.id === a.candidate_id && c.profile_id === profile?.id,
+            ),
+        )),
+  );
   function vacancyCard(v: Row) {
     return (
       <article className="record" key={v.id}>
@@ -664,42 +704,72 @@ export function Workspace({
               </>
             )}
           </div>
-          {canManage && t.status === "SUBMITTED" && taskCorrection?.id === t.id && (
-            <form
-              id={`task-correction-${t.id}`}
-              className="record"
-              aria-label="Solicitar correcciones de la entrega"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                const comments = taskCorrection.comments.trim();
-                if (busy || !comments) return;
-                if (await act("task.status", { id: t.id, status: "REJECTED", comments })) {
-                  setTaskCorrection(null);
-                  setNotice("Correcciones solicitadas. El colaborador podrá ver tus indicaciones y subir una nueva evidencia.");
-                }
-              }}
-            >
-              <h4>¿Qué debe corregir el colaborador?</h4>
-              <p>Indica qué falta y qué debe incluir en su nueva entrega. Este mensaje aparecerá en su tarea.</p>
-              <label htmlFor={`task-comments-${t.id}`}>Motivo y correcciones necesarias</label>
-              <textarea
-                id={`task-comments-${t.id}`}
-                rows={4}
-                maxLength={4000}
-                required
-                autoFocus
-                disabled={busy}
-                value={taskCorrection.comments}
-                onChange={(event) => setTaskCorrection({ id: t.id, comments: event.target.value })}
-              />
-              <div className="actions">
-                <button type="submit" disabled={busy || !taskCorrection.comments.trim()}>
-                  {busy ? "Enviando…" : "Enviar correcciones"}
-                </button>
-                <button type="button" className="secondary" disabled={busy} onClick={() => setTaskCorrection(null)}>Cancelar</button>
-              </div>
-            </form>
-          )}
+          {canManage &&
+            t.status === "SUBMITTED" &&
+            taskCorrection?.id === t.id && (
+              <form
+                id={`task-correction-${t.id}`}
+                className="record"
+                aria-label="Solicitar correcciones de la entrega"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  const comments = taskCorrection.comments.trim();
+                  if (busy || !comments) return;
+                  if (
+                    await act("task.status", {
+                      id: t.id,
+                      status: "REJECTED",
+                      comments,
+                    })
+                  ) {
+                    setTaskCorrection(null);
+                    setNotice(
+                      "Correcciones solicitadas. El colaborador podrá ver tus indicaciones y subir una nueva evidencia.",
+                    );
+                  }
+                }}
+              >
+                <h4>¿Qué debe corregir el colaborador?</h4>
+                <p>
+                  Indica qué falta y qué debe incluir en su nueva entrega. Este
+                  mensaje aparecerá en su tarea.
+                </p>
+                <label htmlFor={`task-comments-${t.id}`}>
+                  Motivo y correcciones necesarias
+                </label>
+                <textarea
+                  id={`task-comments-${t.id}`}
+                  rows={4}
+                  maxLength={4000}
+                  required
+                  autoFocus
+                  disabled={busy}
+                  value={taskCorrection.comments}
+                  onChange={(event) =>
+                    setTaskCorrection({
+                      id: t.id,
+                      comments: event.target.value,
+                    })
+                  }
+                />
+                <div className="actions">
+                  <button
+                    type="submit"
+                    disabled={busy || !taskCorrection.comments.trim()}
+                  >
+                    {busy ? "Enviando…" : "Enviar correcciones"}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => setTaskCorrection(null)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            )}
           {own && ["IN_PROGRESS", "REJECTED"].includes(value(t, "status")) && (
             <Upload bucket="task-evidence" id={t.id} onSaved={refresh} />
           )}
@@ -722,13 +792,27 @@ export function Workspace({
                         disabled={busy}
                         onClick={() => analyze("evidence", e.id)}
                       >
-                        {evidenceAnalysis[e.id]?.busy ? "Analizando evidencia…" : "✧ Analizar evidencia"}
+                        {evidenceAnalysis[e.id]?.busy
+                          ? "Analizando evidencia…"
+                          : "✧ Analizar evidencia"}
                       </button>
                     )}
                   </div>
-                  {evidenceAnalysis[e.id]?.busy && <p role="status">La IA está contrastando el archivo con las instrucciones de esta tarea…</p>}
-                  {evidenceAnalysis[e.id]?.error && <div role="alert" className="error"><strong>No se pudo generar el análisis.</strong><p>{evidenceAnalysis[e.id].error}</p></div>}
-                  <AIResult result={evidenceAnalysis[e.id]?.result ?? e.ai_result} />
+                  {evidenceAnalysis[e.id]?.busy && (
+                    <p role="status">
+                      La IA está contrastando el archivo con las instrucciones
+                      de esta tarea…
+                    </p>
+                  )}
+                  {evidenceAnalysis[e.id]?.error && (
+                    <div role="alert" className="error">
+                      <strong>No se pudo generar el análisis.</strong>
+                      <p>{evidenceAnalysis[e.id].error}</p>
+                    </div>
+                  )}
+                  <AIResult
+                    result={evidenceAnalysis[e.id]?.result ?? e.ai_result}
+                  />
                 </div>
               ))}
           </div>
@@ -834,19 +918,26 @@ export function Workspace({
             <strong>{titles[view] ?? "Detalle"}</strong>
           </div>
           <div className="user">
-            <span>
+            <ThemeToggle />
+            <Link
+              href={profile ? `/${root}/profile` : "/login"}
+              className="user-profile-link"
+              aria-label={profile ? "Ir a Mi perfil" : "Iniciar sesión"}
+            >
               <strong>{profile?.full_name ?? "Portal de talento"}</strong>
               <small>
                 {profile ? stateLabel(profile.role) : "Acceso público"}
               </small>
-            </span>
-            <div className="avatar">
-              {(profile?.full_name ?? "Nexo")
-                .split(" ")
-                .slice(0, 2)
-                .map((x) => x[0])
-                .join("")}
-            </div>
+            </Link>
+            <ProfileAvatar
+              className="avatar"
+              id={profile?.id ?? ""}
+              name={profile?.full_name ?? "Nexo"}
+              photoPath={String(
+                (authorized.profiles ?? []).find((p) => p.id === profile?.id)
+                  ?.photo_path ?? "",
+              )}
+            />
           </div>
         </header>
         <main className="content">
@@ -1435,29 +1526,92 @@ export function Workspace({
                   {availableVacancies.map(vacancyCard)}
                   {!availableVacancies.length && (
                     <p className="empty">
-                      {candidate ? "No hay nuevas vacantes que coincidan con tu búsqueda. Consulta tus postulaciones y retiros en Mis postulaciones." : "No hay vacantes que coincidan con tu búsqueda."}
+                      {candidate
+                        ? "No hay nuevas vacantes que coincidan con tu búsqueda. Consulta tus postulaciones y retiros en Mis postulaciones."
+                        : "No hay vacantes que coincidan con tu búsqueda."}
                     </p>
                   )}
                 </div>
               )}
 
               {view === "applications" && !detail && (
-                <section className="applications-hub" aria-label="Postulaciones por estado">
+                <section
+                  className="applications-hub"
+                  aria-label="Postulaciones por estado"
+                >
                   <div className="applications-intro">
-                    <div><span className="eyebrow">{hr ? "SELECCIÓN DE TALENTO" : "TU SIGUIENTE OPORTUNIDAD"}</span>
-                    <h2>{hr ? "Cada candidatura, un siguiente paso" : "Así van tus postulaciones"}</h2>
-                    <p>{hr ? "Selecciona una etapa, revisa el CV y decide el siguiente paso. Las evaluaciones de IA son apoyo para tu revisión." : "Consulta el avance de tus solicitudes. Puedes retirar una postulación activa y volver a enviarla si la vacante sigue abierta."}</p></div>
-                    {candidate && <Link className="button" href="/candidate/jobs">Explorar vacantes ↗</Link>}
+                    <div>
+                      <span className="eyebrow">
+                        {hr
+                          ? "SELECCIÓN DE TALENTO"
+                          : "TU SIGUIENTE OPORTUNIDAD"}
+                      </span>
+                      <h2>
+                        {hr
+                          ? "Cada candidatura, un siguiente paso"
+                          : "Así van tus postulaciones"}
+                      </h2>
+                      <p>
+                        {hr
+                          ? "Selecciona una etapa, revisa el CV y decide el siguiente paso. Las evaluaciones de IA son apoyo para tu revisión."
+                          : "Consulta el avance de tus solicitudes. Puedes retirar una postulación activa y volver a enviarla si la vacante sigue abierta."}
+                      </p>
+                    </div>
+                    {candidate && (
+                      <Link className="button" href="/candidate/jobs">
+                        Explorar vacantes ↗
+                      </Link>
+                    )}
                   </div>
                   <div className="applications-metrics">
-                    <div><strong>{tableRows.length}</strong><span>Postulaciones en esta vista</span></div>
-                    <div><strong>{tableRows.filter((a) => !["CONTRATADO", "RECHAZADO", "RETIRADO"].includes(value(a,"status"))).length}</strong><span>En proceso</span></div>
-                    <div><strong>{tableRows.filter((a) => a.status === "ENTREVISTA").length}</strong><span>En entrevista</span></div>
-                    <div><strong>{tableRows.filter((a) => ["CONTRATADO", "RECHAZADO", "RETIRADO"].includes(value(a,"status"))).length}</strong><span>En historial</span></div>
+                    <div>
+                      <strong>{tableRows.length}</strong>
+                      <span>Postulaciones en esta vista</span>
+                    </div>
+                    <div>
+                      <strong>
+                        {
+                          tableRows.filter(
+                            (a) =>
+                              !["CONTRATADO", "RECHAZADO", "RETIRADO"].includes(
+                                value(a, "status"),
+                              ),
+                          ).length
+                        }
+                      </strong>
+                      <span>En proceso</span>
+                    </div>
+                    <div>
+                      <strong>
+                        {
+                          tableRows.filter((a) => a.status === "ENTREVISTA")
+                            .length
+                        }
+                      </strong>
+                      <span>En entrevista</span>
+                    </div>
+                    <div>
+                      <strong>
+                        {
+                          tableRows.filter((a) =>
+                            ["CONTRATADO", "RECHAZADO", "RETIRADO"].includes(
+                              value(a, "status"),
+                            ),
+                          ).length
+                        }
+                      </strong>
+                      <span>En historial</span>
+                    </div>
                   </div>
-                  <div className="applications-stage-nav" aria-label="Seleccionar etapa">
-                    {Object.entries(applicationSections).filter(([status]) => !candidate || status !== "CONTRATADO").map(
-                      ([status, title]) => (
+                  <div
+                    className="applications-stage-nav"
+                    aria-label="Seleccionar etapa"
+                  >
+                    {Object.entries(applicationSections)
+                      .filter(
+                        ([status]) => !candidate || status !== "CONTRATADO",
+                      )
+                      .map(([status, title]) => (
                         <button
                           key={status}
                           className={
@@ -1467,12 +1621,19 @@ export function Workspace({
                           onClick={() => setApplicationStatus(status)}
                         >
                           <span>{title}</span>
-                          <span className="applications-stage-count">{tableRows.filter((a) => a.status === status).length}</span>
+                          <span className="applications-stage-count">
+                            {
+                              tableRows.filter((a) => a.status === status)
+                                .length
+                            }
+                          </span>
                         </button>
-                      ),
-                    )}
+                      ))}
                   </div>
-                  <div className="applications-stage-heading"><h3>{applicationSections[applicationStatus]}</h3><span>{applicationRows.length} resultados</span></div>
+                  <div className="applications-stage-heading">
+                    <h3>{applicationSections[applicationStatus]}</h3>
+                    <span>{applicationRows.length} resultados</span>
+                  </div>
                 </section>
               )}
               {view === "applications" && hr && !detail && (
@@ -1516,15 +1677,30 @@ export function Workspace({
                           "es-MX",
                         )}
                       </p>
-                      {candidate && <p className="application-next-step">{({
-                        POSTULADO: "Tu solicitud fue recibida. Puedes consultar aquí su avance.",
-                        EN_REVISION: "Tu postulación está en revisión por el equipo de selección.",
-                        PRESELECCIONADO: "Tu perfil fue preseleccionado. Consulta el apartado de entrevistas para seguir el proceso.",
-                        ENTREVISTA: "Revisa los detalles de tu entrevista en el apartado de entrevistas.",
-                        CONTRATADO: "Esta postulación concluyó con una contratación.",
-                        RECHAZADO: "El proceso terminó para esta vacante. Puedes explorar otras oportunidades.",
-                        RETIRADO: "Retiraste esta solicitud. Si la vacante sigue abierta, puedes volver a postularte desde Vacantes.",
-                      } as Record<string,string>)[value(a,"status")]}</p>}
+                      {candidate && (
+                        <p className="application-next-step">
+                          {
+                            (
+                              {
+                                POSTULADO:
+                                  "Tu solicitud fue recibida. Puedes consultar aquí su avance.",
+                                EN_REVISION:
+                                  "Tu postulación está en revisión por el equipo de selección.",
+                                PRESELECCIONADO:
+                                  "Tu perfil fue preseleccionado. Consulta el apartado de entrevistas para seguir el proceso.",
+                                ENTREVISTA:
+                                  "Revisa los detalles de tu entrevista en el apartado de entrevistas.",
+                                CONTRATADO:
+                                  "Esta postulación concluyó con una contratación.",
+                                RECHAZADO:
+                                  "El proceso terminó para esta vacante. Puedes explorar otras oportunidades.",
+                                RETIRADO:
+                                  "Retiraste esta solicitud. Si la vacante sigue abierta, puedes volver a postularte desde Vacantes.",
+                              } as Record<string, string>
+                            )[value(a, "status")]
+                          }
+                        </p>
+                      )}
                       {hr && (
                         <>
                           <p>
@@ -1564,7 +1740,12 @@ export function Workspace({
                           </div>
                         </>
                       )}
-                      {hr && a.ai_result != null && <details className="application-analysis"><summary>Consultar evaluación de IA</summary><AIResult result={a.ai_result} /></details>}
+                      {hr && a.ai_result != null && (
+                        <details className="application-analysis">
+                          <summary>Consultar evaluación de IA</summary>
+                          <AIResult result={a.ai_result} />
+                        </details>
+                      )}
                       {candidate &&
                         [
                           "POSTULADO",
@@ -2536,6 +2717,17 @@ export function Workspace({
                     </div>
                   )}
                 </section>
+              )}
+              {view === "profile" && profile && (
+                <ProfilePhotoEditor
+                  id={profile.id}
+                  name={profile.full_name}
+                  photoPath={String(
+                    (authorized.profiles ?? []).find((p) => p.id === profile.id)
+                      ?.photo_path ?? "",
+                  )}
+                  onSaved={refresh}
+                />
               )}
               {view === "profile" && profile && !candidate && (
                 <EmployeeProfile

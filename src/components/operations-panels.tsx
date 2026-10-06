@@ -1,4 +1,5 @@
 "use client";
+import { ProfileAvatar } from "./profile-photo";
 /**
  * @file Paneles de novedades, equipo, desempeño, analíticas y auditoría. Reúne filtros y vistas
  * especializadas; las acciones de IA siguen pasando por las rutas autorizadas del servidor.
@@ -522,13 +523,15 @@ export function TeamTree({
             (!tree.matches.has(id) ? "org-context" : "")
           }
         >
-          <span className="org-avatar" aria-hidden="true">
-            {name(e.profile_id)
-              .split(" ")
-              .slice(0, 2)
-              .map((n) => n[0])
-              .join("")}
-          </span>
+          <ProfileAvatar
+            id={String(e.profile_id)}
+            name={name(e.profile_id)}
+            photoPath={String(
+              (data.profiles ?? []).find((p) => p.id === e.profile_id)
+                ?.photo_path ?? "",
+            )}
+            className="org-avatar"
+          />
           <span className="org-role">
             {children.length ? "Responsable de equipo" : "Integrante"}
           </span>

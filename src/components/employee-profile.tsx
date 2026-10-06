@@ -8,6 +8,7 @@ import { profileRecords } from "@/modules/workspace/profile-records";
 import { stateLabel } from "@/modules/workspace/labels";
 import { ProfileSummary } from "./profile-summary";
 import { ProfileCorrections } from "./profile-corrections";
+import { ProfileAvatar } from "./profile-photo";
 const sections = {
   general: "Información general",
   onboarding: "Incorporación",
@@ -57,6 +58,16 @@ export function EmployeeProfile({
   const bossProfile = (data.profiles ?? []).find(
     (p) => p.id === boss?.profile_id,
   );
+  const bossName =
+    value(bossProfile ?? { id: "" }, "full_name") ||
+    (own
+      ? value(
+          (data.own_manager_names ?? []).find((r) => r.id === e.id) ?? {
+            id: "",
+          },
+          "full_name",
+        )
+      : "");
   const base = home[profile.role];
   const records = profileRecords(data, id, base);
   const select = (next: keyof typeof sections) => {
@@ -98,14 +109,11 @@ export function EmployeeProfile({
         {ownView ? "← Volver a vista general" : "← Volver al equipo"}
       </Link>
       <header className="panel profile-hero">
-        <div className="profile-avatar" aria-hidden="true">
-          {value(person, "full_name")
-            .split(" ")
-            .filter(Boolean)
-            .slice(0, 2)
-            .map((n) => n[0])
-            .join("")}
-        </div>
+        <ProfileAvatar
+          id={person.id}
+          name={value(person, "full_name") || "Colaborador"}
+          photoPath={value(person, "photo_path")}
+        />
         <div>
           <span className="eyebrow">EXPEDIENTE DEL COLABORADOR</span>
           <h2>{value(person, "full_name") || "Colaborador"}</h2>
@@ -115,8 +123,8 @@ export function EmployeeProfile({
           </p>
           <p>
             Jefe directo:{" "}
-            {bossProfile
-              ? value(bossProfile, "full_name")
+            {bossName
+              ? bossName
               : e.manager_id
                 ? "Fuera del alcance visible"
                 : "Sin asignar"}
@@ -216,9 +224,8 @@ export function EmployeeProfile({
                 ["Estado", e.status === "ACTIVE" ? "Activo" : "Inactivo"],
                 [
                   "Jefe directo",
-                  bossProfile
-                    ? value(bossProfile, "full_name")
-                    : "Sin información visible",
+                  bossName ||
+                    (e.manager_id ? "Sin información visible" : "Sin asignar"),
                 ],
                 ...(isHR(profile.role) || own
                   ? [
