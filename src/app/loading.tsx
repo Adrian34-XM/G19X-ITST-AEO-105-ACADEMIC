@@ -9,10 +9,15 @@
 export default function Loading() {
   return (
     <main className="center">
-      <div className="panel">
+      <div className="panel workspace-loading" role="status" aria-live="polite">
         <span className="eyebrow">NEXO</span>
         <h1>Cargando tu espacio…</h1>
         <p>Estamos consultando tus datos.</p>
+        <div className="loading-preview" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
       </div>
     </main>
   );

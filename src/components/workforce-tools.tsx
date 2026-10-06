@@ -321,7 +321,7 @@ export function WorkforceAI({
       <label>
         Instrucciones de análisis
         <textarea
-          maxLength={1500}
+          maxLength={8000}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder={
@@ -518,7 +518,7 @@ export function TrainingAssistant({
         <label>
           Objetivos o necesidades
           <textarea
-            maxLength={1500}
+            maxLength={8000}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />

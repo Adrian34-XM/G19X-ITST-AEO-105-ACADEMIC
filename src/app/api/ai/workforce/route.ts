@@ -35,7 +35,7 @@ const input = z
     mode: z.enum(["chart", "profile", "onboarding", "training", "tasks"]),
     task_id: optionalId,
     section: z.enum(["performance", "analytics"]).optional(),
-    prompt: z.string().trim().max(1500).default(""),
+    prompt: z.string().trim().max(8000).default(""),
     employee_id: optionalId,
     position_id: optionalId,
     filters: z

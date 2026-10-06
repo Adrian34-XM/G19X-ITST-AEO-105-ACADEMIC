@@ -241,7 +241,10 @@ export function OnboardingPanel({
         </div>
       )}
       {(hr || manager) && (
-        <section className="panel" hidden={section !== "assign"}>
+        <section
+          className="panel onboarding-plan-assignment"
+          hidden={section !== "assign"}
+        >
           <h2>Asignar un plan de actividades</h2>
           <p>
             Elige al colaborador, una plantilla guardada y la fecha de inicio.
@@ -602,7 +605,7 @@ export function OnboardingPanel({
             />
           )}
           <form
-            className="panel"
+            className="panel onboarding-start-process"
             hidden={section !== "assign"}
             onSubmit={async (e) => {
               e.preventDefault();

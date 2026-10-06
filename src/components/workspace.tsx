@@ -5,7 +5,6 @@
  * servidor.
  * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
  */
-import { ModuleBadge } from "./module-badge";
 import { CandidateSession } from "./candidate-session";
 import { ApplicationAccess } from "./application-access";
 import { TaskConversation } from "./task-conversation";
@@ -36,18 +35,19 @@ import { BulkAssignment } from "./bulk-assignment";
 import { EmployeeProfile } from "./employee-profile";
 import { ProfileAvatar, ProfilePhotoEditor } from "./profile-photo";
 import { ThemeToggle } from "./theme-toggle";
+import {
+  WorkspaceNavigation,
+  WorkspaceShortcuts,
+} from "./workspace-navigation";
+import { moduleDescriptions } from "@/modules/workspace/interface-copy";
 import { isHR } from "@/lib/permissions";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
   BriefcaseBusiness,
   Users,
-  CalendarDays,
-  BookOpen,
   CheckSquare,
-  ClipboardList,
   ChartNoAxesCombined,
   ShieldCheck,
   LogOut,
@@ -441,17 +441,6 @@ export function Workspace({
               "climate",
               "profile",
             ];
-  const icons = [
-    LayoutDashboard,
-    BriefcaseBusiness,
-    Users,
-    CalendarDays,
-    ClipboardList,
-    BookOpen,
-    CheckSquare,
-    ChartNoAxesCombined,
-    ShieldCheck,
-  ];
   const href = (key: string) =>
     key === "jobs"
       ? "/jobs"
@@ -821,14 +810,46 @@ export function Workspace({
     );
   }
   return (
-    <div className="app-layout">
+    <div
+      className="app-layout"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") setMobile(false);
+      }}
+    >
+      <a className="skip-to-content" href="#workspace-content">
+        Ir al contenido
+      </a>
+      {mobile && (
+        <button
+          className="navigation-backdrop"
+          aria-label="Cerrar navegación"
+          onClick={() => setMobile(false)}
+        />
+      )}
       <aside className={"sidebar " + (mobile ? "visible" : "")}>
+        <button
+          type="button"
+          className="secondary sidebar-close"
+          aria-label="Cerrar menú"
+          onClick={() => setMobile(false)}
+        >
+          ×
+        </button>
         <Link className="brand" href={profile ? home[profile.role] : "/jobs"}>
           <span className="brand-mark">n</span> nexo
           <span className="brand-dot">.</span>
         </Link>
         <div className="workspace-label">
-          GESTIÓN DE TALENTO <span>WORKSPACE</span>
+          {candidate
+            ? "MI CANDIDATURA"
+            : admin
+              ? "ADMINISTRACIÓN"
+              : hr
+                ? "RECURSOS HUMANOS"
+                : manager
+                  ? "MI EQUIPO"
+                  : "MI ESPACIO"}{" "}
+          <span>NEXO · GESTIÓN DE TALENTO</span>
         </div>
         <label className="navigation-search">
           Buscar módulo
@@ -839,43 +860,18 @@ export function Workspace({
             placeholder="Tareas, equipo, encuestas…"
           />
         </label>
-        <nav aria-label="Módulos del sistema">
-          {(profile ? nav : ["jobs"])
-            .filter((key) =>
-              titles[key]
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
-                .toLowerCase()
-                .includes(
-                  navigationSearch
-                    .normalize("NFD")
-                    .replace(/[\u0300-\u036f]/g, "")
-                    .toLowerCase(),
-                ),
-            )
-            .map((key) => {
-              const i = (profile ? nav : ["jobs"]).indexOf(key);
-              const Icon = icons[i % icons.length];
-              return (
-                <Link
-                  key={key}
-                  aria-current={key === view ? "page" : undefined}
-                  className={key === view ? "active" : ""}
-                  href={href(key)}
-                >
-                  <Icon size={19} />
-                  {titles[key]}
-                  {profile && (
-                    <ModuleBadge
-                      module={key}
-                      data={authorized}
-                      profile={profile}
-                    />
-                  )}
-                </Link>
-              );
-            })}
-        </nav>
+        <WorkspaceNavigation
+          entries={(profile ? nav : ["jobs"]).map((key) => ({
+            key,
+            label: titles[key],
+            href: href(key),
+          }))}
+          view={view}
+          query={navigationSearch}
+          profile={profile}
+          data={authorized}
+          onNavigate={() => setMobile(false)}
+        />
         <div className="sidebar-bottom">
           <div className="security-note">
             <ShieldCheck size={18} />
@@ -909,6 +905,8 @@ export function Workspace({
             <button
               className="mobile-menu icon-button"
               aria-label="Abrir navegación"
+              aria-expanded={mobile}
+              aria-controls="workspace-navigation"
               onClick={() => setMobile(!mobile)}
             >
               <Menu size={22} />
@@ -940,7 +938,13 @@ export function Workspace({
             />
           </div>
         </header>
-        <main className="content">
+        <main
+          className="content"
+          id="workspace-content"
+          tabIndex={-1}
+          data-view={view}
+          data-detail={detail ? "yes" : "no"}
+        >
           {candidate && <CandidateSession />}
           {candidate &&
             !authorized.candidates?.some(
@@ -961,10 +965,10 @@ export function Workspace({
           <div className="page-heading">
             <div>
               <span className="eyebrow">
-                {hr
-                  ? "PERSONAS, PROGRESO Y OPORTUNIDADES"
-                  : admin
-                    ? "ADMINISTRACIÓN DEL ESPACIO"
+                {admin
+                  ? "ADMINISTRACIÓN DEL ESPACIO"
+                  : hr
+                    ? "PERSONAS, PROGRESO Y OPORTUNIDADES"
                     : "TU SIGUIENTE PASO, EN UN SOLO LUGAR"}
               </span>
               <h1>
@@ -977,7 +981,8 @@ export function Workspace({
                   ? "Esto es lo que está pasando en tu espacio de talento."
                   : view === "jobs"
                     ? "Descubre dónde puedes hacer la diferencia."
-                    : "Consulta la información y da seguimiento a cada paso."}
+                    : (moduleDescriptions[view] ??
+                      "Consulta la información disponible en tu espacio.")}
               </p>
             </div>
             {canCreate && (
@@ -1023,9 +1028,6 @@ export function Workspace({
           {hr && ["overview", "employees", "applications"].includes(view) && (
             <HiringAssignmentNotices data={authorized} onSaved={refresh} />
           )}
-          {view === "overview" && profile && !candidate && (
-            <OperationsPanel data={data} profile={profile} area="overview" />
-          )}
           {view === "overview" && (
             <>
               <div className="welcome-banner">
@@ -1036,12 +1038,16 @@ export function Workspace({
                       ? "Tu próxima oportunidad empieza contigo."
                       : admin
                         ? "Un equipo conectado empieza con una buena base."
-                        : "Acompaña el crecimiento de tu equipo."}
+                        : profile?.role === "EMPLEADO"
+                          ? "Tu trabajo y tu crecimiento, paso a paso."
+                          : "Acompaña el crecimiento de tu equipo."}
                   </h2>
                   <p>
                     {candidate
                       ? "Completa tu perfil y encuentra una vacante para dar el siguiente paso."
-                      : "Del primer contacto a los nuevos logros. Mantén a las personas y su progreso en el centro."}
+                      : profile?.role === "EMPLEADO"
+                        ? "Consulta tus pendientes, continúa tu capacitación y revisa tus próximas actividades."
+                        : "Consulta los pendientes y encuentra los próximos pasos de tu equipo."}
                   </p>
                   <Link
                     href={
@@ -1069,6 +1075,20 @@ export function Workspace({
                   <i />
                 </div>
               </div>
+              <WorkspaceShortcuts
+                entries={(candidate
+                  ? ["jobs", "applications", "profile"]
+                  : admin
+                    ? ["users", "employees", "audit"]
+                    : hr
+                      ? ["applications", "employees", "onboarding"]
+                      : manager
+                        ? ["tasks", "employees", "courses"]
+                        : ["tasks", "courses", "onboarding"]
+                )
+                  .filter((key) => nav.includes(key))
+                  .map((key) => ({ key, label: titles[key], href: href(key) }))}
+              />
               <div className="kpi-grid">
                 {(candidate
                   ? [
@@ -1092,25 +1112,49 @@ export function Workspace({
                         ["Áreas", rows("departments").length],
                         ["Puestos", rows("positions").length],
                       ]
-                    : [
-                        [
-                          "Empleados activos",
-                          rows("employees").filter((e) => e.status === "ACTIVE")
-                            .length,
-                        ],
-                        [
-                          "Vacantes activas",
-                          rows("vacancies").filter(
-                            (v) => v.status === "PUBLISHED",
-                          ).length,
-                        ],
-                        [
-                          "Tareas completadas",
-                          scopedTasks.filter((t) => t.status === "APPROVED")
-                            .length,
-                        ],
-                        ["Desempeño", `${metrics.overall_score}%`],
-                      ]
+                    : profile?.role === "EMPLEADO"
+                      ? [
+                          [
+                            "Mis tareas pendientes",
+                            scopedTasks.filter(
+                              (t) =>
+                                !["APPROVED", "SUBMITTED"].includes(
+                                  value(t, "status"),
+                                ),
+                            ).length,
+                          ],
+                          [
+                            "Mis entregas en revisión",
+                            scopedTasks.filter((t) => t.status === "SUBMITTED")
+                              .length,
+                          ],
+                          [
+                            "Mis capacitaciones pendientes",
+                            scopedCourses.filter(
+                              (c) => c.status !== "COMPLETED",
+                            ).length,
+                          ],
+                        ]
+                      : [
+                          [
+                            "Empleados activos",
+                            rows("employees").filter(
+                              (e) => e.status === "ACTIVE",
+                            ).length,
+                          ],
+                          [
+                            "Vacantes activas",
+                            rows("vacancies").filter(
+                              (v) => v.status === "PUBLISHED",
+                            ).length,
+                          ],
+                          [
+                            "Tareas completadas",
+                            scopedTasks.filter((t) => t.status === "APPROVED")
+                              .length,
+                          ],
+                          ["Desempeño", `${metrics.overall_score}%`],
+                        ]
                 ).map(([label, n], i) => (
                   <article className="kpi" key={label}>
                     <div>
@@ -1132,13 +1176,22 @@ export function Workspace({
                   </article>
                 ))}
               </div>
+              {profile && !candidate && (
+                <OperationsPanel
+                  data={data}
+                  profile={profile}
+                  area="overview"
+                />
+              )}
               <div className="dashboard-columns">
                 <section className="panel">
                   <div className="section-head">
                     <h2>
                       {candidate
                         ? "Mis postulaciones"
-                        : "Pendientes del equipo"}
+                        : profile?.role === "EMPLEADO"
+                          ? "Mis pendientes"
+                          : "Pendientes del equipo"}
                     </h2>
                     <Link
                       href={
@@ -1202,7 +1255,11 @@ export function Workspace({
                         .map(([id, group]) => (
                           <details className="area-pending-group" key={id}>
                             <summary>
-                              <span>{group.title}</span>
+                              <span>
+                                {profile?.role === "EMPLEADO"
+                                  ? "Tareas por completar"
+                                  : group.title}
+                              </span>
                               <span className="badge">
                                 {group.tasks.length}{" "}
                                 {group.tasks.length === 1
@@ -1259,13 +1316,24 @@ export function Workspace({
                   </p>
                   {!candidate && !admin && (
                     <>
-                      <div className="progress-label">
-                        <span>Cursos completados</span>
-                        <strong>
-                          {Math.round(metrics.course_completion)}%
-                        </strong>
-                      </div>
-                      <progress max={100} value={metrics.course_completion} />
+                      {scopedCourses.length > 0 ? (
+                        <>
+                          <div className="progress-label">
+                            <span>Cursos completados</span>
+                            <strong>
+                              {Math.round(metrics.course_completion)}%
+                            </strong>
+                          </div>
+                          <progress
+                            max={100}
+                            value={metrics.course_completion}
+                          />
+                        </>
+                      ) : (
+                        <p className="muted">
+                          No hay capacitaciones asignadas en esta vista.
+                        </p>
+                      )}
                       <div className="progress-label">
                         <span>Tareas aprobadas</span>
                         <strong>{Math.round(metrics.task_completion)}%</strong>
@@ -1293,20 +1361,18 @@ export function Workspace({
               <section
                 className="workspace-filters"
                 aria-label="Buscar y filtrar"
-                hidden={view === "interviews"}
+                hidden={
+                  ["interviews", "profile", "climate", "audit"].includes(
+                    view,
+                  ) || !!detail
+                }
               >
                 <div className="filter-heading">
                   <strong>Buscar y filtrar</strong>
                   <span>
                     Los filtros se aplican a los resultados de esta vista.
                   </span>
-                  {[
-                    "analytics",
-                    "performance",
-                    "onboarding",
-                    "courses",
-                    "tasks",
-                  ].includes(view) && (
+                  {
                     <button
                       type="button"
                       className="btn secondary"
@@ -1321,20 +1387,9 @@ export function Workspace({
                         ? " · Activos"
                         : ""}
                     </button>
-                  )}
-                </div>
-                <div
-                  id="workspace-filter-controls"
-                  hidden={
-                    [
-                      "analytics",
-                      "performance",
-                      "onboarding",
-                      "courses",
-                      "tasks",
-                    ].includes(view) && !reportFiltersOpen
                   }
-                >
+                </div>
+                <div id="workspace-filter-controls" hidden={!reportFiltersOpen}>
                   <div className="toolbar">
                     <div className="search">
                       <Search size={17} />
@@ -1500,14 +1555,6 @@ export function Workspace({
                   />
                 </details>
               )}
-              {view === "vacancies" && hr && (
-                <VacancyAssistant
-                  data={data}
-                  onDraft={(values) =>
-                    setSpec({ ...formFor("vacancies", data), values })
-                  }
-                />
-              )}
               {view === "interviews" &&
                 hr &&
                 interviewSection === "SCHEDULED" && (
@@ -1522,14 +1569,24 @@ export function Workspace({
                   </details>
                 )}
               {["jobs", "vacancies"].includes(view) && (
-                <div className="record-grid">
-                  {availableVacancies.map(vacancyCard)}
-                  {!availableVacancies.length && (
-                    <p className="empty">
-                      {candidate
-                        ? "No hay nuevas vacantes que coincidan con tu búsqueda. Consulta tus postulaciones y retiros en Mis postulaciones."
-                        : "No hay vacantes que coincidan con tu búsqueda."}
-                    </p>
+                <div className="vacancies-layout">
+                  <div className="record-grid vacancy-list">
+                    {availableVacancies.map(vacancyCard)}
+                    {!availableVacancies.length && (
+                      <p className="empty">
+                        {candidate
+                          ? "No hay nuevas vacantes que coincidan con tu búsqueda. Consulta tus postulaciones y retiros en Mis postulaciones."
+                          : "No hay vacantes que coincidan con tu búsqueda."}
+                      </p>
+                    )}
+                  </div>
+                  {view === "vacancies" && hr && (
+                    <VacancyAssistant
+                      data={data}
+                      onDraft={(values) =>
+                        setSpec({ ...formFor("vacancies", data), values })
+                      }
+                    />
                   )}
                 </div>
               )}
@@ -1968,22 +2025,6 @@ export function Workspace({
               )}
               {view === "tasks" && (
                 <section className="tasks-workspace">
-                  <details className="panel task-ai-questions">
-                    <summary>
-                      Preguntar a la IA sobre{" "}
-                      {detail
-                        ? "esta tarea y sus evidencias"
-                        : "tareas y evidencias"}
-                    </summary>
-                    <WorkforceAI
-                      key={
-                        String(detail ?? "all") + JSON.stringify(activeFilters)
-                      }
-                      mode="tasks"
-                      taskId={detail}
-                      filters={activeFilters}
-                    />
-                  </details>
                   {!detail && (
                     <>
                       <div className="tasks-overview">
@@ -2083,6 +2124,22 @@ export function Workspace({
                       )}
                     </>
                   )}
+                  <details className="panel task-ai-questions">
+                    <summary>
+                      Preguntar a la IA sobre{" "}
+                      {detail
+                        ? "esta tarea y sus evidencias"
+                        : "tareas y evidencias"}
+                    </summary>
+                    <WorkforceAI
+                      key={
+                        String(detail ?? "all") + JSON.stringify(activeFilters)
+                      }
+                      mode="tasks"
+                      taskId={detail}
+                      filters={activeFilters}
+                    />
+                  </details>
                   {detail ? (
                     <>
                       <Link className="secondary" href={href("tasks")}>

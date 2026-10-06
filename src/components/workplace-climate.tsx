@@ -180,8 +180,8 @@ export function WorkplaceClimate({
     }
   }
   return (
-    <section>
-      <div className="panel">
+    <section className="climate-workspace">
+      <div className="panel climate-intro">
         <h2>Ambiente laboral</h2>
         <p>
           Este espacio permite conocer la comunicación, colaboración, recursos y
@@ -370,7 +370,10 @@ export function WorkplaceClimate({
           </div>
         </section>
       )}
-      <section className="panel" aria-label="Mis encuestas pendientes">
+      <section
+        className="panel climate-pending"
+        aria-label="Mis encuestas pendientes"
+      >
         <h3>Mis encuestas pendientes ({pendingSurveys.length})</h3>
         <p>
           Encuestas dirigidas a ti que aún no has respondido. Esta sección es

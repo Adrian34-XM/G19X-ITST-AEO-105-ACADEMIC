@@ -90,6 +90,19 @@ export function OperationsPanel({
     [generated, setGenerated] = useState("");
   const [prompt, setPrompt] = useState("");
   const [suggestion, setSuggestion] = useState("");
+  const [analyticsMetrics, setAnalyticsMetrics] = useState<
+    Array<{
+      process: string;
+      total: number;
+      unit: string;
+      breakdown: string;
+      groups: Array<{
+        label: string;
+        count: number;
+        percentage_of_process: number;
+      }>;
+    }>
+  >([]);
   const personalPerformance =
     area === "performance" && !canReviewTeamPerformance(data, profile);
   const [notificationKind, setNotificationKind] = useState("");
@@ -187,8 +200,10 @@ export function OperationsPanel({
   async function run(mode: "analyze" | "prompt" = "analyze") {
     setBusy(true);
     setError("");
-    if (mode === "analyze") setAdvice(null);
-    else setSuggestion("");
+    if (mode === "analyze") {
+      setAdvice(null);
+      setAnalyticsMetrics([]);
+    } else setSuggestion("");
     try {
       const r = await request("/api/ai/orchestrate", {
         area,
@@ -201,6 +216,7 @@ export function OperationsPanel({
         return;
       }
       setAdvice(requireSummary(r.result));
+      setAnalyticsMetrics(Array.isArray(r.metrics) ? r.metrics : []);
       setGenerated(r.generated_at);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo analizar.");
@@ -239,23 +255,36 @@ export function OperationsPanel({
               : "✧ Generar recomendaciones IA"}
         </button>
       </div>
-      <p>
-        {personalPerformance
-          ? "Alcance: únicamente tus tareas, capacitación e incorporación."
-          : isHR(profile.role)
-            ? "Alcance: todas las áreas autorizadas de RH."
-            : profile.role === "JEFE"
-              ? "Alcance: tu equipo, sus niveles subordinados y tus propios registros."
-              : "Alcance: la información permitida para tu cuenta."}{" "}
-        Las recomendaciones no ejecutan cambios automáticamente.
-      </p>
+      <details className="summary-context">
+        <summary>Alcance y datos del resumen</summary>
+        <p>
+          {personalPerformance
+            ? "Alcance: únicamente tus tareas, capacitación e incorporación."
+            : isHR(profile.role)
+              ? "Alcance: todas las áreas autorizadas de RH."
+              : profile.role === "JEFE"
+                ? "Alcance: tu equipo, sus niveles subordinados y tus propios registros."
+                : "Alcance: la información permitida para tu cuenta."}{" "}
+          Las recomendaciones no ejecutan cambios automáticamente.
+        </p>
+        {area === "overview" && (
+          <p className="muted">
+            Registros de esta semana, de lunes a domingo en horario de Ciudad de
+            México, y su estado actual.{" "}
+            {isHR(profile.role) &&
+              "Incluye postulaciones nuevas o reactivadas. "}
+            Los pendientes anteriores siguen disponibles en las notificaciones y
+            en cada módulo.
+          </p>
+        )}
+      </details>
       {["performance", "analytics"].includes(area) && (
         <div className="analysis-prompt">
           <label>
             Instrucciones del análisis (revisables)
             <textarea
               value={prompt}
-              maxLength={1200}
+              maxLength={8000}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={
                 area === "performance"
@@ -266,6 +295,24 @@ export function OperationsPanel({
               }
             />
           </label>
+          <p className="muted">
+            {prompt.length}/8000 caracteres. Indica objetivo, periodo mediante
+            los filtros, procesos, desglose y formato esperado. Las fechas de
+            creación no acreditan cuándo se completó una actividad.
+          </p>
+          <details>
+            <summary>Qué puedes analizar y cómo pedirlo</summary>
+            <p>
+              {area === "analytics"
+                ? "Analiza volumen y distribución de vacantes, postulaciones, entrevistas, tareas, capacitaciones e incorporaciones. Puedes pedir porcentajes por estado, comparaciones por área o altas por mes. No se dispone de nómina, horas trabajadas, ausencias ni bajas para calcular costes, productividad o rotación."
+                : "Revisa tareas entregadas y aprobadas, pendientes, capacitación e incorporación de las personas autorizadas. Solicita hallazgos, necesidades de apoyo y próximos pasos; los conteos no sustituyen una evaluación formal."}
+            </p>
+            <p>
+              {area === "analytics"
+                ? "Ejemplo: Analiza tareas, capacitaciones e incorporaciones del periodo filtrado por área. Indica totales y porcentajes de cada proceso, aclara qué datos faltan y propone qué revisar antes de decidir acciones. No equipares actividades con personas ni sumes procesos distintos como si fueran empleados."
+                : "Ejemplo: Revisa las tareas, capacitaciones e incorporaciones del ámbito seleccionado. Separa pendientes, entregas por revisar y avances aprobados. Explica qué evidencia respalda cada hallazgo, qué no puede concluirse y propone próximos pasos de apoyo sin emitir decisiones laborales."}
+            </p>
+          </details>
           <button
             className="secondary"
             disabled={busy}
@@ -291,21 +338,12 @@ export function OperationsPanel({
             </article>
           )}
           <p className="muted">
-            Se usan los filtros de esta vista. El servidor excluye nombres,
-            correos, CV, evidencias y comentarios privados; envía
+            Se usan los filtros de esta vista. El servidor excluye nombres de
+            personas, correos, CV, evidencias y comentarios privados; envía
             identificadores internos, estados y fechas. Evita incluir datos
             personales en las instrucciones.
           </p>
         </div>
-      )}
-      {area === "overview" && (
-        <p className="muted">
-          Resumen de registros creados esta semana, de lunes a domingo en
-          horario de Ciudad de México, y su estado actual.{" "}
-          {isHR(profile.role) && "Incluye postulaciones nuevas o reactivadas. "}
-          Los pendientes de semanas anteriores siguen disponibles en las
-          notificaciones y en cada módulo.
-        </p>
       )}
       {busy && area === "overview" && (
         <p role="status">
@@ -342,6 +380,39 @@ export function OperationsPanel({
               ))}
           </div>
           <div className="record-grid">
+            {area === "analytics" &&
+              analyticsMetrics.map((metric) => (
+                <article className="record" key={metric.process}>
+                  <h3>{metric.process}</h3>
+                  <p>
+                    <strong>{metric.total}</strong> registros del proceso
+                  </p>
+                  <p className="muted">
+                    {metric.breakdown === "department"
+                      ? "Por área"
+                      : metric.breakdown === "month"
+                        ? "Por mes de creación"
+                        : "Por estado"}
+                    . Cifras calculadas con los datos filtrados.
+                  </p>
+                  {metric.groups.length ? (
+                    <ul>
+                      {metric.groups.map((group) => (
+                        <li key={group.label}>
+                          {group.label}: <strong>{group.count}</strong> (
+                          {group.percentage_of_process}% de este proceso)
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>No hay registros con estos filtros.</p>
+                  )}
+                  <p className="muted">
+                    Se cuentan registros, no personas únicas. Los porcentajes
+                    están redondeados.
+                  </p>
+                </article>
+              ))}
             {advice.recommendations.map((r, i) => {
               const section = sectionFor(r.resource_type);
               const employee = (data.employees ?? []).find(
