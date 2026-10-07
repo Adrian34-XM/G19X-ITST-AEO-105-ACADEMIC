@@ -13,6 +13,7 @@ export type WorkspaceFilters = ModuleFilters & {
   employees?: string[];
   days?: string;
   process?: string;
+  onboarding_ids?: string[];
 };
 function filterBase(
   data: Snapshot,

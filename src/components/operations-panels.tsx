@@ -12,7 +12,8 @@ import { organization, canEditStaff } from "@/modules/workspace/organization";
 import { PersonSelect } from "./person-select";
 import type { WorkspaceFilters } from "@/modules/workspace/filters";
 import { isHR } from "@/lib/permissions";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { shareSummaryRequest, summaryRequestKey } from "./summary-requests";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { request } from "./forms";
@@ -59,21 +60,6 @@ function requireSummary(result: Advice | null | undefined): Advice {
     );
   return result;
 }
-// Comparte únicamente solicitudes en curso de la misma cuenta; no persiste datos en el navegador.
-const overviewRequests = new Map<
-  string,
-  Promise<{ result: Advice; generated_at: string }>
->();
-function loadOverview(userId: string) {
-  const pending = overviewRequests.get(userId);
-  if (pending) return pending;
-  const promise = request("/api/ai/orchestrate", {
-    area: "overview",
-    mode: "analyze",
-  }).finally(() => overviewRequests.delete(userId));
-  overviewRequests.set(userId, promise);
-  return promise;
-}
 export function OperationsPanel({
   data,
   profile,
@@ -85,11 +71,25 @@ export function OperationsPanel({
   area: InsightArea;
   filters?: WorkspaceFilters;
 }) {
-  const [busy, setBusy] = useState(area === "overview"),
+  const [busy, setBusy] = useState(profile.role !== "CANDIDATO"),
     [error, setError] = useState(""),
     [advice, setAdvice] = useState<Advice | null>(null),
     [generated, setGenerated] = useState("");
   const [prompt, setPrompt] = useState("");
+  const latestPrompt = useRef(prompt);
+  const execution = useRef(0);
+  // Un nuevo objeto equivalente no debe iniciar otra generación.
+  const filterKey = JSON.stringify(
+    Object.fromEntries(
+      Object.entries(filters).sort(([a], [b]) => a.localeCompare(b)),
+    ),
+  );
+  const scopeKey = JSON.stringify([profile.id, profile.role, area, filterKey]);
+  const [resultScope, setResultScope] = useState("");
+  const preparing = busy || resultScope !== scopeKey;
+  useEffect(() => {
+    latestPrompt.current = prompt;
+  }, [prompt]);
   const [suggestion, setSuggestion] = useState("");
   const [analyticsMetrics, setAnalyticsMetrics] = useState<
     Array<{
@@ -122,32 +122,52 @@ export function OperationsPanel({
       area !== "overview" || !notificationKind || n.kind === notificationKind,
   );
   useEffect(() => {
-    if (area !== "overview") return;
+    if (profile.role === "CANDIDATO") return;
     let active = true;
-    Promise.resolve().then(async () => {
+    const id = ++execution.current;
+    const timer = setTimeout(async () => {
       if (!active) return;
       setBusy(true);
       setError("");
       setAdvice(null);
+      setAnalyticsMetrics([]);
+      setGenerated("");
       try {
-        const result = await loadOverview(profile.id);
-        if (active) {
+        const payload = {
+          area,
+          filters: JSON.parse(filterKey),
+          prompt: latestPrompt.current,
+          mode: "analyze",
+          automatic: true,
+        };
+        const result = await shareSummaryRequest(
+          summaryRequestKey(profile.id, profile.role, payload),
+          () => request("/api/ai/orchestrate", payload),
+        );
+        if (active && execution.current === id) {
           setAdvice(requireSummary(result.result));
+          setAnalyticsMetrics(
+            Array.isArray(result.metrics) ? result.metrics : [],
+          );
           setGenerated(result.generated_at);
         }
       } catch (e) {
-        if (active)
+        if (active && execution.current === id)
           setError(
             e instanceof Error ? e.message : "No se pudo generar el resumen.",
           );
       } finally {
-        if (active) setBusy(false);
+        if (active && execution.current === id) {
+          setResultScope(scopeKey);
+          setBusy(false);
+        }
       }
-    });
+    }, 400);
     return () => {
       active = false;
+      clearTimeout(timer);
     };
-  }, [area, profile.id, data]);
+  }, [area, profile.id, profile.role, filterKey, scopeKey]);
   const root = home[profile.role];
   const sectionFor = (s: string) =>
     s === "climate_surveys"
@@ -199,6 +219,7 @@ export function OperationsPanel({
     return section === "jobs" ? `/jobs/${id}` : `${root}/${section}/${id}`;
   }
   async function run(mode: "analyze" | "prompt" = "analyze") {
+    const id = ++execution.current;
     setBusy(true);
     setError("");
     if (mode === "analyze") {
@@ -211,7 +232,10 @@ export function OperationsPanel({
         filters,
         prompt,
         mode,
+        force: mode === "analyze",
+        automatic: mode === "analyze" && !prompt.trim(),
       });
+      if (execution.current !== id) return;
       if (mode === "prompt") {
         setSuggestion(r.prompt);
         return;
@@ -220,9 +244,10 @@ export function OperationsPanel({
       setAnalyticsMetrics(Array.isArray(r.metrics) ? r.metrics : []);
       setGenerated(r.generated_at);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo analizar.");
+      if (execution.current === id)
+        setError(e instanceof Error ? e.message : "No se pudo analizar.");
     } finally {
-      setBusy(false);
+      if (execution.current === id) setBusy(false);
     }
   }
   return (
@@ -246,14 +271,10 @@ export function OperationsPanel({
         </div>
         <button
           className="ai-button"
-          disabled={busy}
+          disabled={preparing}
           onClick={() => void run()}
         >
-          {busy
-            ? "Preparando resumen…"
-            : area === "overview"
-              ? "✧ Actualizar resumen"
-              : "✧ Generar recomendaciones IA"}
+          {preparing ? "Preparando resumen…" : "✧ Actualizar resumen"}
         </button>
       </div>
       <details className="summary-context">
@@ -279,6 +300,11 @@ export function OperationsPanel({
           </p>
         )}
       </details>
+      <p className="muted">
+        El resumen se genera al abrir este módulo y al cambiar sus filtros. Usa
+        «Actualizar resumen» para volver a analizar con las instrucciones
+        actuales.
+      </p>
       {["performance", "analytics"].includes(area) && (
         <div className="analysis-prompt">
           <label>
@@ -316,7 +342,7 @@ export function OperationsPanel({
           </details>
           <button
             className="secondary"
-            disabled={busy}
+            disabled={preparing}
             onClick={() => void run("prompt")}
           >
             ✧ Proponer instrucciones con IA
@@ -331,7 +357,7 @@ export function OperationsPanel({
               </p>
               <button
                 className="secondary"
-                disabled={busy}
+                disabled={preparing}
                 onClick={() => setPrompt(suggestion)}
               >
                 Usar estas instrucciones
@@ -346,12 +372,12 @@ export function OperationsPanel({
           </p>
         </div>
       )}
-      {busy && area === "overview" && (
+      {preparing && (
         <p role="status">
           El orquestador está revisando tus novedades y pendientes…
         </p>
       )}
-      {error && (
+      {error && resultScope === scopeKey && (
         <div className="error" role="alert">
           <strong>No se pudo generar el resumen de IA.</strong>
           <p>{error}</p>
@@ -361,7 +387,7 @@ export function OperationsPanel({
           </p>
         </div>
       )}
-      {advice && (
+      {advice && resultScope === scopeKey && (
         <div className="ai-result">
           <h3>
             {area === "overview"
@@ -383,7 +409,7 @@ export function OperationsPanel({
               ))}
           </div>
           <div className="record-grid">
-            {area === "analytics" &&
+            {analyticsMetrics.length > 0 &&
               analyticsMetrics.map((metric) => (
                 <article className="record" key={metric.process}>
                   <h3>{metric.process}</h3>

@@ -595,14 +595,21 @@ export function OnboardingPanel({
       )}
       {hr && (
         <>
-          {processes.length > 0 && section === "ai" && (
-            <WorkforceAI
-              key={processes.map((o) => o.id).join(",")}
-              mode="onboarding"
-              filters={{
-                employees: processes.map((o) => String(o.employee_id)),
-              }}
-            />
+          {visibleProcesses.length > 0 && (
+            <div hidden={section !== "ai"}>
+              <WorkforceAI
+                viewer={`${profile.id}:${profile.role}`}
+                mode="onboarding"
+                filters={{
+                  employees: [
+                    ...new Set(
+                      visibleProcesses.map((o) => String(o.employee_id)),
+                    ),
+                  ],
+                  onboarding_ids: visibleProcesses.map((o) => o.id),
+                }}
+              />
+            </div>
           )}
           <form
             className="panel onboarding-start-process"

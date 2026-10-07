@@ -8,7 +8,8 @@
 /** Herramientas revisables: el servidor determina el alcance y calcula las cifras. */
 import { StatusText } from "./status-text";
 import { pendingTrainingReview } from "@/modules/workspace/training-review";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { shareSummaryRequest, summaryRequestKey } from "./summary-requests";
 import Link from "next/link";
 import { request } from "./forms";
 import { type Snapshot, type Profile, value } from "@/modules/workspace/types";
@@ -253,22 +254,96 @@ export function WorkforceAI({
   employeeId,
   section,
   filters = {},
+  viewer,
 }: {
   mode: "chart" | "profile" | "onboarding" | "tasks";
   taskId?: string;
   employeeId?: string;
   section?: "performance" | "analytics";
   filters?: WorkspaceFilters;
+  viewer?: string;
 }) {
+  const automatic = !!viewer && ["profile", "onboarding"].includes(mode);
   const [prompt, setPrompt] = useState(""),
-    [busy, setBusy] = useState(false),
+    [busy, setBusy] = useState(automatic),
     [error, setError] = useState("");
   const [result, setResult] = useState<{
     summary: string;
     recommendations?: string[];
     charts?: Graph[];
   } | null>(null);
+  const execution = useRef(0);
+  const latestPrompt = useRef(prompt);
+  useEffect(() => {
+    latestPrompt.current = prompt;
+  }, [prompt]);
+  const allowedFilters = Object.fromEntries(
+    Object.entries(filters)
+      .filter(([key]) =>
+        [
+          "department",
+          "employee",
+          "employees",
+          "days",
+          "process",
+          "query",
+          "onboarding_ids",
+        ].includes(key),
+      )
+      .sort(([a], [b]) => a.localeCompare(b)),
+  );
+  const filterKey = JSON.stringify(allowedFilters);
+  const scope = JSON.stringify([
+    viewer,
+    mode,
+    employeeId,
+    taskId,
+    section,
+    filterKey,
+  ]);
+  const [resultScope, setResultScope] = useState("");
+  const preparing = busy || (automatic && resultScope !== scope);
+  useEffect(() => {
+    if (!automatic) return;
+    let active = true;
+    const id = ++execution.current;
+    const timer = setTimeout(async () => {
+      setBusy(true);
+      setError("");
+      setResult(null);
+      const payload = {
+        mode,
+        employee_id: employeeId,
+        task_id: taskId,
+        section,
+        filters: JSON.parse(filterKey),
+        prompt: latestPrompt.current,
+      };
+      try {
+        const response = await shareSummaryRequest(
+          summaryRequestKey(viewer!, "workforce", payload),
+          () => request("/api/ai/workforce", payload),
+        );
+        if (active && execution.current === id) setResult(response.result);
+      } catch (e) {
+        if (active && execution.current === id)
+          setError(
+            e instanceof Error ? e.message : "No se pudo generar el resumen.",
+          );
+      } finally {
+        if (active && execution.current === id) {
+          setResultScope(scope);
+          setBusy(false);
+        }
+      }
+    }, 400);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [automatic, viewer, mode, employeeId, taskId, section, filterKey, scope]);
   async function analyze() {
+    const id = ++execution.current;
     setBusy(true);
     setError("");
     setResult(null);
@@ -282,6 +357,7 @@ export function WorkforceAI({
             "days",
             "process",
             "query",
+            "onboarding_ids",
           ].includes(key),
         ),
       );
@@ -293,11 +369,12 @@ export function WorkforceAI({
         prompt,
         filters: allowed,
       });
-      setResult(r.result);
+      if (execution.current === id) setResult(r.result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo analizar.");
+      if (execution.current === id)
+        setError(e instanceof Error ? e.message : "No se pudo analizar.");
     } finally {
-      setBusy(false);
+      if (execution.current === id) setBusy(false);
     }
   }
   return (
@@ -335,21 +412,21 @@ export function WorkforceAI({
           }
         />
       </label>
-      <button disabled={busy} onClick={() => void analyze()}>
-        {busy
+      <button disabled={preparing} onClick={() => void analyze()}>
+        {preparing
           ? "Analizando…"
           : mode === "tasks"
             ? "Preguntar a la IA"
             : mode === "chart"
               ? "Generar gráficas"
-              : "Generar resumen"}
+              : "Actualizar resumen"}
       </button>
-      {error && (
+      {error && (!automatic || resultScope === scope) && (
         <p className="error" role="alert">
           {error}
         </p>
       )}
-      {result && (
+      {result && (!automatic || resultScope === scope) && (
         <>
           <p>
             <StatusText text={result.summary} />

@@ -46,6 +46,7 @@ const input = z
         days: z.enum(["all", "7", "30", "90"]).optional(),
         process: z.enum(["all", "tasks", "courses", "applications"]).optional(),
         query: z.string().max(200).optional(),
+        onboarding_ids: z.array(z.uuid()).min(1).max(1000).optional(),
       })
       .strict()
       .default({}),
@@ -131,6 +132,29 @@ export async function POST(req: Request) {
       module: body.mode === "tasks" ? "tasks" : (body.section ?? "performance"),
       employee: body.employee_id || body.filters.employee,
     });
+    if (body.filters.onboarding_ids) {
+      if (body.mode !== "onboarding")
+        throw new ApiError(
+          422,
+          "El filtro de incorporación no corresponde a este análisis.",
+        );
+      const selectedIds = new Set(body.filters.onboarding_ids);
+      if (
+        body.filters.onboarding_ids.some(
+          (id) => !(data.onboarding ?? []).some((o) => o.id === id),
+        )
+      )
+        throw new ApiError(
+          403,
+          "Proceso fuera del ámbito autorizado y filtrado.",
+        );
+      data.onboarding = (data.onboarding ?? []).filter((o) =>
+        selectedIds.has(o.id),
+      );
+      data.onboarding_items = (data.onboarding_items ?? []).filter((i) =>
+        selectedIds.has(String(i.onboarding_id)),
+      );
+    }
     if (body.mode === "tasks" && body.task_id) {
       data.tasks = (data.tasks ?? []).filter((t) => t.id === body.task_id);
       if (!data.tasks.length)

@@ -246,6 +246,67 @@ it("los mensajes nuevos invalidan el resumen guardado", async () => {
   expect(state.generate).toHaveBeenCalledTimes(1);
   expect(state.generate.mock.calls[0][0].unread_task_messages).toEqual(unread);
 });
+it("actualizar omite la caché mientras la apertura puede reutilizar el contexto vigente", async () => {
+  await POST(req("overview"));
+  state.cached = [
+    {
+      result: state.update.mock.calls.at(-1)![0].result,
+      model: "test",
+      created_at: "2026-10-07T10:00:00Z",
+    },
+  ];
+  state.generate.mockClear();
+  const response = await POST(
+    new Request("http://localhost/api/ai/orchestrate", {
+      method: "POST",
+      body: JSON.stringify({ area: "overview", force: true }),
+    }),
+  );
+  expect(response.status).toBe(200);
+  expect(state.generate).toHaveBeenCalledTimes(1);
+});
+it("el resumen automático aplica la búsqueda del módulo antes de enviar datos a IA", async () => {
+  const response = await POST(
+    new Request("http://localhost/api/ai/orchestrate", {
+      method: "POST",
+      body: JSON.stringify({
+        area: "tasks",
+        filters: { module: "tasks", query: "sin coincidencias" },
+      }),
+    }),
+  );
+  expect(response.status).toBe(200);
+  expect(state.generate.mock.calls[0][0].data.tasks).toEqual([]);
+});
+it("rechaza filtros de otro módulo antes de invocar IA", async () => {
+  const response = await POST(
+    new Request("http://localhost/api/ai/orchestrate", {
+      method: "POST",
+      body: JSON.stringify({ area: "tasks", filters: { module: "courses" } }),
+    }),
+  );
+  expect(response.status).toBe(422);
+  expect(state.generate).not.toHaveBeenCalled();
+});
+it("el resumen automático de tareas usa indicadores filtrados y cifras calculadas", async () => {
+  const response = await POST(
+    new Request("http://localhost/api/ai/orchestrate", {
+      method: "POST",
+      body: JSON.stringify({
+        area: "tasks",
+        automatic: true,
+        filters: { module: "tasks", query: "sin coincidencias" },
+      }),
+    }),
+  );
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.metrics[0].total).toBe(0);
+  const [context, , , purpose] = state.generate.mock.calls[0];
+  expect(context.data).toBeUndefined();
+  expect(context.verified_metrics[0].available).toBe(false);
+  expect(purpose).toBe("analytics");
+});
 it("el resumen del jefe delimita las cifras a altas semanales y conserva mensajes sin leer", async () => {
   expect((await POST(req("overview"))).status).toBe(200);
   const context = state.generate.mock.calls[0][0];

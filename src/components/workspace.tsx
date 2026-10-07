@@ -2027,7 +2027,7 @@ export function Workspace({
                 <details className="panel">
                   <summary>Alertas y análisis del equipo con IA</summary>
                   <OperationsPanel
-                    key={view + JSON.stringify(activeFilters)}
+                    key={view}
                     filters={activeFilters}
                     data={data}
                     profile={profile}
@@ -2860,7 +2860,7 @@ export function Workspace({
                           filters={activeFilters}
                         />
                         <OperationsPanel
-                          key={view + JSON.stringify(activeFilters)}
+                          key={view}
                           data={data}
                           profile={profile}
                           area={view as "performance" | "analytics"}

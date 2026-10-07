@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
   rpc: vi.fn(),
   update: vi.fn(),
   final: vi.fn(),
+  onboarding: [] as Record<string, unknown>[],
 }));
 vi.mock("@/lib/auth", async (original) => ({
   ...(await original<typeof import("../src/lib/auth")>()),
@@ -35,7 +36,16 @@ vi.mock("@/modules/workspace/queries", () => ({
       { id: "me", full_name: "Persona privada", email: "secreto@test.local" },
       { id: "outside", full_name: "Fuera" },
     ],
-    positions: [{ id: ids.position, name: "Desarrollo" }],
+    positions: [
+      {
+        id: ids.position,
+        name: "Desarrollo",
+        department_id: "50000000-0000-4000-8000-000000000001",
+      },
+    ],
+    departments: [
+      { id: "50000000-0000-4000-8000-000000000001", name: "Tecnología" },
+    ],
     employees: [
       { id: ids.own, profile_id: "me", position_id: ids.position },
       { id: ids.other, profile_id: "outside" },
@@ -59,12 +69,18 @@ vi.mock("@/modules/workspace/queries", () => ({
       },
     ],
     course_assignments: [],
-    onboarding: [],
+    onboarding: state.onboarding,
+    onboarding_items: state.onboarding.map((o) => ({
+      id: `item-${o.id}`,
+      onboarding_id: o.id,
+      status: o.status === "COMPLETED" ? "COMPLETED" : "PENDING",
+    })),
   }),
 }));
 beforeEach(() => {
   vi.clearAllMocks();
   state.role = "EMPLEADO";
+  state.onboarding = [];
   state.rpc.mockResolvedValue({ data: "run", error: null });
   state.final.mockResolvedValue({ error: null });
   state.update.mockReturnValue({ eq: () => ({ eq: state.final }) });
@@ -89,6 +105,51 @@ const req = (body: unknown) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+it("el resumen de incorporación restringe procesos incluso para la misma persona", async () => {
+  state.role = "RH_ADMIN";
+  const first = "40000000-0000-4000-8000-000000000001";
+  const second = "40000000-0000-4000-8000-000000000002";
+  state.onboarding = [
+    { id: first, employee_id: ids.own, status: "COMPLETED" },
+    { id: second, employee_id: ids.own, status: "ACTIVE" },
+  ];
+  state.generate.mockResolvedValue({
+    model: "mock",
+    result: { summary: "Proceso completado", recommendations: [] },
+  });
+  const response = await POST(
+    req({
+      mode: "onboarding",
+      filters: { employees: [ids.own], onboarding_ids: [first] },
+    }),
+  );
+  expect(response.status).toBe(200);
+  const metrics = state.generate.mock.calls[0][0].verified_context.metrics;
+  const processes = metrics.find(
+    (m: { process: string }) => m.process === "Incorporación",
+  );
+  expect(
+    processes.areas.reduce(
+      (total: number, a: { totalActivities: number }) =>
+        total + a.totalActivities,
+      0,
+    ),
+  ).toBe(1);
+});
+it("deniega procesos de incorporación fuera de los filtros antes de generar IA", async () => {
+  state.role = "RH_ADMIN";
+  expect(
+    (
+      await POST(
+        req({
+          mode: "onboarding",
+          filters: { onboarding_ids: ["40000000-0000-4000-8000-000000000099"] },
+        }),
+      )
+    ).status,
+  ).toBe(403);
+  expect(state.generate).not.toHaveBeenCalled();
+});
 it("preguntas de tareas usan contexto propio y redacción libre sin contenidos privados", async () => {
   state.generate.mockResolvedValue({
     model: "mock",
