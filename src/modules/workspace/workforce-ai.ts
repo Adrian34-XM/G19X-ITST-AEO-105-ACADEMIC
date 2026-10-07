@@ -6,7 +6,7 @@
  */
 /** La IA elige una presentación; los valores se calculan con datos autorizados, nunca con código del modelo. */
 import { z } from "zod";
-import { type Snapshot, value } from "./types";
+import { type Snapshot, type Row, value } from "./types";
 import { stateLabel } from "./labels";
 export const chartSchema = z
   .object({
@@ -19,17 +19,18 @@ export const chartSchema = z
       "vacancies",
       "interviews",
     ]),
-    group: z.enum(["status", "department", "day", "month"]),
+    group: z.enum(["status", "department", "day", "week", "month"]),
     kind: z.enum(["bars", "columns", "line", "pie", "donut"]),
     status: z.string().max(40).optional(),
     days: z.union([z.literal(7), z.literal(30), z.literal(90)]).optional(),
-    dateField: z.enum(["created_at", "completed_at"]).optional(),
+    dateField: z.enum(["created_at", "completed_at", "applied_at"]).optional(),
+    splitBy: z.literal("department").optional(),
   })
   .strict();
 export const chartAdvice = z
   .object({
     summary: z.string().min(1).max(2000),
-    charts: z.array(chartSchema).min(1).max(3),
+    charts: z.array(chartSchema).min(1).max(6),
   })
   .strict();
 export const summaryAdvice = z
@@ -71,43 +72,103 @@ export function requestedCharts(prompt: string, proposed: Chart[]): Chart[] {
       ],
     ] as const
   ).filter(([, pattern]) => pattern.test(text));
-  const group: Chart["group"] | null = /por meses|mensual/.test(text)
-    ? "month"
-    : /fechas?|fehcas|por dias|diari|cronologic/.test(text)
-      ? "day"
-      : /por estados?/.test(text)
-        ? "status"
-        : /por (areas?|departamentos?)/.test(text)
-          ? "department"
-          : null;
-  const kind: Chart["kind"] | null = /lineas?|lineal/.test(text)
-    ? "line"
-    : /dona|anillo/.test(text)
-      ? "donut"
-      : /columnas?|barras? vertical/.test(text)
-        ? "columns"
-        : /barras?/.test(text)
-          ? "bars"
-          : /circular|pastel|torta/.test(text)
-            ? "pie"
-            : null;
+  const splitByArea =
+    /(?:cada|por cada) (?:area|departamento)|(?:una|1) grafica por (?:area|departamento)|graficas por (?:area|departamento)/.test(
+      text,
+    );
+  const detectGroup = (part: string): Chart["group"] | null =>
+    /por semanas?|semanal/.test(part)
+      ? "week"
+      : /por meses|por mes\b|mensual/.test(part)
+        ? "month"
+        : /fechas?|fehcas|por dias?|diari|cronologic/.test(part)
+          ? "day"
+          : /estados?/.test(part)
+            ? "status"
+            : /por (areas?|departamentos?)/.test(part) && !splitByArea
+              ? "department"
+              : null;
+  const detectKind = (part: string): Chart["kind"] | null =>
+    /lineas?|lineal/.test(part)
+      ? "line"
+      : /dona|anillo/.test(part)
+        ? "donut"
+        : /columnas?|barras? vertical/.test(part)
+          ? "columns"
+          : /barras?/.test(part)
+            ? "bars"
+            : /circular|pastel|torta/.test(part)
+              ? "pie"
+              : null;
+  const group = detectGroup(text);
+  const kind = detectKind(text);
+  const clauses = text.split(
+    /;|\by otra\b|\by otro\b|\bademas\b|\by (?=por (?:estado|semana|mes|dia|area)|en (?:barra|linea|columna|circular))/,
+  );
+  const details = (part: string, dataset: Chart["dataset"]): Partial<Chart> => {
+    const days = /ultima semana|ultimos 7 dias/.test(part)
+      ? 7
+      : /ultimo mes|ultimos 30 dias/.test(part)
+        ? 30
+        : /ultimos 90 dias/.test(part)
+          ? 90
+          : undefined;
+    const completed = /completad|finalizad|terminad/.test(part);
+    return {
+      ...(days ? { days } : {}),
+      ...(completed
+        ? { status: dataset === "tasks" ? "APPROVED" : "COMPLETED" }
+        : {}),
+      ...(completed && dataset === "course_assignments"
+        ? { dateField: "completed_at" }
+        : {}),
+    };
+  };
   const chosen: Chart[] =
     datasets.length && !/\bno\b/.test(text)
-      ? datasets.slice(0, 3).map(([dataset]) => {
+      ? datasets.flatMap(([dataset, pattern]) => {
           const proposal =
             proposed.find((chart) => chart.dataset === dataset) ?? proposed[0];
-          return {
+          const parts = clauses.filter((part) => pattern.test(part));
+          const proposals = proposed.filter((c) => c.dataset === dataset);
+          if (
+            clauses.length === 1 &&
+            /varias graficas|(?:dos|tres|cuatro|cinco|seis|[2-6]) graficas/.test(
+              text,
+            ) &&
+            proposals.length > 1
+          )
+            return proposals.map((c) => ({
+              ...c,
+              group: group ?? c.group,
+              kind: kind ?? c.kind,
+              ...details(text, dataset),
+              ...(splitByArea ? { splitBy: "department" as const } : {}),
+            }));
+          // «Tareas por estado y otra por semana» mantiene dos vistas del mismo proceso.
+          const requests =
+            datasets.length === 1 && clauses.length > 1
+              ? clauses
+              : parts.length
+                ? parts
+                : [text];
+          return requests.map((part) => ({
             title: "",
             dataset,
-            group: group ?? proposal?.group ?? "status",
-            kind: kind ?? proposal?.kind ?? "bars",
-          };
+            group:
+              detectGroup(part) ??
+              (splitByArea ? "status" : (group ?? proposal?.group ?? "status")),
+            kind: detectKind(part) ?? kind ?? proposal?.kind ?? "bars",
+            ...details(part, dataset),
+            ...(splitByArea ? { splitBy: "department" as const } : {}),
+          }));
         })
       : proposed.map((c) => ({
-          title: "",
-          dataset: c.dataset,
+          ...c,
           group: group ?? c.group,
           kind: kind ?? c.kind,
+          ...details(text, c.dataset),
+          ...(splitByArea ? { splitBy: "department" as const } : {}),
         }));
   const names = {
     applications: "Postulaciones",
@@ -121,43 +182,31 @@ export function requestedCharts(prompt: string, proposed: Chart[]): Chart[] {
     status: "estado",
     department: "área",
     day: "fecha de creación",
+    week: "semana de creación",
     month: "mes de creación",
   };
   const seen = new Set<string>();
   return chosen
     .filter((c) => {
-      const key = c.dataset + ":" + c.group + ":" + c.kind;
+      const key = [
+        c.dataset,
+        c.group,
+        c.kind,
+        c.splitBy,
+        c.status,
+        c.days,
+        c.dateField,
+      ].join(":");
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     })
     .map((c) => {
-      // Cada solicitud puede contener periodos y estados distintos por proceso.
-      const clauses = text.split(/;|\by otra\b|\by otro\b|\bademas\b/);
-      const pattern = datasets.find(([dataset]) => dataset === c.dataset)?.[1];
-      const clause = clauses.find((part) => pattern?.test(part)) ?? text;
-      const days: Chart["days"] = /ultima semana|ultimos 7 dias/.test(clause)
-        ? 7
-        : /ultimo mes|ultimos 30 dias/.test(clause)
-          ? 30
-          : /ultimos 90 dias/.test(clause)
-            ? 90
-            : undefined;
-      const completed = /completad|finalizad|terminad/.test(clause);
-      const status = completed
-        ? c.dataset === "tasks"
-          ? "APPROVED"
-          : "COMPLETED"
-        : undefined;
-      const dateField =
-        completed && c.dataset === "course_assignments"
-          ? ("completed_at" as const)
-          : ("created_at" as const);
+      const { days } = c;
+      const completed = c.status === "APPROVED" || c.status === "COMPLETED";
+      const dateField = c.dateField ?? "created_at";
       return {
         ...c,
-        ...(status ? { status } : {}),
-        ...(days ? { days } : {}),
-        ...(dateField === "completed_at" ? { dateField } : {}),
         title:
           names[c.dataset] +
           (completed ? " completadas" : "") +
@@ -186,6 +235,37 @@ export function requestedCharts(prompt: string, proposed: Chart[]): Chart[] {
     }));
 }
 
+/** Resuelve el área por relaciones autorizadas; se comparte entre agrupación y gráficas por área. */
+export function chartDepartment(
+  data: Snapshot,
+  dataset: Chart["dataset"],
+  row: Row,
+) {
+  const employee = (data.employees ?? []).find((e) => e.id === row.employee_id);
+  const position = (data.positions ?? []).find(
+    (p) => p.id === employee?.position_id,
+  );
+  const application = (data.applications ?? []).find(
+    (a) => a.id === row.application_id,
+  );
+  const vacancy =
+    dataset === "vacancies"
+      ? row
+      : (data.vacancies ?? []).find(
+          (v) => v.id === (row.vacancy_id ?? application?.vacancy_id),
+        );
+  const vacancyPosition = (data.positions ?? []).find(
+    (p) => p.id === vacancy?.position_id,
+  );
+  return (data.departments ?? []).find(
+    (d) =>
+      d.id ===
+      (vacancy?.department_id ??
+        vacancyPosition?.department_id ??
+        position?.department_id),
+  );
+}
+
 export function chartValues(
   data: Snapshot,
   chart: Chart,
@@ -194,7 +274,9 @@ export function chartValues(
   const groups = new Map<string, number>();
   for (const row of data[chart.dataset] ?? []) {
     if (chart.status && row.status !== chart.status) continue;
-    const dateField = chart.dateField ?? "created_at";
+    const dateField =
+      chart.dateField ??
+      (chart.dataset === "applications" ? "applied_at" : "created_at");
     if (chart.days) {
       const timestamp = Date.parse(value(row, dateField));
       const end = Date.parse(today + "T23:59:59.999Z");
@@ -203,43 +285,29 @@ export function chartValues(
       if (!Number.isFinite(timestamp) || timestamp < start || timestamp > end)
         continue;
     }
-    if (chart.group === "day" || chart.group === "month") {
-      const date = value(row, chart.dateField ?? "created_at").slice(0, 10);
+    if (["day", "week", "month"].includes(chart.group)) {
+      const date = value(row, dateField).slice(0, 10);
       if (
         !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
         Number.isNaN(Date.parse(date)) ||
         date > today
       )
         continue;
-      const key = chart.group === "month" ? date.slice(0, 7) : date;
+      const monday = new Date(date + "T12:00:00Z");
+      monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+      const key =
+        chart.group === "month"
+          ? date.slice(0, 7)
+          : chart.group === "week"
+            ? monday.toISOString().slice(0, 10)
+            : date;
       groups.set(key, (groups.get(key) ?? 0) + 1);
       continue;
     }
-    const employee = (data.employees ?? []).find(
-      (e) => e.id === row.employee_id,
-    );
-    const position = (data.positions ?? []).find(
-      (p) => p.id === employee?.position_id,
-    );
-    const application = (data.applications ?? []).find(
-      (a) => a.id === row.application_id,
-    );
-    const vacancy =
-      chart.dataset === "vacancies"
-        ? row
-        : (data.vacancies ?? []).find(
-            (v) => v.id === (row.vacancy_id ?? application?.vacancy_id),
-          );
-    const vacancyPosition = (data.positions ?? []).find(
-      (p) => p.id === vacancy?.position_id,
-    );
-    const department = (data.departments ?? []).find(
-      (d) =>
-        d.id ===
-        (vacancy?.department_id ??
-          vacancyPosition?.department_id ??
-          position?.department_id),
-    );
+    const department =
+      chart.group === "department"
+        ? chartDepartment(data, chart.dataset, row)
+        : undefined;
     const label =
       chart.group === "status"
         ? stateLabel(value(row, "status"))
@@ -251,7 +319,7 @@ export function chartValues(
   return [...groups]
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) =>
-      chart.group === "day" || chart.group === "month"
+      ["day", "week", "month"].includes(chart.group)
         ? a.label.localeCompare(b.label)
         : b.count - a.count || a.label.localeCompare(b.label),
     );

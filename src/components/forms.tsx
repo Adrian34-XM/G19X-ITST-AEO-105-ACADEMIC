@@ -33,6 +33,15 @@ export type FormSpec = {
   fields: Field[];
   values?: Record<string, unknown>;
 };
+export class RequestError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public code?: string,
+  ) {
+    super(message);
+  }
+}
 export async function request(url: string, payload: unknown) {
   const response = await fetch(url, {
     method: "POST",
@@ -41,7 +50,11 @@ export async function request(url: string, payload: unknown) {
   });
   const result = await response.json();
   if (!response.ok)
-    throw new Error(result.error || "No se pudo completar la acción.");
+    throw new RequestError(
+      result.error || "No se pudo completar la acción.",
+      response.status,
+      result.code,
+    );
   return result;
 }
 export function EditForm({

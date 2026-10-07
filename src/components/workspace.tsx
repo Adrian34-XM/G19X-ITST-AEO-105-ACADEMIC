@@ -2282,6 +2282,9 @@ export function Workspace({
                         String(detail ?? "all") + JSON.stringify(activeFilters)
                       }
                       mode="tasks"
+                      viewer={
+                        profile ? `${profile.id}:${profile.role}` : undefined
+                      }
                       taskId={detail}
                       filters={activeFilters}
                     />
@@ -2856,6 +2859,7 @@ export function Workspace({
                         <WorkforceAI
                           key={JSON.stringify(activeFilters)}
                           mode="chart"
+                          viewer={`${profile.id}:${profile.role}`}
                           section={view as "performance" | "analytics"}
                           filters={activeFilters}
                         />

@@ -14,6 +14,7 @@ import type { WorkspaceFilters } from "@/modules/workspace/filters";
 import { isHR } from "@/lib/permissions";
 import { useEffect, useRef, useState } from "react";
 import { shareSummaryRequest, summaryRequestKey } from "./summary-requests";
+import { requestAnalysis } from "./ai-requests";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { request } from "./forms";
@@ -76,6 +77,14 @@ export function OperationsPanel({
     [advice, setAdvice] = useState<Advice | null>(null),
     [generated, setGenerated] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [waiting, setWaiting] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const latestPrompt = useRef(prompt);
   const execution = useRef(0);
   // Un nuevo objeto equivalente no debe iniciar otra generación.
@@ -142,7 +151,12 @@ export function OperationsPanel({
         };
         const result = await shareSummaryRequest(
           summaryRequestKey(profile.id, profile.role, payload),
-          () => request("/api/ai/orchestrate", payload),
+          () =>
+            requestAnalysis(profile.id, "/api/ai/orchestrate", payload, {
+              onWaiting: (value) => {
+                if (active && execution.current === id) setWaiting(value);
+              },
+            }),
         );
         if (active && execution.current === id) {
           setAdvice(requireSummary(result.result));
@@ -160,6 +174,7 @@ export function OperationsPanel({
         if (active && execution.current === id) {
           setResultScope(scopeKey);
           setBusy(false);
+          setWaiting(false);
         }
       }
     }, 400);
@@ -227,14 +242,24 @@ export function OperationsPanel({
       setAnalyticsMetrics([]);
     } else setSuggestion("");
     try {
-      const r = await request("/api/ai/orchestrate", {
-        area,
-        filters,
-        prompt,
-        mode,
-        force: mode === "analyze",
-        automatic: mode === "analyze" && !prompt.trim(),
-      });
+      const r = await requestAnalysis(
+        profile.id,
+        "/api/ai/orchestrate",
+        {
+          area,
+          filters,
+          prompt,
+          mode,
+          force: mode === "analyze",
+          automatic: mode === "analyze" && !prompt.trim(),
+        },
+        {
+          onWaiting: (value) => {
+            if (mounted.current && execution.current === id) setWaiting(value);
+          },
+          isCurrent: () => mounted.current && execution.current === id,
+        },
+      );
       if (execution.current !== id) return;
       if (mode === "prompt") {
         setSuggestion(r.prompt);
@@ -247,7 +272,10 @@ export function OperationsPanel({
       if (execution.current === id)
         setError(e instanceof Error ? e.message : "No se pudo analizar.");
     } finally {
-      if (execution.current === id) setBusy(false);
+      if (execution.current === id) {
+        setBusy(false);
+        setWaiting(false);
+      }
     }
   }
   return (
@@ -274,7 +302,11 @@ export function OperationsPanel({
           disabled={preparing}
           onClick={() => void run()}
         >
-          {preparing ? "Preparando resumen…" : "✧ Actualizar resumen"}
+          {preparing
+            ? waiting
+              ? "Esperando turno…"
+              : "Preparando resumen…"
+            : "✧ Actualizar resumen"}
         </button>
       </div>
       <details className="summary-context">
@@ -374,7 +406,9 @@ export function OperationsPanel({
       )}
       {preparing && (
         <p role="status">
-          El orquestador está revisando tus novedades y pendientes…
+          {waiting
+            ? "Se está terminando otro análisis de tu cuenta. El resumen comenzará automáticamente después."
+            : "El orquestador está revisando tus novedades y pendientes…"}
         </p>
       )}
       {error && resultScope === scopeKey && (
@@ -420,7 +454,9 @@ export function OperationsPanel({
                     {metric.breakdown === "department"
                       ? "Por área"
                       : metric.breakdown === "month"
-                        ? "Por mes de creación"
+                        ? metric.process === "Postulaciones"
+                          ? "Por mes de postulación o reactivación"
+                          : "Por mes de creación"
                         : "Por estado"}
                     . Cifras calculadas con los datos filtrados.
                   </p>

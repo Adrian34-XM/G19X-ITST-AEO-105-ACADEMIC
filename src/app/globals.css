@@ -3591,3 +3591,14 @@ thead th { font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
 .climate-question-legend { list-style: none; margin: 18px 0; padding: 0; display: grid; gap: 12px; }
 .climate-question-legend li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px; border-bottom: 1px solid var(--border); }
 .climate-question-legend strong { white-space: nowrap; }
+.chart-analysis-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 16px; margin: 20px 0; padding: 18px; border: 1px solid var(--border); border-radius: 16px; }
+.chart-analysis-options > p { grid-column: 1 / -1; }
+.chart-analysis-options input[type="checkbox"] { width: auto; margin-right: 8px; }
+.chart-report-context { margin: 16px 0; }
+.chart-report-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); gap: 12px; margin: 18px 0; }
+.chart-report-metrics > div { display: grid; align-content: start; gap: 8px; padding: 14px; background: var(--mint); border-radius: 12px; }
+.chart-report-reading { border-top: 1px solid var(--border); padding-top: 18px; margin-top: 18px; }
+.chart-report-reading li { margin-bottom: 10px; }
+.report-ai-grid:has(> .chart-multiple) { grid-template-columns: minmax(0, 1fr); }
+.chart-multiple .chart-narrative { margin-block: 20px; }
+.chart-multiple .record-grid { align-items: start; }

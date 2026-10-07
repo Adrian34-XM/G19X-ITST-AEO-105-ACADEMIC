@@ -131,6 +131,22 @@ it("agrupa por mes de creación sin inventar fechas ni cambios de estado", () =>
   expect(result.summary).toContain("Fecha no disponible: 1 (50%");
   expect(result.summary).toContain("no demuestran cambios históricos");
 });
+it("agrupa postulaciones por fecha real y usa el calendario de Ciudad de México", () => {
+  const result = analyticsSummary(
+    {
+      applications: [
+        { id: "1", applied_at: "2026-10-01T02:00:00Z" },
+        { id: "2", applied_at: "2026-10-02T12:00:00Z" },
+      ],
+    },
+    ["applications"],
+    "month",
+  );
+  expect(result.summary).toContain("mes de postulación o reactivación");
+  expect(result.summary).toContain("2026-09: 1");
+  expect(result.summary).toContain("2026-10: 1");
+  expect(result.summary).not.toContain("Fecha no disponible");
+});
 it("separa totales de estados sin exponer identificadores ni texto de registros", () => {
   const result = analyticsSummary(
     {

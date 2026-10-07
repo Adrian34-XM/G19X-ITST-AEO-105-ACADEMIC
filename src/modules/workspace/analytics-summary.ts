@@ -8,6 +8,7 @@
 import { z } from "zod";
 import type { Snapshot } from "./types";
 import { stateLabel } from "./labels";
+import { reportingDay } from "./chart-report";
 /** El modelo comenta; todas las cantidades y fechas numéricas se muestran desde métricas verificadas. */
 export const analyticsNarrativeSchema = z
   .object({
@@ -109,6 +110,9 @@ export function analyticsFacts(
         employee?.department_id ??
         vacancy?.department_id ??
         position?.department_id;
+      const recordDate = reportingDay(
+        row[topic === "applications" ? "applied_at" : "created_at"],
+      );
       const label =
         breakdown === "department"
           ? String(
@@ -116,8 +120,8 @@ export function analyticsFacts(
                 ?.name ?? "Área no disponible",
             )
           : breakdown === "month"
-            ? /^\d{4}-\d{2}-\d{2}/.test(String(row.created_at ?? ""))
-              ? String(row.created_at).slice(0, 7)
+            ? recordDate
+              ? recordDate.slice(0, 7)
               : "Fecha no disponible"
             : stateLabel(String(row.status ?? ""));
       groups.set(label, (groups.get(label) ?? 0) + 1);
@@ -172,7 +176,7 @@ export function analyticsSummary(
   const paragraphs = analyticsFacts(data, unique, breakdown).map((fact) => {
     if (!fact.total)
       return `${fact.process}: no hay registros disponibles con los filtros seleccionados.`;
-    return `${fact.process}: ${fact.total} en total. Distribución por ${breakdown === "department" ? "área" : breakdown === "month" ? "mes de creación" : "estado"}: ${fact.groups.map(({ label, count, percentage_of_process }) => `${label}: ${count} (${percentage_of_process}% del total de este proceso)`).join("; ")}.`;
+    return `${fact.process}: ${fact.total} en total. Distribución por ${breakdown === "department" ? "área" : breakdown === "month" ? (fact.process === "Postulaciones" ? "mes de postulación o reactivación" : "mes de creación") : "estado"}: ${fact.groups.map(({ label, count, percentage_of_process }) => `${label}: ${count} (${percentage_of_process}% del total de este proceso)`).join("; ")}.`;
   });
   return {
     summary:

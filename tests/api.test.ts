@@ -2,11 +2,26 @@
  * Pruebas de controles HTTP y autenticación con dependencias simuladas. Comprueban origen, mensajes seguros y rechazo de solicitudes no autorizadas.
  */
 import { it, expect, vi, beforeEach } from "vitest";
-import { checkOrigin, readJson, failure } from "@/lib/api";
+import { checkOrigin, readJson, failure, databaseError } from "@/lib/api";
 import { ApiError } from "@/lib/auth";
 import { schemas } from "@/modules/commands/schemas";
 import { POST } from "@/app/api/commands/route";
 const { getUser } = vi.hoisted(() => ({ getUser: vi.fn() }));
+it("identifica un análisis ocupado para esperar sin reintentar errores ajenos", async () => {
+  let error: unknown;
+  try {
+    databaseError({ code: "23505", message: "AI_IN_PROGRESS" });
+  } catch (caught) {
+    error = caught;
+  }
+  const response = failure(error);
+  expect(response.status).toBe(409);
+  expect(response.headers.get("Retry-After")).toBe("5");
+  expect(await response.json()).toEqual({
+    error: "Ya hay un análisis en curso.",
+    code: "AI_IN_PROGRESS",
+  });
+});
 it("explica al usuario por qué no puede asignar una tarea en sábado", async () => {
   const parsed = schemas["task.save"].safeParse({
     title: "Entrega",

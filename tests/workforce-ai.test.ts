@@ -18,6 +18,7 @@ const state = vi.hoisted(() => ({
   update: vi.fn(),
   final: vi.fn(),
   onboarding: [] as Record<string, unknown>[],
+  snapshot: {} as Record<string, { id: string; [key: string]: unknown }[]>,
 }));
 vi.mock("@/lib/auth", async (original) => ({
   ...(await original<typeof import("../src/lib/auth")>()),
@@ -75,29 +76,42 @@ vi.mock("@/modules/workspace/queries", () => ({
       onboarding_id: o.id,
       status: o.status === "COMPLETED" ? "COMPLETED" : "PENDING",
     })),
+    ...state.snapshot,
   }),
 }));
 beforeEach(() => {
   vi.clearAllMocks();
   state.role = "EMPLEADO";
   state.onboarding = [];
+  state.snapshot = {};
   state.rpc.mockResolvedValue({ data: "run", error: null });
   state.final.mockResolvedValue({ error: null });
   state.update.mockReturnValue({ eq: () => ({ eq: state.final }) });
-  state.generate.mockResolvedValue({
-    model: "mock",
-    result: {
-      summary: "Una entrega para revisión",
-      charts: [
-        {
-          title: "Tareas por estado",
-          dataset: "tasks",
-          group: "status",
-          kind: "bars",
+  state.generate.mockImplementation(async (context) =>
+    context.verified_metrics
+      ? {
+          model: "mock",
+          result: {
+            summary:
+              "La entrega está en revisión; conviene revisar su evidencia antes de cerrar el seguimiento.",
+            recommendations: [],
+          },
+        }
+      : {
+          model: "mock",
+          result: {
+            summary: "Una entrega para revisión",
+            charts: [
+              {
+                title: "Tareas por estado",
+                dataset: "tasks",
+                group: "status",
+                kind: "bars",
+              },
+            ],
+          },
         },
-      ],
-    },
-  });
+  );
 });
 const req = (body: unknown) =>
   new Request("http://localhost/api/ai/workforce", {
@@ -239,10 +253,20 @@ it("gráficas calculadas en servidor solo cuentan filas del alcance y no exponen
     req({ mode: "chart", section: "performance", prompt: "Tareas por estado" }),
   );
   expect(r.status).toBe(200);
-  expect((await r.json()).result.charts[0].values).toEqual([
-    { label: "En revisión", count: 1 },
-  ]);
-  const prompt = JSON.stringify(state.generate.mock.calls[0][0]);
+  const result = (await r.json()).result;
+  expect(result.summary).toBe(
+    "La entrega está en revisión; conviene revisar su evidencia antes de cerrar el seguimiento.",
+  );
+  expect(result.charts[0].values).toEqual([{ label: "En revisión", count: 1 }]);
+  expect(state.generate).toHaveBeenCalledTimes(2);
+  expect(state.generate.mock.calls[1][3]).toBe("professional-evidence");
+  expect(state.generate.mock.calls[1][4]).toBe(true);
+  expect(
+    state.generate.mock.calls[1][0].verified_metrics[0].has_records_in_period,
+  ).toBe(true);
+  const prompt = JSON.stringify(
+    state.generate.mock.calls.map((call) => call[0]),
+  );
   for (const secret of [
     "secreto@test.local",
     "Persona privada",
@@ -251,6 +275,165 @@ it("gráficas calculadas en servidor solo cuentan filas del alcance y no exponen
     ids.other,
   ])
     expect(prompt).not.toContain(secret);
+});
+
+it("el prompt de una gráfica por área conserva los estados dentro de cada área", () => {
+  const charts = requestedCharts(
+    "agrupa graficas por area y obten los datos de los estados de tareas en cada area en los ultimos 7 dias",
+    [
+      {
+        title: "Todas las tareas",
+        dataset: "tasks",
+        group: "department",
+        kind: "bars",
+      },
+    ],
+  );
+  expect(charts).toEqual([
+    {
+      title: "Tareas por estado · últimos 7 días",
+      dataset: "tasks",
+      group: "status",
+      kind: "bars",
+      splitBy: "department",
+      days: 7,
+    },
+  ]);
+});
+it("solicita varias vistas distintas del mismo proceso sin reducirlas a una", () => {
+  const charts = requestedCharts(
+    "Tareas por estado en barras y otra por semana en líneas",
+    [{ title: "Tareas", dataset: "tasks", group: "department", kind: "pie" }],
+  );
+  expect(charts.map((c) => [c.group, c.kind])).toEqual([
+    ["status", "bars"],
+    ["week", "line"],
+  ]);
+});
+it("una gráfica comparativa por área sigue siendo una sola cuando no se piden gráficas separadas", () => {
+  const charts = requestedCharts("Tareas por área en barras", [
+    { title: "Tareas", dataset: "tasks", group: "status", kind: "bars" },
+  ]);
+  expect(charts).toHaveLength(1);
+  expect(charts[0].group).toBe("department");
+  expect(charts[0].splitBy).toBeUndefined();
+});
+it("un filtro de área incompatible se rechaza antes de consumir IA", async () => {
+  state.role = "RH_ADMIN";
+  const response = await POST(
+    req({
+      mode: "chart",
+      prompt: "Tareas del área Tecnología",
+      filters: { department: "50000000-0000-4000-8000-000000000002" },
+    }),
+  );
+  expect(response.status).toBe(422);
+  expect(state.generate).not.toHaveBeenCalled();
+});
+
+it("RH puede solicitar varias áreas nombradas sin incluir registros de otra área", async () => {
+  state.role = "RH_ADMIN";
+  state.snapshot = {
+    departments: [
+      { id: "tec", name: "Tecnología" },
+      { id: "sales", name: "Ventas" },
+      { id: "finance", name: "Finanzas" },
+    ],
+    positions: [
+      { id: "dev", department_id: "tec" },
+      { id: "seller", department_id: "sales" },
+      { id: "accountant", department_id: "finance" },
+    ],
+    employees: [
+      { id: ids.own, profile_id: "me", position_id: "dev" },
+      { id: ids.other, profile_id: "outside", position_id: "seller" },
+      { id: "accountant", position_id: "accountant" },
+    ],
+    tasks: [
+      { id: "1", employee_id: ids.own, status: "SUBMITTED" },
+      { id: "2", employee_id: ids.other, status: "APPROVED" },
+      { id: "3", employee_id: "accountant", status: "PENDING" },
+    ],
+  };
+  const response = await POST(
+    req({
+      mode: "chart",
+      prompt: "Estados de tareas en cada área de Tecnología y Ventas",
+    }),
+  );
+  expect(response.status).toBe(200);
+  const charts = (await response.json()).result.charts;
+  expect(charts).toHaveLength(2);
+  expect(
+    charts.map((c: { report: { area: string } }) => c.report.area),
+  ).toEqual(["Tecnología", "Ventas"]);
+  expect(
+    charts.map((c: { report: { total: number } }) => c.report.total),
+  ).toEqual([1, 1]);
+  expect(JSON.stringify(state.generate.mock.calls[1][0])).not.toContain(
+    "Finanzas",
+  );
+});
+
+it("mantiene dos ventanas del mismo proceso aunque tengan igual agrupación y formato", () => {
+  const charts = requestedCharts(
+    "Tareas por estado en los últimos 7 días y otra por estado en los últimos 30 días",
+    [{ title: "Tareas", dataset: "tasks", group: "status", kind: "bars" }],
+  );
+  expect(charts.map((c) => c.days)).toEqual([7, 30]);
+});
+
+it("una petición abierta de varias gráficas conserva las distintas propuestas de IA", () => {
+  const charts = requestedCharts("Dame varias graficas de tareas", [
+    { title: "Tareas", dataset: "tasks", group: "status", kind: "bars" },
+    { title: "Tareas", dataset: "tasks", group: "week", kind: "line" },
+  ]);
+  expect(charts.map((c) => c.group)).toEqual(["status", "week"]);
+});
+
+it("si falla la redacción conserva las gráficas verificadas e informa del fallo sin inventar un resumen", async () => {
+  const prior = state.generate.getMockImplementation()!;
+  state.generate.mockImplementation(async (...args) => {
+    if (args[0].verified_metrics) throw new Error("PROVIDER_FAILED");
+    return prior(...args);
+  });
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    const response = await POST(
+      req({ mode: "chart", prompt: "Tareas por estado" }),
+    );
+    expect(response.status).toBe(200);
+    const result = (await response.json()).result;
+    expect(result.summary).toBe("");
+    expect(result.narrative_error).toContain("interpretación de IA");
+    expect(result.charts[0].values).toEqual([
+      { label: "En revisión", count: 1 },
+    ]);
+  } finally {
+    warn.mockRestore();
+  }
+});
+
+it("no trunca la solicitud a tres procesos cuando se piden todos los de analíticas", () => {
+  const charts = requestedCharts(
+    "Tareas, cursos, onboarding, postulaciones, vacantes y entrevistas por estado",
+    [{ title: "Tareas", dataset: "tasks", group: "status", kind: "bars" }],
+  );
+  expect(charts).toHaveLength(6);
+});
+it("rechaza opciones de gráficas en otros análisis y periodos sin intersección", async () => {
+  const chart_options = {
+    period: "custom",
+    from: "2020-01-01",
+    to: "2020-01-07",
+  };
+  expect((await POST(req({ mode: "tasks", chart_options }))).status).toBe(422);
+  expect(
+    (await POST(req({ mode: "chart", chart_options, filters: { days: "7" } })))
+      .status,
+  ).toBe(422);
+  expect(state.generate).not.toHaveBeenCalled();
+  expect(state.rpc).not.toHaveBeenCalled();
 });
 it("IDOR de perfil y acceso a analíticas/capacitación no autorizados no invocan IA", async () => {
   for (const body of [

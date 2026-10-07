@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { request } from "./forms";
+import { requestAnalysis } from "./ai-requests";
 type Summary = { summary: string; recommendations?: string[] };
 // Comparte únicamente solicitudes en vuelo de la misma sesión y persona, también en StrictMode.
 const pending = new Map<string, Promise<Summary>>();
@@ -8,7 +8,7 @@ function generate(viewer: string, employee: string) {
   const key = `${viewer}:${employee}`;
   let promise = pending.get(key);
   if (!promise) {
-    promise = request("/api/ai/workforce", {
+    promise = requestAnalysis(viewer, "/api/ai/workforce", {
       mode: "profile",
       employee_id: employee,
       prompt:

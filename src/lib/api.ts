@@ -153,6 +153,7 @@ export function databaseError(error: { code?: string; message: string }) {
         : status === 409
           ? "El registro ya existe o tiene registros relacionados."
           : "No se pudo guardar. Verifica los datos."),
+    error.message === "AI_IN_PROGRESS" ? "AI_IN_PROGRESS" : undefined,
   );
 }
 /** Respuesta uniforme para errores conocidos; oculta detalles de fallos inesperados. */
@@ -177,8 +178,13 @@ export function failure(error: unknown) {
     );
   if (error instanceof ApiError)
     return NextResponse.json(
-      { error: error.message },
-      { status: error.status },
+      { error: error.message, ...(error.code ? { code: error.code } : {}) },
+      {
+        status: error.status,
+        ...(error.code === "AI_IN_PROGRESS"
+          ? { headers: { "Retry-After": "5" } }
+          : {}),
+      },
     );
   console.error("request_failed", {
     type: error instanceof Error ? error.name : "Unknown",

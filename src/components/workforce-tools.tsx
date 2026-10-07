@@ -10,6 +10,7 @@ import { StatusText } from "./status-text";
 import { pendingTrainingReview } from "@/modules/workspace/training-review";
 import { useEffect, useRef, useState } from "react";
 import { shareSummaryRequest, summaryRequestKey } from "./summary-requests";
+import { requestAnalysis } from "./ai-requests";
 import Link from "next/link";
 import { request } from "./forms";
 import { type Snapshot, type Profile, value } from "@/modules/workspace/types";
@@ -18,6 +19,10 @@ import { home, isHR } from "@/lib/permissions";
 import { stateLabel } from "@/modules/workspace/labels";
 import { trainingDraft } from "@/modules/workspace/workforce-ai";
 import { TrainingEvidence } from "./training-evidence";
+import {
+  type ChartOptions,
+  type ChartReport,
+} from "@/modules/workspace/chart-report";
 
 type Graph = {
   title: string;
@@ -25,6 +30,7 @@ type Graph = {
   dataset?: string;
   group?: string;
   values: { label: string; count: number }[];
+  report?: ChartReport["report"];
 };
 /**
  * Cambiar la representación reutiliza las mismas categorías y conteos del servidor.
@@ -35,15 +41,19 @@ export function DataGraph({ chart }: { chart: Graph }) {
   const [selectedKind, setSelectedKind] = useState("");
   const kind = selectedKind || chart.kind;
   const unit =
-    chart.dataset === "tasks"
-      ? "tareas"
-      : chart.dataset === "course_assignments"
-        ? "capacitaciones"
-        : chart.dataset === "onboarding"
-          ? "incorporaciones"
-          : "registros";
+    (
+      {
+        tasks: "tareas",
+        course_assignments: "capacitaciones",
+        onboarding: "incorporaciones",
+        applications: "postulaciones",
+        vacancies: "vacantes",
+        interviews: "entrevistas",
+      } as Record<string, string>
+    )[chart.dataset ?? ""] ?? "registros";
   const dated =
     chart.group === "day" ||
+    chart.group === "week" ||
     chart.group === "month" ||
     chart.values.every((v) => /^\d{4}-\d{2}(-\d{2})?$/.test(v.label));
   const label = (raw: string) => {
@@ -52,7 +62,7 @@ export function DataGraph({ chart }: { chart: Graph }) {
       return translated === "Estado no reconocido" ? raw : translated;
     }
     const date = new Date(`${raw.length === 7 ? `${raw}-01` : raw}T12:00:00Z`);
-    return Number.isNaN(date.getTime())
+    const formatted = Number.isNaN(date.getTime())
       ? raw
       : date.toLocaleDateString("es-MX", {
           timeZone: "UTC",
@@ -60,7 +70,15 @@ export function DataGraph({ chart }: { chart: Graph }) {
           month: "long",
           ...(raw.length === 10 ? { day: "numeric" as const } : {}),
         });
+    return chart.group === "week" ? `Semana del ${formatted}` : formatted;
   };
+  const periodLabel = (raw: string) =>
+    new Date(raw + "T12:00:00Z").toLocaleDateString("es-MX", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   const total = chart.values.reduce((s, v) => s + v.count, 0),
     max = Math.max(1, ...chart.values.map((v) => v.count));
   const colors = [
@@ -71,6 +89,20 @@ export function DataGraph({ chart }: { chart: Graph }) {
     "#8059aa",
     "#279a99",
   ];
+  const colorFor = (label: string, index: number) =>
+    chart.group === "status"
+      ? ((
+          {
+            Pendiente: "#d08b20",
+            "En progreso": "#2761a2",
+            "En revisión": "#8059aa",
+            Aprobado: "#438947",
+            Completado: "#438947",
+            Rechazado: "#a04359",
+            Asignado: "#d08b20",
+          } as Record<string, string>
+        )[label] ?? colors[index % colors.length])
+      : colors[index % colors.length];
   const slices = chart.values.map((v, i) => {
     const start = total
       ? (chart.values.slice(0, i).reduce((sum, v) => sum + v.count, 0) /
@@ -78,11 +110,71 @@ export function DataGraph({ chart }: { chart: Graph }) {
         100
       : 0;
     const offset = start + (total ? (v.count / total) * 100 : 0);
-    return `${colors[i % colors.length]} ${start}% ${offset}%`;
+    return `${colorFor(v.label, i)} ${start}% ${offset}%`;
   });
   return (
     <article className="record">
+      {chart.report?.areaAlias && (
+        <p className="eyebrow">{chart.report.areaAlias}</p>
+      )}
       <h3>{chart.title}</h3>
+      {chart.report && (
+        <div className="chart-report-context">
+          <p>{chart.report.description}</p>
+          <p>
+            <strong>Periodo:</strong>{" "}
+            {chart.report.period.from
+              ? periodLabel(chart.report.period.from)
+              : "Todos los registros cargados"}{" "}
+            — {periodLabel(chart.report.period.to)}.
+          </p>
+          <p>
+            <strong>Fecha utilizada:</strong>{" "}
+            {chart.report.period.dateDescription}. Horario de Ciudad de México.
+          </p>
+          <p className="muted">{chart.report.scope}</p>
+          {!chart.report.available && (
+            <p role="alert">
+              No se dispone de esta tabla; no se puede concluir que no existe
+              actividad.
+            </p>
+          )}
+          <div className="chart-report-metrics">
+            <div>
+              <span>Periodo seleccionado</span>
+              <strong>
+                {chart.report.total} {unit}
+              </strong>
+            </div>
+            {chart.report.comparison && (
+              <>
+                <div>
+                  <span>Periodo anterior</span>
+                  <strong>
+                    {chart.report.comparison.total} {unit}
+                  </strong>
+                  <small>
+                    {periodLabel(chart.report.comparison.from)} —{" "}
+                    {periodLabel(chart.report.comparison.to)}
+                  </small>
+                </div>
+                <div>
+                  <span>Cambio de volumen</span>
+                  <strong>
+                    {chart.report.comparison.difference > 0 ? "+" : ""}
+                    {chart.report.comparison.difference} {unit}
+                  </strong>
+                  <small>
+                    {chart.report.comparison.percent === null
+                      ? "Sin base para calcular porcentaje"
+                      : `${chart.report.comparison.percent > 0 ? "+" : ""}${chart.report.comparison.percent}% frente al periodo anterior`}
+                  </small>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       <label>
         Tipo de gráfica
         <select value={kind} onChange={(e) => setSelectedKind(e.target.value)}>
@@ -168,7 +260,7 @@ export function DataGraph({ chart }: { chart: Graph }) {
                           y={y}
                           width={28}
                           height={190 - y}
-                          fill={colors[i % colors.length]}
+                          fill={colorFor(v.label, i)}
                         />
                       )}
                       <text
@@ -187,15 +279,21 @@ export function DataGraph({ chart }: { chart: Graph }) {
                         fontSize={10}
                         fill="currentColor"
                       >
-                        {i + 1}
+                        {dated
+                          ? chart.group === "month"
+                            ? v.label
+                            : v.label.slice(5)
+                          : i + 1}
                       </text>
                     </g>
                   );
                 })}
               </svg>
               <p className="muted">
-                Los números del eje corresponden a las categorías del listado
-                inferior. Eje vertical: cantidad de {unit}.
+                {dated
+                  ? "El eje horizontal muestra fechas o el inicio de cada intervalo."
+                  : "Los números del eje corresponden a las categorías del listado inferior."}{" "}
+                Eje vertical: cantidad de {unit}.
               </p>
             </div>
           )}
@@ -204,7 +302,7 @@ export function DataGraph({ chart }: { chart: Graph }) {
             {kind === "line"
               ? `La línea azul muestra la cantidad de ${unit} en cada categoría.`
               : dated
-                ? `Los colores distinguen las fechas de creación de los registros; no indican su estado ni su prioridad.`
+                ? `Los colores distinguen los intervalos de ${chart.report?.period.dateDescription ?? "creación"}; no indican su estado ni su prioridad.`
                 : `Cada color identifica una categoría del listado.`}
           </p>
           {chart.values.map((v, i) => (
@@ -219,7 +317,7 @@ export function DataGraph({ chart }: { chart: Graph }) {
                     borderRadius: 3,
                     marginRight: 8,
                     background:
-                      kind === "line" ? colors[0] : colors[i % colors.length],
+                      kind === "line" ? colors[0] : colorFor(v.label, i),
                   }}
                 />
                 {["line", "columns"].includes(kind) ? `${i + 1}. ` : ""}
@@ -233,17 +331,41 @@ export function DataGraph({ chart }: { chart: Graph }) {
                   style={{
                     height: 12,
                     borderRadius: 6,
-                    background: colors[i % colors.length],
+                    background: colorFor(v.label, i),
                     width: `${(v.count / max) * 100}%`,
                   }}
                 />
-              ) : (
+              ) : ["pie", "donut"].includes(kind) ? (
                 <span> ({Math.round((v.count / total) * 100)}%)</span>
-              )}
+              ) : null}
             </div>
           ))}
           <p>Total: {total}</p>
         </>
+      )}
+      {chart.report && (
+        <div className="chart-report-reading">
+          <details>
+            <summary>Cifras y notas de esta gráfica</summary>
+            <ul>
+              {chart.report.observations.map((o, i) => (
+                <li key={i}>{o}</li>
+              ))}
+            </ul>
+            <h4>Cómo usarlo para decidir</h4>
+            {chart.report.decisionSupport.map((o, i) => (
+              <p key={i}>{o}</p>
+            ))}
+          </details>
+          <details>
+            <summary>Alcance y límites de la interpretación</summary>
+            <ul>
+              {chart.report.limitations.map((o, i) => (
+                <li key={i}>{o}</li>
+              ))}
+            </ul>
+          </details>
+        </div>
       )}
     </article>
   );
@@ -269,9 +391,19 @@ export function WorkforceAI({
     [error, setError] = useState("");
   const [result, setResult] = useState<{
     summary: string;
+    narrative_error?: string;
+    narrative_scope?: string;
     recommendations?: string[];
     charts?: Graph[];
   } | null>(null);
+  const [waiting, setWaiting] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const execution = useRef(0);
   const latestPrompt = useRef(prompt);
   useEffect(() => {
@@ -302,6 +434,16 @@ export function WorkforceAI({
     filterKey,
   ]);
   const [resultScope, setResultScope] = useState("");
+  const [chartOptions, setChartOptions] = useState<ChartOptions>({
+    period: "module",
+    group: "auto",
+    compare: true,
+  });
+  function changeChartOptions(update: Partial<ChartOptions>) {
+    setChartOptions((current) => ({ ...current, ...update }));
+    setResult(null);
+    setError("");
+  }
   const preparing = busy || (automatic && resultScope !== scope);
   useEffect(() => {
     if (!automatic) return;
@@ -322,7 +464,12 @@ export function WorkforceAI({
       try {
         const response = await shareSummaryRequest(
           summaryRequestKey(viewer!, "workforce", payload),
-          () => request("/api/ai/workforce", payload),
+          () =>
+            requestAnalysis(viewer!, "/api/ai/workforce", payload, {
+              onWaiting: (value) => {
+                if (active && execution.current === id) setWaiting(value);
+              },
+            }),
         );
         if (active && execution.current === id) setResult(response.result);
       } catch (e) {
@@ -334,6 +481,7 @@ export function WorkforceAI({
         if (active && execution.current === id) {
           setResultScope(scope);
           setBusy(false);
+          setWaiting(false);
         }
       }
     }, 400);
@@ -361,24 +509,40 @@ export function WorkforceAI({
           ].includes(key),
         ),
       );
-      const r = await request("/api/ai/workforce", {
-        mode,
-        employee_id: employeeId,
-        task_id: taskId,
-        section,
-        prompt,
-        filters: allowed,
-      });
+      const r = await requestAnalysis(
+        viewer ?? "workspace",
+        "/api/ai/workforce",
+        {
+          mode,
+          employee_id: employeeId,
+          task_id: taskId,
+          section,
+          prompt,
+          filters: allowed,
+          ...(mode === "chart" ? { chart_options: chartOptions } : {}),
+        },
+        {
+          onWaiting: (value) => {
+            if (mounted.current && execution.current === id) setWaiting(value);
+          },
+          isCurrent: () => mounted.current && execution.current === id,
+        },
+      );
       if (execution.current === id) setResult(r.result);
     } catch (e) {
       if (execution.current === id)
         setError(e instanceof Error ? e.message : "No se pudo analizar.");
     } finally {
-      if (execution.current === id) setBusy(false);
+      if (execution.current === id) {
+        setBusy(false);
+        setWaiting(false);
+      }
     }
   }
   return (
-    <section className="panel">
+    <section
+      className={`panel${mode === "chart" && (result?.charts?.length ?? 0) > 1 ? " chart-multiple" : ""}`}
+    >
       <h2>
         {mode === "tasks"
           ? "Pregunta a la IA sobre tareas y evidencias"
@@ -394,9 +558,92 @@ export function WorkforceAI({
             ? "Consulta el estado, plazo y evidencias registradas de esta tarea. Para evaluar un archivo, utiliza su análisis específico."
             : "Pregunta por pendientes, plazos, prioridades y evidencias registradas del equipo visible. Se respetan tus filtros y permisos."
           : mode === "chart"
-            ? "Describe lo que necesitas comparar: tareas, capacitación o incorporaciones, por estado o área. Se respetan los filtros y tus permisos."
+            ? "Describe qué necesitas comparar y para qué decisión: volúmenes, estados, áreas o evolución por periodos. Las cifras se calculan con tus filtros y permisos."
             : "Resumen de avances y pendientes del ámbito autorizado. La interpretación requiere revisión humana."}
       </p>
+      {mode === "chart" && (
+        <fieldset disabled={preparing} className="chart-analysis-options">
+          <legend>Periodo y comparación</legend>
+          <label>
+            Periodo de las gráficas
+            <select
+              value={chartOptions.period}
+              onChange={(e) =>
+                changeChartOptions({
+                  period: e.target.value as ChartOptions["period"],
+                })
+              }
+            >
+              <option value="module">
+                Filtros del módulo o periodo solicitado en el texto
+              </option>
+              <option value="7">Últimos 7 días</option>
+              <option value="30">Últimos 30 días</option>
+              <option value="90">Últimos 90 días</option>
+              <option value="custom">Fechas específicas</option>
+              <option value="all">Todos los registros cargados</option>
+            </select>
+          </label>
+          {chartOptions.period === "custom" && (
+            <>
+              <label>
+                Desde
+                <input
+                  type="date"
+                  value={chartOptions.from ?? ""}
+                  onChange={(e) =>
+                    changeChartOptions({ from: e.target.value || undefined })
+                  }
+                />
+              </label>
+              <label>
+                Hasta
+                <input
+                  type="date"
+                  value={chartOptions.to ?? ""}
+                  onChange={(e) =>
+                    changeChartOptions({ to: e.target.value || undefined })
+                  }
+                />
+              </label>
+            </>
+          )}
+          <label>
+            Agrupar las gráficas por
+            <select
+              value={chartOptions.group}
+              onChange={(e) =>
+                changeChartOptions({
+                  group: e.target.value as ChartOptions["group"],
+                })
+              }
+            >
+              <option value="auto">Según las instrucciones</option>
+              <option value="day">Día</option>
+              <option value="week">Semana</option>
+              <option value="month">Mes</option>
+              <option value="department">Área</option>
+              <option value="status">Estado actual</option>
+            </select>
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={chartOptions.compare}
+              onChange={(e) =>
+                changeChartOptions({ compare: e.target.checked })
+              }
+            />{" "}
+            Comparar con el periodo anterior de igual duración
+          </label>
+          <p className="muted">
+            Se mantienen los filtros de área, persona y proceso. El periodo del
+            módulo limita las fechas seleccionadas; la comparación usa la
+            ventana anterior con el mismo alcance. Para fechas específicas, el
+            máximo es 366 días.
+          </p>
+        </fieldset>
+      )}
       <label>
         Instrucciones de análisis
         <textarea
@@ -407,20 +654,35 @@ export function WorkforceAI({
             mode === "tasks"
               ? "¿Qué tareas necesitan atención y cuáles tienen evidencias entregadas?"
               : mode === "chart"
-                ? "Compara las incorporaciones por estado en una gráfica de barras"
+                ? "Compara las tareas por semana de los últimos 30 días y las capacitaciones completadas por área; necesito planear el seguimiento del equipo."
                 : "Resume avances y próximos pasos"
           }
         />
       </label>
       <button disabled={preparing} onClick={() => void analyze()}>
         {preparing
-          ? "Analizando…"
+          ? waiting
+            ? "Esperando turno…"
+            : "Analizando…"
           : mode === "tasks"
             ? "Preguntar a la IA"
             : mode === "chart"
               ? "Generar gráficas"
               : "Actualizar resumen"}
       </button>
+      {preparing && waiting && (
+        <p role="status">
+          Se está terminando otro análisis de tu cuenta. Tu solicitud comenzará
+          automáticamente después.
+        </p>
+      )}
+      {mode === "chart" && (
+        <small>
+          Puedes pedir varias vistas del mismo proceso o una gráfica por cada
+          área, por ejemplo: «Estados de tareas en cada área durante los últimos
+          7 días».
+        </small>
+      )}
       {error && (!automatic || resultScope === scope) && (
         <p className="error" role="alert">
           {error}
@@ -428,14 +690,38 @@ export function WorkforceAI({
       )}
       {result && (!automatic || resultScope === scope) && (
         <>
-          <p>
-            <StatusText text={result.summary} />
-          </p>
-          {result.recommendations?.map((r, i) => (
-            <p key={i}>
-              • <StatusText text={r} />
+          <div
+            className={
+              mode === "chart" ? "ai-result chart-narrative" : undefined
+            }
+          >
+            {mode === "chart" && <h3>Lectura del análisis</h3>}
+            {result.narrative_scope && <small>{result.narrative_scope}</small>}
+            {result.narrative_error && (
+              <p className="error" role="alert">
+                {result.narrative_error}
+              </p>
+            )}
+            <p style={{ whiteSpace: "pre-line" }}>
+              <StatusText text={result.summary} />
             </p>
-          ))}
+            {result.recommendations?.map((r, i) => (
+              <p key={i}>
+                • <StatusText text={r} />
+              </p>
+            ))}
+          </div>
+          {!!result.charts?.length && (
+            <p>
+              <strong>
+                {result.charts.length}{" "}
+                {result.charts.length === 1
+                  ? "gráfica generada"
+                  : "gráficas generadas"}
+              </strong>{" "}
+              · Cada tarjeta conserva su ámbito y periodo.
+            </p>
+          )}
           <div className="record-grid">
             {result.charts?.map((c, i) => (
               <DataGraph key={i} chart={c} />
