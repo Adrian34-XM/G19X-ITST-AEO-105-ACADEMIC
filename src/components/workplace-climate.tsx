@@ -7,6 +7,10 @@
  */
 /** Ambiente laboral: encuesta de escala 1–5, comentarios anónimos y borradores revisables. */
 import { ClimateResults, AnonymousComment } from "./climate-results";
+import {
+  ClimateAnalysis,
+  type ClimateAnalysisResult,
+} from "./climate-analysis";
 import { isHR } from "@/lib/permissions";
 import { useCallback, useEffect, useState } from "react";
 import { request } from "./forms";
@@ -17,15 +21,7 @@ type Draft = {
   description: string;
   questions: string[];
 };
-type Summary = {
-  summary: string;
-  sentiment: string;
-  strengths: string[];
-  risks: string[];
-  recommendations: string[];
-  response_count?: number;
-  averages?: { question_index: number; average: number }[];
-};
+type Summary = ClimateAnalysisResult;
 type Survey = Draft & {
   id: string;
   created_by: string;
@@ -784,54 +780,16 @@ function SurveyCard({
             El resumen solo se habilita con cinco o más respuestas. No se
             revelan resultados de grupos menores.
           </p>
-          <button
-            className="ai-button"
-            disabled={busy}
-            onClick={() => void action("ai.summary", { id: s.id })}
-          >
-            {busy ? "Analizando…" : "✧ Analizar ambiente laboral"}
-          </button>
         </>
       )}
-      {s.summary && (
-        <section className="ai-result">
-          <h3>Resumen del grupo</h3>
-          <p>{s.summary.summary}</p>
-          <p>
-            Balance:{" "}
-            {{
-              POSITIVE: "Positivo",
-              MIXED: "Mixto",
-              CONCERNING: "Requiere atención",
-            }[s.summary.sentiment] ?? "Revisar"}
-          </p>
-          <p>
-            {s.summary.response_count} respuestas anónimas · interpretación
-            orientativa, no representa necesariamente a toda el área.
-          </p>
-          {s.summary.averages?.map((a) => (
-            <p key={a.question_index}>
-              {s.questions[a.question_index - 1]}:{" "}
-              <strong>{a.average}/5</strong>
-            </p>
-          ))}
-          {(
-            [
-              ["Fortalezas", s.summary.strengths],
-              ["Aspectos por atender", s.summary.risks],
-              ["Recomendaciones", s.summary.recommendations],
-            ] as [string, string[]][]
-          ).map(([title, items]) => (
-            <div key={title}>
-              <strong>{title}</strong>
-              <ul>
-                {items.map((item, i) => (
-                  <li key={i}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </section>
+      {s.status === "CLOSED" && manages && (
+        <ClimateAnalysis
+          id={s.id}
+          title={s.title}
+          questions={s.questions}
+          saved={s.summary}
+          onSaved={reload}
+        />
       )}
       {error && <p role="alert">{error}</p>}
     </article>

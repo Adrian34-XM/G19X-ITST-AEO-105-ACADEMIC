@@ -12,6 +12,7 @@ import { checkOrigin, readJson, failure, databaseError } from "@/lib/api";
 import { adminDb } from "@/lib/supabase/server";
 import { generate } from "@/lib/ai/provider";
 import { moduleTopicInstruction } from "@/lib/ai/module-scope";
+import { climateCharts } from "@/modules/workspace/climate-charts";
 const id = z.uuid();
 const climateDraft = z
   .object({
@@ -195,6 +196,7 @@ export async function POST(req: Request) {
         averages: group.averages,
         comments: group.comments,
         feedback: group.feedback ?? [],
+        invited: group.invited,
       };
       if (input.op === "ai.graphs")
         aggregate = {
@@ -231,10 +233,28 @@ export async function POST(req: Request) {
               },
               summarySchema,
             );
-      const result =
+      const parsedResult =
         input.op === "ai.draft"
           ? climateDraft.parse(generated.result)
           : summarySchema.parse(generated.result);
+      const result =
+        input.op === "ai.draft"
+          ? parsedResult
+          : {
+              ...parsedResult,
+              charts: climateCharts(
+                {
+                  status: "CLOSED",
+                  responses: Number(aggregate?.response_count ?? 0),
+                  invited: Number(aggregate?.invited ?? 0),
+                  averages: (aggregate?.averages ?? []) as {
+                    question_index: number;
+                    average: number;
+                  }[],
+                },
+                (aggregate?.questions ?? []) as string[],
+              ),
+            };
       if (input.op === "ai.summary") {
         const { error: save } = await admin
           .from("climate_surveys")

@@ -12,6 +12,7 @@ const state = vi.hoisted(() => ({
     feedback: ["secreto"],
   },
   generate: vi.fn(),
+  update: vi.fn(),
 }));
 vi.mock("@/lib/auth", async (original) => ({
   ...(await original<typeof import("@/lib/auth")>()),
@@ -28,18 +29,21 @@ vi.mock("@/lib/auth", async (original) => ({
 vi.mock("@/lib/supabase/server", () => ({
   adminDb: () => ({
     from: () => ({
-      update: () => ({ eq: () => ({ eq: async () => ({ error: null }) }) }),
+      update: (payload: unknown) => {
+        state.update(payload);
+        return { eq: () => ({ eq: async () => ({ error: null }) }) };
+      },
       insert: async () => ({ error: null }),
     }),
   }),
 }));
 vi.mock("@/lib/ai/provider", () => ({ generate: state.generate }));
-const req = () =>
+const req = (op = "ai.graphs") =>
   new Request("http://localhost/api/climate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      op: "ai.graphs",
+      op,
       payload: { id: "10000000-0000-4000-8000-000000000001" },
     }),
   });
@@ -80,4 +84,22 @@ it("impide que colaboradores invoquen el análisis", async () => {
   state.role = "EMPLEADO";
   expect((await POST(req())).status).toBe(403);
   expect(state.generate).not.toHaveBeenCalled();
+});
+it("guarda el resumen con gráficas calculadas para consultarlo de nuevo", async () => {
+  const response = await POST(req("ai.summary"));
+  expect(response.status).toBe(200);
+  const { result } = await response.json();
+  expect(result.charts[0].values).toEqual([
+    { label: "Respondieron", count: 5 },
+    { label: "Pendientes", count: 3 },
+  ]);
+  expect(result.charts[1].values).toEqual([{ label: "Apoyo", count: 4 }]);
+  expect(state.update).toHaveBeenCalledWith(
+    expect.objectContaining({
+      summary: expect.objectContaining({
+        charts: result.charts,
+        response_count: 5,
+      }),
+    }),
+  );
 });

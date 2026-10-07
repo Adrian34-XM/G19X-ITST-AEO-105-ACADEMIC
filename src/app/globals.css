@@ -3568,3 +3568,20 @@ thead th { font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
 .vacancy-count-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 12px; max-height: 320px; overflow: auto; padding: 4px; }
 .vacancy-count-grid button { text-align: left; white-space: normal; min-height: 64px; overflow-wrap: anywhere; padding: 14px 16px; }
 .vacancy-count-grid button[aria-pressed="true"] { border-color: var(--green); background: var(--mint); }
+.climate-analysis-dialog { width: min(1180px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); margin: auto; padding: 0; border: 1px solid var(--border); border-radius: 24px; color: var(--ink); background: var(--surface); box-shadow: 0 24px 100px #0006; overflow: auto; }
+.climate-analysis-dialog::backdrop { background: #081b16b3; backdrop-filter: blur(8px); }
+.climate-analysis-header, .climate-analysis-footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px 28px; background: var(--surface); }
+.climate-analysis-header { position: sticky; top: 0; z-index: 1; border-bottom: 1px solid var(--border); }
+.climate-analysis-header h2 { margin: 8px 0 0; font-size: clamp(20px, 2vw, 28px); }
+.climate-analysis-header button { flex-shrink: 0; }
+.climate-analysis-body { padding: 28px; display: grid; gap: 24px; }
+.climate-analysis-body li { margin-bottom: 12px; }
+.climate-analysis-body .ai-result { margin: 0; }
+.climate-analysis-charts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 20px; }
+.climate-analysis-charts .record { min-width: 0; }
+.climate-analysis-findings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.climate-analysis-footer { border-top: 1px solid var(--border); flex-wrap: wrap; }
+.climate-average-chart > div { margin: 18px 0; }
+.climate-average-chart progress { width: 100%; height: 14px; accent-color: #8059aa; }
+.climate-average-chart strong { white-space: nowrap; }
+@media (max-width: 760px) { .climate-analysis-charts, .climate-analysis-findings { grid-template-columns: 1fr; } .climate-analysis-body, .climate-analysis-header, .climate-analysis-footer { padding: 18px; } }
