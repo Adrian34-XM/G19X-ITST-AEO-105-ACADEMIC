@@ -6,7 +6,8 @@
  */
 import { useEffect, useState } from "react";
 import { request } from "./forms";
-import { DataGraph } from "./workforce-tools";
+import { ClimateQuestionChart } from "./climate-question-chart";
+import { climateCharts } from "@/modules/workspace/climate-charts";
 type Results = {
   responses: number;
   status?: string;
@@ -80,32 +81,14 @@ export function ClimateResults({
           <progress value={data.responses} max={Math.max(1, data.invited)} />
           <details>
             <summary>Gráficas y comentarios anónimos</summary>
-            <DataGraph
-              chart={{
-                title: "Participación de la encuesta",
-                kind: "pie",
-                values: [
-                  { label: "Respondieron", count: data.responses },
-                  {
-                    label: "Pendientes",
-                    count: Math.max(0, data.invited - data.responses),
-                  },
-                ],
-              }}
-            />
             {data.averages.length > 0 ? (
-              <article className="record">
-                <h4>Promedio por pregunta (escala de 1 a 5)</h4>
-                {data.averages.map((a) => (
-                  <div key={a.question_index}>
-                    <p>
-                      {questions[a.question_index - 1]}:{" "}
-                      <strong>{a.average}/5</strong>
-                    </p>
-                    <progress value={a.average} max={5} />
-                  </div>
-                ))}
-              </article>
+              <ClimateQuestionChart
+                values={
+                  climateCharts(data, questions).find(
+                    (chart) => chart.kind === "bars",
+                  )?.values ?? []
+                }
+              />
             ) : (
               <p>
                 Los promedios y comentarios de la encuesta se muestran al cerrar

@@ -3585,3 +3585,9 @@ thead th { font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
 .climate-average-chart progress { width: 100%; height: 14px; accent-color: #8059aa; }
 .climate-average-chart strong { white-space: nowrap; }
 @media (max-width: 760px) { .climate-analysis-charts, .climate-analysis-findings { grid-template-columns: 1fr; } .climate-analysis-body, .climate-analysis-header, .climate-analysis-footer { padding: 18px; } }
+.climate-question-chart select { max-width: 380px; margin-bottom: 18px; }
+.climate-question-plot { overflow-x: auto; }
+.climate-question-plot svg { display: block; width: 100%; min-width: 600px; font-size: 14px; }
+.climate-question-legend { list-style: none; margin: 18px 0; padding: 0; display: grid; gap: 12px; }
+.climate-question-legend li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px; border-bottom: 1px solid var(--border); }
+.climate-question-legend strong { white-space: nowrap; }

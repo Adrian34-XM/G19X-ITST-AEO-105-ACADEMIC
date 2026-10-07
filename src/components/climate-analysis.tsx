@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { request } from "./forms";
-import { DataGraph } from "./workforce-tools";
+import { ClimateQuestionChart } from "./climate-question-chart";
 import {
   climateCharts,
   type ClimateChart,
@@ -90,6 +90,8 @@ export function ClimateAnalysis({
   const result = analysis || saved;
   const charts =
     result?.charts ?? (group ? climateCharts(group, questions) : []);
+  const questionValues =
+    charts.find((chart) => chart.kind === "bars")?.values ?? [];
   return (
     <>
       <button className="ai-button" disabled={busy} onClick={() => void show()}>
@@ -151,40 +153,10 @@ export function ClimateAnalysis({
                     humana.
                   </p>
                 </section>
-                {charts.length > 0 && (
+                {questionValues.length > 0 && (
                   <section>
                     <h3>Gráficas de las respuestas</h3>
-                    <div className="climate-analysis-charts">
-                      {charts.map((chart) =>
-                        chart.kind === "pie" ? (
-                          <DataGraph key={chart.title} chart={chart} />
-                        ) : (
-                          <article
-                            className="record climate-average-chart"
-                            key={chart.title}
-                          >
-                            <h3>{chart.title}</h3>
-                            {chart.values.map((v) => (
-                              <div key={v.label}>
-                                <p>
-                                  {v.label} <strong>{v.count}/5</strong>
-                                </p>
-                                <progress
-                                  aria-label={v.label}
-                                  value={v.count}
-                                  max={5}
-                                />
-                              </div>
-                            ))}
-                            <p className="muted">
-                              Cada barra muestra un promedio en escala de 1 a 5.
-                              Los promedios no se suman ni equivalen a
-                              cantidades de personas.
-                            </p>
-                          </article>
-                        ),
-                      )}
-                    </div>
+                    <ClimateQuestionChart values={questionValues} />
                     <p className="muted">
                       La participación no mide satisfacción. Los promedios usan
                       una escala de 1 a 5; no permiten deducir autores, causas
@@ -192,7 +164,7 @@ export function ClimateAnalysis({
                     </p>
                   </section>
                 )}
-                {!charts.length && (
+                {!questionValues.length && !busy && (
                   <p className="muted">
                     Las gráficas requieren cinco respuestas y promedios
                     disponibles. Los mensajes anónimos por sí solos no permiten
