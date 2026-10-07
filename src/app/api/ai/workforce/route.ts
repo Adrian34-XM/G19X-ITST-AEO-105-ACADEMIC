@@ -221,10 +221,10 @@ export async function POST(req: Request) {
         result = {
           ...advice,
           summary:
-            "Conteos calculados con los registros autorizados y los filtros seleccionados." +
+            "Conteos de actividades con su estado actual; no son una puntuación ni una evolución histórica del desempeño. Cada gráfica aplica el estado y periodo indicados en su título. Para el periodo se usa la creación de tareas o la finalización de capacitaciones completadas. Los registros sin la fecha necesaria no se cuentan." +
             (mentionedAreas[0] ? ` Área: ${mentionedAreas[0].name}.` : "") +
             (charts.some((c) => c.group === "day" || c.group === "month")
-              ? " Las fechas corresponden a la creación de los registros, hasta hoy; no representan la evolución histórica de su desempeño. Las fechas sin registros se omiten."
+              ? " Las fechas usan el campo indicado para cada proceso; no representan la evolución histórica de su desempeño. Las fechas sin registros se omiten."
               : ""),
           charts: charts.map((c) => ({
             ...c,

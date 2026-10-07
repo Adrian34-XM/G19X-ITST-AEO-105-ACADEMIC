@@ -34,6 +34,7 @@ import { HireCandidate, HiringAssignmentNotices } from "./hire-candidate";
 import { BulkAssignment } from "./bulk-assignment";
 import { EmployeeProfile } from "./employee-profile";
 import { ProfileAvatar, ProfilePhotoEditor } from "./profile-photo";
+import { pendingTrainingReview } from "@/modules/workspace/training-review";
 import { ThemeToggle } from "./theme-toggle";
 import {
   WorkspaceNavigation,
@@ -2515,7 +2516,7 @@ export function Workspace({
                                   ) || undefined
                                 }
                               />
-                              {a.progress_review_pending === true && (
+                              {pendingTrainingReview(a) && (
                                 <p>Avance o evidencia pendiente de revisión.</p>
                               )}
                               <h3>
@@ -2986,7 +2987,8 @@ export function Workspace({
                 "departments",
                 "candidates",
               ].includes(view) &&
-                view !== "employees" && { directory }}
+                view !== "employees" &&
+                directory}
             </>
           )}
           <footer className="page-footer">

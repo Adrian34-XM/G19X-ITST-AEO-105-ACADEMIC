@@ -85,6 +85,41 @@ const req = (area: string) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ area }),
   });
+it("desempeño conserva IA revisada y muestra cifras calculadas sin asumir deficiencias", async () => {
+  state.role = "RH_ADMIN";
+  state.generate.mockImplementation(async (context, schema) => ({
+    result: schema.parse({
+      summary: "Hay actividades pendientes de revisión.",
+      recommendations: ["REVISAR_ENTREGAS"],
+    }),
+    model: "test",
+  }));
+  const response = await POST(
+    new Request("http://localhost/api/ai/orchestrate", {
+      method: "POST",
+      body: JSON.stringify({
+        area: "performance",
+        mode: "analyze",
+        prompt: "Hay deficiencias de desempeño?",
+      }),
+    }),
+  );
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.result.summary).toContain("no permiten determinar deficiencias");
+  expect(body.metrics).toBeDefined();
+  expect(body.result.recommendations[0].resource_id).toBeNull();
+  const [context, schema, , purpose] = state.generate.mock.calls[0];
+  expect(purpose).toBe("analytics");
+  expect(context.user_request).not.toContain("deficiencias");
+  expect(
+    schema.safeParse({
+      summary: "Hay deficiencias de desempeño.",
+      recommendations: [],
+    }).success,
+  ).toBe(false);
+  expect(JSON.stringify(context)).not.toContain("test@nexo.test");
+});
 it("impide analíticas a jefe antes de invocar IA", async () => {
   expect((await POST(req("analytics"))).status).toBe(403);
   expect(state.generate).not.toHaveBeenCalled();

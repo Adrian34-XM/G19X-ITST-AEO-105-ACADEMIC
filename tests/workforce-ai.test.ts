@@ -391,7 +391,10 @@ it("agrupa entrevistas por el área de la vacante sin mezclar áreas", () => {
 });
 
 it("el resumen automático del perfil solo envía los estados propios sin identidad ni archivos", async () => {
-  state.generate.mockResolvedValue({model:'mock',result:{summary:'Hay una entrega por revisar.',recommendations:[]}});
+  state.generate.mockResolvedValue({
+    model: "mock",
+    result: { summary: "Hay una entrega por revisar.", recommendations: [] },
+  });
   const response = await POST(req({ mode: "profile", employee_id: ids.own }));
   expect(response.status).toBe(200);
   const context = state.generate.mock.calls[0][0];
@@ -400,4 +403,38 @@ it("el resumen automático del perfil solo envía los estados propios sin identi
   expect(JSON.stringify(context)).not.toMatch(
     /Persona privada|secreto@test|Texto confidencial|privado.pdf|archivo privado/,
   );
+});
+it("aplica el periodo de tareas y el estado completado de cursos por separado", () => {
+  const charts = requestedCharts(
+    "dame una grafica del desempeño de las tareas en la ultima semana y otra de los cursos completados por area",
+    [
+      { title: "", dataset: "tasks", group: "department", kind: "bars" },
+      {
+        title: "",
+        dataset: "course_assignments",
+        group: "department",
+        kind: "pie",
+      },
+    ],
+  );
+  expect(charts[0].days).toBe(7);
+  expect(charts[1].days).toBeUndefined();
+  expect(charts[1].status).toBe("COMPLETED");
+  const data = {
+    tasks: [
+      { id: "new", status: "PENDING", created_at: "2026-10-07" },
+      { id: "old", status: "APPROVED", created_at: "2026-09-01" },
+      { id: "future", created_at: "2026-10-09" },
+    ],
+    course_assignments: [
+      { id: "pending", status: "ASSIGNED" },
+      { id: "done", status: "COMPLETED" },
+    ],
+  };
+  expect(
+    chartValues(data, charts[0], "2026-10-07").reduce((n, r) => n + r.count, 0),
+  ).toBe(1);
+  expect(
+    chartValues(data, charts[1], "2026-10-07").reduce((n, r) => n + r.count, 0),
+  ).toBe(1);
 });

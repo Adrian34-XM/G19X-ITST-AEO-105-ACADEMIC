@@ -56,6 +56,7 @@ export function ApplicationSummary({
   status?: string;
 }) {
   const [minimum, setMinimum] = useState(70);
+  const [vacancyQuery, setVacancyQuery] = useState("");
   const all = (data.applications ?? []).filter((a) => a.status === status);
   const history = ["CONTRATADO", "RECHAZADO"].includes(status);
   const vacancies = data.vacancies ?? [];
@@ -83,20 +84,38 @@ export function ApplicationSummary({
           </option>
         ))}
       </select>
-      <div className="chips" aria-label="Cantidad por vacante">
-        {vacancies.map((v) => (
-          <button
-            type="button"
-            className="secondary"
-            key={v.id}
-            aria-pressed={selected === v.id}
-            onClick={() => select(selected === v.id ? "" : v.id)}
-          >
-            {value(v, "title")}:{" "}
-            {all.filter((a) => a.vacancy_id === v.id).length}
-          </button>
-        ))}
-      </div>
+      <details className="vacancy-counts">
+        <summary>Explorar cantidades por vacante ({vacancies.length})</summary>
+        <label>
+          Buscar vacante
+          <input
+            type="search"
+            value={vacancyQuery}
+            onChange={(event) => setVacancyQuery(event.target.value)}
+            placeholder="Nombre de la vacante…"
+          />
+        </label>
+        <div className="vacancy-count-grid" aria-label="Cantidad por vacante">
+          {vacancies
+            .filter((v) =>
+              value(v, "title")
+                .toLocaleLowerCase()
+                .includes(vacancyQuery.toLocaleLowerCase()),
+            )
+            .map((v) => (
+              <button
+                type="button"
+                className="secondary"
+                key={v.id}
+                aria-pressed={selected === v.id}
+                onClick={() => select(selected === v.id ? "" : v.id)}
+              >
+                {value(v, "title")}:{" "}
+                {all.filter((a) => a.vacancy_id === v.id).length}
+              </button>
+            ))}
+        </div>
+      </details>
       <p>
         Los conteos corresponden a {applicationSections[status].toLowerCase()}{" "}
         de las vacantes cargadas. Se muestran {visible.length} con los filtros

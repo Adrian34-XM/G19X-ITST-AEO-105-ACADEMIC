@@ -21,6 +21,9 @@ export const chartSchema = z
     ]),
     group: z.enum(["status", "department", "day", "month"]),
     kind: z.enum(["bars", "columns", "line", "pie", "donut"]),
+    status: z.string().max(40).optional(),
+    days: z.union([z.literal(7), z.literal(30), z.literal(90)]).optional(),
+    dateField: z.enum(["created_at", "completed_at"]).optional(),
   })
   .strict();
 export const chartAdvice = z
@@ -89,17 +92,20 @@ export function requestedCharts(prompt: string, proposed: Chart[]): Chart[] {
             ? "pie"
             : null;
   const chosen: Chart[] =
-    datasets.length === 1 && !/\bno\b/.test(text)
-      ? [
-          {
+    datasets.length && !/\bno\b/.test(text)
+      ? datasets.slice(0, 3).map(([dataset]) => {
+          const proposal =
+            proposed.find((chart) => chart.dataset === dataset) ?? proposed[0];
+          return {
             title: "",
-            dataset: datasets[0][0],
-            group: group ?? proposed[0]?.group ?? "status",
-            kind: kind ?? proposed[0]?.kind ?? "bars",
-          },
-        ]
+            dataset,
+            group: group ?? proposal?.group ?? "status",
+            kind: kind ?? proposal?.kind ?? "bars",
+          };
+        })
       : proposed.map((c) => ({
-          ...c,
+          title: "",
+          dataset: c.dataset,
           group: group ?? c.group,
           kind: kind ?? c.kind,
         }));
@@ -125,7 +131,44 @@ export function requestedCharts(prompt: string, proposed: Chart[]): Chart[] {
       seen.add(key);
       return true;
     })
-    .map((c) => ({ ...c, title: names[c.dataset] + " por " + groups[c.group] }))
+    .map((c) => {
+      // Cada solicitud puede contener periodos y estados distintos por proceso.
+      const clauses = text.split(/;|\by otra\b|\by otro\b|\bademas\b/);
+      const pattern = datasets.find(([dataset]) => dataset === c.dataset)?.[1];
+      const clause = clauses.find((part) => pattern?.test(part)) ?? text;
+      const days: Chart["days"] = /ultima semana|ultimos 7 dias/.test(clause)
+        ? 7
+        : /ultimo mes|ultimos 30 dias/.test(clause)
+          ? 30
+          : /ultimos 90 dias/.test(clause)
+            ? 90
+            : undefined;
+      const completed = /completad|finalizad|terminad/.test(clause);
+      const status = completed
+        ? c.dataset === "tasks"
+          ? "APPROVED"
+          : "COMPLETED"
+        : undefined;
+      const dateField =
+        completed && c.dataset === "course_assignments"
+          ? ("completed_at" as const)
+          : ("created_at" as const);
+      return {
+        ...c,
+        ...(status ? { status } : {}),
+        ...(days ? { days } : {}),
+        ...(dateField === "completed_at" ? { dateField } : {}),
+        title:
+          names[c.dataset] +
+          (completed ? " completadas" : "") +
+          " por " +
+          groups[c.group].replace(
+            "creación",
+            dateField === "completed_at" ? "finalización" : "creación",
+          ) +
+          (days ? ` · últimos ${days} días` : ""),
+      };
+    })
     .map((c, _, all) => ({
       ...c,
       title:
@@ -150,8 +193,18 @@ export function chartValues(
 ) {
   const groups = new Map<string, number>();
   for (const row of data[chart.dataset] ?? []) {
+    if (chart.status && row.status !== chart.status) continue;
+    const dateField = chart.dateField ?? "created_at";
+    if (chart.days) {
+      const timestamp = Date.parse(value(row, dateField));
+      const end = Date.parse(today + "T23:59:59.999Z");
+      const start =
+        Date.parse(today + "T00:00:00Z") - (chart.days - 1) * 86400000;
+      if (!Number.isFinite(timestamp) || timestamp < start || timestamp > end)
+        continue;
+    }
     if (chart.group === "day" || chart.group === "month") {
-      const date = value(row, "created_at").slice(0, 10);
+      const date = value(row, chart.dateField ?? "created_at").slice(0, 10);
       if (
         !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
         Number.isNaN(Date.parse(date)) ||

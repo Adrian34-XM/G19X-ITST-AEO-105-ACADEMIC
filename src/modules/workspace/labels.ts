@@ -5,6 +5,7 @@
  */
 /** Etiquetas visibles en español. Los valores enviados a la API conservan sus códigos. */
 export const labels: Record<string, string> = {
+  OVERDUE: "Atrasada",
   OPEN: "Abierta",
   FAILED: "Fallido",
   RUNNING: "En ejecución",

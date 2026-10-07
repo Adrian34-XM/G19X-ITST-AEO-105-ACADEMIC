@@ -6,6 +6,8 @@
  * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
  */
 /** Herramientas revisables: el servidor determina el alcance y calcula las cifras. */
+import { StatusText } from "./status-text";
+import { pendingTrainingReview } from "@/modules/workspace/training-review";
 import { useState } from "react";
 import Link from "next/link";
 import { request } from "./forms";
@@ -349,9 +351,13 @@ export function WorkforceAI({
       )}
       {result && (
         <>
-          <p>{result.summary}</p>
+          <p>
+            <StatusText text={result.summary} />
+          </p>
           {result.recommendations?.map((r, i) => (
-            <p key={i}>• {r}</p>
+            <p key={i}>
+              • <StatusText text={r} />
+            </p>
           ))}
           <div className="record-grid">
             {result.charts?.map((c, i) => (
@@ -649,7 +655,7 @@ export function TrainingProgress({
     (a) =>
       (!status ||
         (status === "REVIEW"
-          ? a.progress_review_pending || a.status === "SUBMITTED"
+          ? pendingTrainingReview(a)
           : a.status === status)) &&
       (
         value(person(a.employee_id) ?? { id: "" }, "full_name") +
@@ -674,8 +680,8 @@ export function TrainingProgress({
           [
             "REVIEW",
             "Por revisar",
-            (data.course_assignments ?? []).filter(
-              (a) => a.progress_review_pending || a.status === "SUBMITTED",
+            (data.course_assignments ?? []).filter((a) =>
+              pendingTrainingReview(a),
             ).length,
           ],
           [
@@ -749,7 +755,7 @@ export function TrainingProgress({
             aria-label="Avance de la capacitación"
           />
           <p>{value(a, "review_comments")}</p>
-          {a.progress_review_pending === true && (
+          {pendingTrainingReview(a) && (
             <p role="status">
               Nuevo avance o evidencia pendiente de revisión · Último porcentaje
               aprobado: {Number(a.approved_progress) || 0}%
@@ -766,7 +772,7 @@ export function TrainingProgress({
             }
             onSaved={onSaved}
           />
-          {(a.progress_review_pending || a.status === "SUBMITTED") &&
+          {pendingTrainingReview(a) &&
             (isHR(profile.role) || profile.role === "JEFE") &&
             person(a.employee_id)?.id !== profile.id && (
               <details className="training-review-form">
@@ -789,10 +795,12 @@ export function TrainingProgress({
                         }),
                       });
                       const result = await response.json();
-                      if (!response.ok)
+                      if (!response.ok) {
+                        if (response.status === 409) onSaved();
                         throw new Error(
                           result.error || "No se pudo guardar la revisión.",
                         );
+                      }
                       onSaved();
                     } catch (e) {
                       setError(

@@ -1,4 +1,5 @@
 "use client";
+import { StatusText } from "./status-text";
 import { ProfileAvatar } from "./profile-photo";
 /**
  * @file Paneles de novedades, equipo, desempeño, analíticas y auditoría. Reúne filtros y vistas
@@ -376,7 +377,9 @@ export function OperationsPanel({
               .split(/\n\s*\n/)
               .filter(Boolean)
               .map((paragraph, i) => (
-                <p key={i}>{paragraph}</p>
+                <p key={i}>
+                  <StatusText text={paragraph} />
+                </p>
               ))}
           </div>
           <div className="record-grid">

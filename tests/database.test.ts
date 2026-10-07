@@ -2093,7 +2093,11 @@ it("revisión parcial de capacitación: avisos, permisos, corrección y aprobaci
     status: "COMPLETED",
     progress: 100,
     progress_review_pending: false,
+    approved_progress: 100,
   });
+  await db.exec("reset role");
+  await db.query("update course_assignments set progress_review_pending=true, approved_progress=0 where id=$1", [a.id]);
+  expect(await state()).toMatchObject({status:"COMPLETED", approved_progress:100, progress_review_pending:false});
 });
 it("desplaza la tarea automática de bienvenida sin perder la contratación", async () => {
   await db.exec("reset role");

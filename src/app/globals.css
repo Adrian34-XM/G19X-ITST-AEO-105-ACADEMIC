@@ -3563,3 +3563,8 @@ thead th { font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
 .team-directory td:nth-child(1), .team-directory td:nth-child(2) { grid-column: 1 / -1; }
 .team-directory td:nth-child(2) { color: var(--muted); font-size: 13px; }
 .team-directory td:nth-child(4) { text-align: right; }
+.vacancy-counts { margin: 18px 0; padding: 16px; border: 1px solid var(--border); border-radius: 14px; }
+.vacancy-counts > label { display: block; margin: 16px 0; }
+.vacancy-count-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 12px; max-height: 320px; overflow: auto; padding: 4px; }
+.vacancy-count-grid button { text-align: left; white-space: normal; min-height: 64px; overflow-wrap: anywhere; padding: 14px 16px; }
+.vacancy-count-grid button[aria-pressed="true"] { border-color: var(--green); background: var(--mint); }
