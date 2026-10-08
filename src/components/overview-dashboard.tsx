@@ -340,294 +340,297 @@ export function OverviewDashboard({
       </nav>
 
       <div className="overview-columns">
-        <section
-          className="panel overview-attention"
-          aria-labelledby="overview-attention-title"
-        >
-          <div className="section-head">
-            <div>
-              <span className="eyebrow">
-                {candidate ? "TU SEGUIMIENTO" : "PRÓXIMOS PASOS"}
-              </span>
-              <h2 id="overview-attention-title">
-                {candidate
-                  ? "Mis postulaciones"
-                  : employee
-                    ? "Mis tareas"
-                    : "Por atender"}
-              </h2>
-            </div>
-            <Link href={href(candidate ? "applications" : "tasks")}>
-              Ver todas <ArrowUpRight size={14} aria-hidden="true" />
-            </Link>
-          </div>
-          {candidate ? (
-            <div className="overview-task-list">
-              {rows("applications")
-                .slice(0, 5)
-                .map((a) => (
-                  <Link
-                    className="overview-task"
-                    key={a.id}
-                    href={href("applications")}
-                  >
-                    <span>
-                      <strong>
-                        {value(find("vacancies", a.vacancy_id), "title") ||
-                          "Postulación"}
-                      </strong>
-                      <small>Consulta los detalles de tu candidatura</small>
-                    </span>
-                    <Status status={value(a, "status")} />
-                  </Link>
-                ))}
-              {!rows("applications").length && (
-                <div className="overview-empty">
-                  <BriefcaseBusiness size={28} aria-hidden="true" />
-                  <strong>Tu próxima oportunidad te espera</strong>
-                  <p>Explora las vacantes y envía tu primera postulación.</p>
-                  <Link href={href("jobs")}>Explorar vacantes ↗</Link>
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              <div
-                className="overview-task-tabs"
-                role="group"
-                aria-label="Filtrar tareas de la vista general"
-              >
-                <button
-                  type="button"
-                  aria-pressed={taskView === "pending"}
-                  onClick={() => setTaskView("pending")}
-                >
-                  Por completar <span>{pending.length}</span>
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={taskView === "review"}
-                  onClick={() => setTaskView("review")}
-                >
-                  {employee ? "En revisión" : "Por revisar"}{" "}
-                  <span>{review.length}</span>
-                </button>
-              </div>
-              <p className="overview-list-caption">
-                {taskView === "review"
-                  ? employee
-                    ? "Entregas que ya enviaste para validación."
-                    : "Entregas listas para que revises su evidencia."
-                  : "Primero las prioridades altas; después, la fecha límite más cercana."}
-              </p>
-              <div className="overview-task-list">
-                {visibleTasks.slice(0, 5).map((task) => {
-                  const person = find("employees", task.employee_id);
-                  const position = find("positions", person.position_id);
-                  const area = value(
-                    find("departments", position.department_id),
-                    "name",
-                  );
-                  return (
-                    <Link
-                      className="overview-task"
-                      key={task.id}
-                      href={`${href("tasks")}/${task.id}`}
-                    >
-                      <span>
-                        <strong>
-                          {value(task, "title") || "Tarea pendiente"}
-                        </strong>
-                        <small>
-                          {!employee &&
-                            `${value(find("profiles", person.profile_id), "full_name") || "Integrante"}${area ? ` · ${area}` : ""} · `}
-                          {dueDate(task)}
-                        </small>
-                        <span className="overview-task-priority">
-                          Prioridad{" "}
-                          {stateLabel(value(task, "priority")).toLowerCase()}
-                        </span>
-                      </span>
-                      <Status status={value(task, "status")} />
-                    </Link>
-                  );
-                })}
-                {!visibleTasks.length && (
-                  <div className="overview-empty">
-                    <CheckCheck size={28} aria-hidden="true" />
-                    <strong>
-                      {taskView === "review"
-                        ? "Sin entregas por revisar"
-                        : "Sin tareas por completar"}
-                    </strong>
-                    <p>
-                      {taskView === "review"
-                        ? "Las próximas entregas aparecerán aquí."
-                        : "Puedes consultar las actividades aprobadas en el módulo de tareas."}
-                    </p>
-                  </div>
-                )}
-              </div>
-              {visibleTasks.length > 5 && (
-                <div className="overview-list-footer">
-                  <span>Mostrando 5 de {visibleTasks.length}</span>
-                  <Link href={href("tasks")}>Abrir todas las tareas ↗</Link>
-                </div>
-              )}
-            </>
-          )}
-        </section>
-
-        {!candidate && (
-          <aside
-            className="overview-insights"
-            aria-label="Resumen de novedades y notificaciones"
-          >
-            <OperationsPanel
-              data={data}
-              profile={profile}
-              area="overview"
-              compact
-            />
-          </aside>
-        )}
-
-        <section
-          className="panel overview-development"
-          aria-labelledby="overview-development-title"
-        >
-          <span className="overview-development-icon">
-            <GraduationCap size={24} aria-hidden="true" />
-          </span>
-          <div>
-            <span className="eyebrow">
-              {admin
-                ? "ESTRUCTURA"
-                : candidate
-                  ? "TU PERFIL"
-                  : "AVANCE REGISTRADO"}
-            </span>
-            <h2 id="overview-development-title">
-              {candidate
-                ? "Haz visible tu experiencia"
-                : admin
-                  ? "Una organización bien conectada"
-                  : "Aprendizaje y entregas"}
-            </h2>
-            <p>
-              {candidate
-                ? "Agrega tus habilidades, experiencia y CV para que RH conozca tu trayectoria."
-                : admin
-                  ? "Revisa las áreas y los puestos que dan forma a tu organización."
-                  : "Avance de las actividades cargadas en tu espacio. Cada proceso se cuenta por separado."}
-            </p>
-            {!candidate && !admin && (
-              <div className="overview-progress-grid">
-                {[
-                  {
-                    label: "Capacitaciones completadas",
-                    completed: completedCourses,
-                    total: courses.length,
-                    percentage: metrics.course_completion,
-                  },
-                  {
-                    label: "Tareas aprobadas",
-                    completed: approvedTasks,
-                    total: tasks.length,
-                    percentage: metrics.task_completion,
-                  },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <div className="progress-label">
-                      <span>{item.label}</span>
-                      <strong>
-                        {item.total ? `${Math.round(item.percentage)}%` : "—"}
-                      </strong>
-                    </div>
-                    <progress
-                      aria-label={item.label}
-                      max={100}
-                      value={item.percentage}
-                    />
-                    <small>
-                      {item.total
-                        ? `${item.completed} de ${item.total}`
-                        : "Sin actividades registradas"}
-                    </small>
-                  </div>
-                ))}
-              </div>
-            )}
-            <Link
-              className="overview-text-link"
-              href={href(
-                candidate ? "profile" : admin ? "departments" : "courses",
-              )}
-            >
-              {candidate
-                ? "Editar mi perfil"
-                : admin
-                  ? "Revisar estructura"
-                  : "Ver capacitación"}
-              <ArrowUpRight size={15} aria-hidden="true" />
-            </Link>
-          </div>
-        </section>
-
-        {(hr || candidate) && (
+        <div className="overview-column overview-column-primary">
           <section
-            className="panel overview-agenda"
-            aria-labelledby="overview-agenda-title"
+            className="panel overview-attention"
+            aria-labelledby="overview-attention-title"
           >
             <div className="section-head">
               <div>
-                <span className="eyebrow">AGENDA</span>
-                <h2 id="overview-agenda-title">Entrevistas agendadas</h2>
-              </div>
-              <Link href={href("interviews")}>Ver agenda ↗</Link>
-            </div>
-            {interviews.slice(0, 3).map((interview) => (
-              <Link
-                className="overview-agenda-item"
-                key={interview.id}
-                href={href("interviews")}
-              >
-                <CalendarDays size={20} aria-hidden="true" />
-                <span>
-                  <strong>
-                    {value(
-                      find(
-                        "vacancies",
-                        find("applications", interview.application_id)
-                          .vacancy_id,
-                      ),
-                      "title",
-                    ) || "Entrevista"}
-                  </strong>
-                  <small>
-                    {value(interview, "scheduled_at")
-                      ? new Date(
-                          value(interview, "scheduled_at"),
-                        ).toLocaleString("es-MX", {
-                          timeZone: "America/Mexico_City",
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "Consulta la fecha en la agenda"}
-                  </small>
+                <span className="eyebrow">
+                  {candidate ? "TU SEGUIMIENTO" : "PRÓXIMOS PASOS"}
                 </span>
-                <ArrowUpRight size={15} aria-hidden="true" />
+                <h2 id="overview-attention-title">
+                  {candidate
+                    ? "Mis postulaciones"
+                    : employee
+                      ? "Mis tareas"
+                      : "Por atender"}
+                </h2>
+              </div>
+              <Link href={href(candidate ? "applications" : "tasks")}>
+                Ver todas <ArrowUpRight size={14} aria-hidden="true" />
               </Link>
-            ))}
-            {!interviews.length && (
-              <p className="muted">
-                No hay entrevistas agendadas en los datos disponibles.
-              </p>
+            </div>
+            {candidate ? (
+              <div className="overview-task-list">
+                {rows("applications")
+                  .slice(0, 5)
+                  .map((a) => (
+                    <Link
+                      className="overview-task"
+                      key={a.id}
+                      href={href("applications")}
+                    >
+                      <span>
+                        <strong>
+                          {value(find("vacancies", a.vacancy_id), "title") ||
+                            "Postulación"}
+                        </strong>
+                        <small>Consulta los detalles de tu candidatura</small>
+                      </span>
+                      <Status status={value(a, "status")} />
+                    </Link>
+                  ))}
+                {!rows("applications").length && (
+                  <div className="overview-empty">
+                    <BriefcaseBusiness size={28} aria-hidden="true" />
+                    <strong>Tu próxima oportunidad te espera</strong>
+                    <p>Explora las vacantes y envía tu primera postulación.</p>
+                    <Link href={href("jobs")}>Explorar vacantes ↗</Link>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div
+                  className="overview-task-tabs"
+                  role="group"
+                  aria-label="Filtrar tareas de la vista general"
+                >
+                  <button
+                    type="button"
+                    aria-pressed={taskView === "pending"}
+                    onClick={() => setTaskView("pending")}
+                  >
+                    Por completar <span>{pending.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={taskView === "review"}
+                    onClick={() => setTaskView("review")}
+                  >
+                    {employee ? "En revisión" : "Por revisar"}{" "}
+                    <span>{review.length}</span>
+                  </button>
+                </div>
+                <p className="overview-list-caption">
+                  {taskView === "review"
+                    ? employee
+                      ? "Entregas que ya enviaste para validación."
+                      : "Entregas listas para que revises su evidencia."
+                    : "Primero las prioridades altas; después, la fecha límite más cercana."}
+                </p>
+                <div className="overview-task-list">
+                  {visibleTasks.slice(0, 5).map((task) => {
+                    const person = find("employees", task.employee_id);
+                    const position = find("positions", person.position_id);
+                    const area = value(
+                      find("departments", position.department_id),
+                      "name",
+                    );
+                    return (
+                      <Link
+                        className="overview-task"
+                        key={task.id}
+                        href={`${href("tasks")}/${task.id}`}
+                      >
+                        <span>
+                          <strong>
+                            {value(task, "title") || "Tarea pendiente"}
+                          </strong>
+                          <small>
+                            {!employee &&
+                              `${value(find("profiles", person.profile_id), "full_name") || "Integrante"}${area ? ` · ${area}` : ""} · `}
+                            {dueDate(task)}
+                          </small>
+                          <span className="overview-task-priority">
+                            Prioridad{" "}
+                            {stateLabel(value(task, "priority")).toLowerCase()}
+                          </span>
+                        </span>
+                        <Status status={value(task, "status")} />
+                      </Link>
+                    );
+                  })}
+                  {!visibleTasks.length && (
+                    <div className="overview-empty">
+                      <CheckCheck size={28} aria-hidden="true" />
+                      <strong>
+                        {taskView === "review"
+                          ? "Sin entregas por revisar"
+                          : "Sin tareas por completar"}
+                      </strong>
+                      <p>
+                        {taskView === "review"
+                          ? "Las próximas entregas aparecerán aquí."
+                          : "Puedes consultar las actividades aprobadas en el módulo de tareas."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {visibleTasks.length > 5 && (
+                  <div className="overview-list-footer">
+                    <span>Mostrando 5 de {visibleTasks.length}</span>
+                    <Link href={href("tasks")}>Abrir todas las tareas ↗</Link>
+                  </div>
+                )}
+              </>
             )}
           </section>
-        )}
+
+          <section
+            className="panel overview-development"
+            aria-labelledby="overview-development-title"
+          >
+            <span className="overview-development-icon">
+              <GraduationCap size={24} aria-hidden="true" />
+            </span>
+            <div>
+              <span className="eyebrow">
+                {admin
+                  ? "ESTRUCTURA"
+                  : candidate
+                    ? "TU PERFIL"
+                    : "AVANCE REGISTRADO"}
+              </span>
+              <h2 id="overview-development-title">
+                {candidate
+                  ? "Haz visible tu experiencia"
+                  : admin
+                    ? "Una organización bien conectada"
+                    : "Aprendizaje y entregas"}
+              </h2>
+              <p>
+                {candidate
+                  ? "Agrega tus habilidades, experiencia y CV para que RH conozca tu trayectoria."
+                  : admin
+                    ? "Revisa las áreas y los puestos que dan forma a tu organización."
+                    : "Avance de las actividades cargadas en tu espacio. Cada proceso se cuenta por separado."}
+              </p>
+              {!candidate && !admin && (
+                <div className="overview-progress-grid">
+                  {[
+                    {
+                      label: "Capacitaciones completadas",
+                      completed: completedCourses,
+                      total: courses.length,
+                      percentage: metrics.course_completion,
+                    },
+                    {
+                      label: "Tareas aprobadas",
+                      completed: approvedTasks,
+                      total: tasks.length,
+                      percentage: metrics.task_completion,
+                    },
+                  ].map((item) => (
+                    <div key={item.label}>
+                      <div className="progress-label">
+                        <span>{item.label}</span>
+                        <strong>
+                          {item.total ? `${Math.round(item.percentage)}%` : "—"}
+                        </strong>
+                      </div>
+                      <progress
+                        aria-label={item.label}
+                        max={100}
+                        value={item.percentage}
+                      />
+                      <small>
+                        {item.total
+                          ? `${item.completed} de ${item.total}`
+                          : "Sin actividades registradas"}
+                      </small>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Link
+                className="overview-text-link"
+                href={href(
+                  candidate ? "profile" : admin ? "departments" : "courses",
+                )}
+              >
+                {candidate
+                  ? "Editar mi perfil"
+                  : admin
+                    ? "Revisar estructura"
+                    : "Ver capacitación"}
+                <ArrowUpRight size={15} aria-hidden="true" />
+              </Link>
+            </div>
+          </section>
+        </div>
+
+        <div className="overview-column overview-column-secondary">
+          {!candidate && (
+            <aside
+              className="overview-insights"
+              aria-label="Resumen de novedades y notificaciones"
+            >
+              <OperationsPanel
+                data={data}
+                profile={profile}
+                area="overview"
+                compact
+              />
+            </aside>
+          )}
+          {(hr || candidate) && (
+            <section
+              className="panel overview-agenda"
+              aria-labelledby="overview-agenda-title"
+            >
+              <div className="section-head">
+                <div>
+                  <span className="eyebrow">AGENDA</span>
+                  <h2 id="overview-agenda-title">Entrevistas agendadas</h2>
+                </div>
+                <Link href={href("interviews")}>Ver agenda ↗</Link>
+              </div>
+              {interviews.slice(0, 3).map((interview) => (
+                <Link
+                  className="overview-agenda-item"
+                  key={interview.id}
+                  href={href("interviews")}
+                >
+                  <CalendarDays size={20} aria-hidden="true" />
+                  <span>
+                    <strong>
+                      {value(
+                        find(
+                          "vacancies",
+                          find("applications", interview.application_id)
+                            .vacancy_id,
+                        ),
+                        "title",
+                      ) || "Entrevista"}
+                    </strong>
+                    <small>
+                      {value(interview, "scheduled_at")
+                        ? new Date(
+                            value(interview, "scheduled_at"),
+                          ).toLocaleString("es-MX", {
+                            timeZone: "America/Mexico_City",
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "Consulta la fecha en la agenda"}
+                    </small>
+                  </span>
+                  <ArrowUpRight size={15} aria-hidden="true" />
+                </Link>
+              ))}
+              {!interviews.length && (
+                <p className="muted">
+                  No hay entrevistas agendadas en los datos disponibles.
+                </p>
+              )}
+            </section>
+          )}
+        </div>
         {hr && <ClimateOverviewPanel profile={profile} />}
       </div>
     </div>

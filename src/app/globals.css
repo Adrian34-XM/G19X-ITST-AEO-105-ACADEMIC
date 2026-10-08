@@ -3632,6 +3632,7 @@ thead th { font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
 .overview-shortcuts small { font-size: 11px; color: var(--muted); line-height: 1.45; }
 .overview-shortcuts > a > svg { flex-shrink: 0; color: var(--muted); }
 .overview-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; align-items: start; }
+.overview-column { display: grid; gap: 22px; align-content: start; min-width: 0; }
 .overview-dashboard .panel { margin: 0; min-width: 0; }
 .overview-dashboard .section-head h2 { margin-top: 6px; font-size: 19px; }
 .overview-dashboard .section-head a { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; }
@@ -3696,15 +3697,9 @@ thead th { font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
   .overview-welcome-actions { grid-column: 2; grid-row: 1 / 4; flex-direction: column; align-items: flex-start; justify-content: center; margin: 0; }
 }
 @container overview (min-width: 900px) {
-  .overview-columns { grid-template-columns: repeat(12, minmax(0, 1fr)); }
-  .overview-attention { grid-column: span 7; }
-  .overview-insights { grid-column: span 5; }
-  .overview-development { grid-column: span 7; }
-  .overview-agenda { grid-column: span 5; }
+  .overview-columns { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+  .overview-columns:has(.overview-insights):has(.overview-agenda) > .overview-column { align-self: stretch; grid-template-rows: auto 1fr; }
   .overview-climate { grid-column: 1 / -1; }
-  .overview-columns:not(:has(.overview-agenda)) > .overview-development { grid-column: 1 / -1; }
-  .overview-columns:not(:has(.overview-insights)) > .overview-development { grid-column: span 5; }
-  .overview-columns:not(:has(.overview-insights)) > .overview-agenda { grid-column: 1 / -1; }
   .overview-development .overview-progress-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .overview-climate-news { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
   .overview-climate-news > .overview-climate-survey-featured:first-child { grid-row: span 2; }
