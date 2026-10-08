@@ -66,11 +66,13 @@ export function OperationsPanel({
   profile,
   area,
   filters = {},
+  compact = false,
 }: {
   data: Snapshot;
   profile: Profile;
   area: InsightArea;
   filters?: WorkspaceFilters;
+  compact?: boolean;
 }) {
   const [busy, setBusy] = useState(profile.role !== "CANDIDATO"),
     [error, setError] = useState(""),
@@ -279,19 +281,25 @@ export function OperationsPanel({
     }
   }
   return (
-    <section className="panel operations-panel">
+    <section
+      className={`panel operations-panel${compact ? " operations-compact" : ""}`}
+    >
       <div className="section-head">
         <div>
           <span className="eyebrow">
             {area === "overview"
-              ? "ORQUESTADOR · RESUMEN DE TU ESPACIO"
+              ? compact
+                ? "RESUMEN SEMANAL"
+                : "ORQUESTADOR · RESUMEN DE TU ESPACIO"
               : personalPerformance
                 ? "MI DESEMPEÑO"
                 : "SEGUIMIENTO DEL EQUIPO"}
           </span>
           <h2>
             {area === "overview"
-              ? "Resumen de novedades con IA"
+              ? compact
+                ? "Esta semana con IA"
+                : "Resumen de novedades con IA"
               : area === "courses"
                 ? "Capacitación recomendada según el puesto"
                 : "Alertas y recomendaciones"}
@@ -333,9 +341,9 @@ export function OperationsPanel({
         )}
       </details>
       <p className="muted">
-        El resumen se genera al abrir este módulo y al cambiar sus filtros. Usa
-        «Actualizar resumen» para volver a analizar con las instrucciones
-        actuales.
+        {compact
+          ? "Se genera al abrir esta vista. Puedes actualizarlo cuando lo necesites."
+          : "El resumen se genera al abrir este módulo y al cambiar sus filtros. Usa «Actualizar resumen» para volver a analizar con las instrucciones actuales."}
       </p>
       {["performance", "analytics"].includes(area) && (
         <div className="analysis-prompt">
@@ -422,7 +430,12 @@ export function OperationsPanel({
         </div>
       )}
       {advice && resultScope === scopeKey && (
-        <div className="ai-result">
+        <div
+          className="ai-result"
+          tabIndex={compact ? 0 : undefined}
+          role={compact ? "region" : undefined}
+          aria-label={compact ? "Resumen y recomendaciones de IA" : undefined}
+        >
           <h3>
             {area === "overview"
               ? "Resumen y próximos pasos"
@@ -531,10 +544,17 @@ export function OperationsPanel({
           </select>
         </label>
       )}
-      {area === "overview" && profile.role !== "CANDIDATO" && (
-        <TaskMessageAlerts key={profile.id} profile={profile} />
-      )}
-      <details open>
+      {area === "overview" &&
+        profile.role !== "CANDIDATO" &&
+        (compact ? (
+          <details className="overview-message-details">
+            <summary>Mensajes de las tareas</summary>
+            <TaskMessageAlerts key={profile.id} profile={profile} />
+          </details>
+        ) : (
+          <TaskMessageAlerts key={profile.id} profile={profile} />
+        ))}
+      <details open={!compact}>
         <summary>{visibleNotes.length} novedades y pendientes</summary>
         <div className="notification-list">
           {visibleNotes.slice(0, 30).map((n, i) => (

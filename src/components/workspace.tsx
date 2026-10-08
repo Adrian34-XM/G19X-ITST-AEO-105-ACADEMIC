@@ -36,20 +36,14 @@ import { EmployeeProfile } from "./employee-profile";
 import { ProfileAvatar, ProfilePhotoEditor } from "./profile-photo";
 import { pendingTrainingReview } from "@/modules/workspace/training-review";
 import { ThemeToggle } from "./theme-toggle";
-import {
-  WorkspaceNavigation,
-  WorkspaceShortcuts,
-} from "./workspace-navigation";
+import { WorkspaceNavigation } from "./workspace-navigation";
+import { OverviewDashboard } from "./overview-dashboard";
 import { moduleDescriptions } from "@/modules/workspace/interface-copy";
 import { isHR } from "@/lib/permissions";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  BriefcaseBusiness,
-  Users,
-  CheckSquare,
-  ChartNoAxesCombined,
   ShieldCheck,
   LogOut,
   Search,
@@ -86,8 +80,8 @@ import {
   type Row,
   type Profile,
 } from "@/modules/workspace/types";
-import { performance } from "@/modules/performance/service";
 import { applicationTransitions, home } from "@/lib/permissions";
+import { performance } from "@/modules/performance/service";
 const titles: Record<string, string> = {
   overview: "Vista general",
   vacancies: "Vacantes",
@@ -474,10 +468,6 @@ export function Workspace({
     scopedCourses = rows("course_assignments").filter(
       (c) => hr || manager || c.employee_id === mine?.id,
     );
-  const metrics = performance(
-    scopedTasks.map((t) => ({ status: value(t, "status") })),
-    scopedCourses.map((c) => ({ status: value(c, "status") })),
-  );
   const newKind: Record<string, string> = {
     vacancies: "vacancies",
     interviews: "interviews",
@@ -1175,333 +1165,26 @@ export function Workspace({
               </button>
             </div>
           )}
-          {view === "overview" && (
-            <>
-              <div className="welcome-banner">
-                <div>
-                  <span className="eyebrow">CADA ETAPA CUENTA</span>
-                  <h2>
-                    {candidate
-                      ? "Tu próxima oportunidad empieza contigo."
-                      : admin
-                        ? "Un equipo conectado empieza con una buena base."
-                        : profile?.role === "EMPLEADO"
-                          ? "Tu trabajo y tu crecimiento, paso a paso."
-                          : "Acompaña el crecimiento de tu equipo."}
-                  </h2>
-                  <p>
-                    {candidate
-                      ? "Completa tu perfil y encuentra una vacante para dar el siguiente paso."
-                      : profile?.role === "EMPLEADO"
-                        ? "Consulta tus pendientes, continúa tu capacitación y revisa tus próximas actividades."
-                        : "Consulta los pendientes y encuentra los próximos pasos de tu equipo."}
-                  </p>
-                  <Link
-                    href={
-                      candidate
-                        ? "/jobs"
-                        : admin
-                          ? "/admin/users"
-                          : hr
-                            ? "/rh/employees"
-                            : "/" + root + "/tasks"
-                    }
-                  >
-                    {candidate
-                      ? "Explorar oportunidades"
-                      : admin
-                        ? "Administrar usuarios"
-                        : "Ver " + (hr ? "equipo" : "tareas")}{" "}
-                    <ArrowUpRight size={17} />
-                  </Link>
-                </div>
-                <div className="banner-art" aria-hidden="true">
-                  <span>n</span>
-                  <i />
-                  <i />
-                  <i />
-                </div>
-              </div>
-              <WorkspaceShortcuts
-                entries={(candidate
-                  ? ["jobs", "applications", "profile"]
-                  : admin
-                    ? ["users", "employees", "audit"]
-                    : hr
-                      ? ["applications", "employees", "onboarding"]
-                      : manager
-                        ? ["tasks", "employees", "courses"]
-                        : ["tasks", "courses", "onboarding"]
-                )
-                  .filter((key) => nav.includes(key))
-                  .map((key) => ({ key, label: titles[key], href: href(key) }))}
-              />
-              <div className="kpi-grid">
-                {(candidate
-                  ? [
-                      ["Mis postulaciones", rows("applications").length],
-                      [
-                        "Entrevistas",
-                        rows("interviews").filter(
-                          (i) => i.status === "SCHEDULED",
-                        ).length,
-                      ],
-                      [
-                        "Vacantes disponibles",
-                        rows("vacancies").filter(
-                          (v) => v.status === "PUBLISHED",
-                        ).length,
-                      ],
-                    ]
-                  : admin
-                    ? [
-                        ["Usuarios", rows("profiles").length],
-                        ["Áreas", rows("departments").length],
-                        ["Puestos", rows("positions").length],
-                      ]
-                    : profile?.role === "EMPLEADO"
-                      ? [
-                          [
-                            "Mis tareas pendientes",
-                            scopedTasks.filter(
-                              (t) =>
-                                !["APPROVED", "SUBMITTED"].includes(
-                                  value(t, "status"),
-                                ),
-                            ).length,
-                          ],
-                          [
-                            "Mis entregas en revisión",
-                            scopedTasks.filter((t) => t.status === "SUBMITTED")
-                              .length,
-                          ],
-                          [
-                            "Mis capacitaciones pendientes",
-                            scopedCourses.filter(
-                              (c) => c.status !== "COMPLETED",
-                            ).length,
-                          ],
-                        ]
-                      : [
-                          [
-                            "Empleados activos",
-                            rows("employees").filter(
-                              (e) => e.status === "ACTIVE",
-                            ).length,
-                          ],
-                          [
-                            "Vacantes activas",
-                            rows("vacancies").filter(
-                              (v) => v.status === "PUBLISHED",
-                            ).length,
-                          ],
-                          [
-                            "Tareas completadas",
-                            scopedTasks.filter((t) => t.status === "APPROVED")
-                              .length,
-                          ],
-                          ["Desempeño", `${metrics.overall_score}%`],
-                        ]
-                ).map(([label, n], i) => (
-                  <article className="kpi" key={label}>
-                    <div>
-                      <span>{label}</span>
-                      <span className={"kpi-icon color-" + i}>
-                        {i === 0 ? (
-                          <Users size={20} />
-                        ) : i === 1 ? (
-                          <BriefcaseBusiness size={20} />
-                        ) : i === 2 ? (
-                          <CheckSquare size={20} />
-                        ) : (
-                          <ChartNoAxesCombined size={20} />
-                        )}
-                      </span>
-                    </div>
-                    <strong>{n}</strong>
-                    <small>Datos actuales de tu espacio</small>
-                  </article>
-                ))}
-              </div>
-              {profile && !candidate && (
-                <OperationsPanel
-                  data={data}
-                  profile={profile}
-                  area="overview"
-                />
-              )}
-              <div className="dashboard-columns">
-                <section className="panel">
-                  <div className="section-head">
-                    <h2>
-                      {candidate
-                        ? "Mis postulaciones"
-                        : profile?.role === "EMPLEADO"
-                          ? "Mis pendientes"
-                          : "Pendientes del equipo"}
-                    </h2>
-                    <Link
-                      href={
-                        candidate ? "/candidate/applications" : href("tasks")
-                      }
-                    >
-                      Ver todos ↗
-                    </Link>
-                  </div>
-                  {candidate &&
-                    rows("applications")
-                      .slice(0, 5)
-                      .map((r) => (
-                        <div className="list-line" key={r.id}>
-                          <div>
-                            <strong>
-                              {value(r, "title") ||
-                                value(find("vacancies", r.vacancy_id), "title")}
-                            </strong>
-                            <small>
-                              {value(r, "due_date") ||
-                                "Seguimiento de candidatura"}
-                            </small>
-                          </div>
-                          <Badge status={value(r, "status")} />
-                        </div>
-                      ))}
-                  {!candidate && (
-                    <div className="area-pending-groups">
-                      {Array.from(
-                        scopedTasks
-                          .filter((t) => t.status !== "APPROVED")
-                          .reduce((groups, task) => {
-                            const employee = find(
-                              "employees",
-                              task.employee_id,
-                            );
-                            const position = find(
-                              "positions",
-                              employee.position_id,
-                            );
-                            const department = find(
-                              "departments",
-                              position.department_id,
-                            );
-                            const key = department.id || "unassigned";
-                            const group = groups.get(key) ?? {
-                              title:
-                                value(department, "name") ||
-                                "Sin área asignada",
-                              tasks: [] as Row[],
-                            };
-                            group.tasks.push(task);
-                            groups.set(key, group);
-                            return groups;
-                          }, new Map<string, { title: string; tasks: Row[] }>()),
-                      )
-                        .sort((a, b) =>
-                          a[1].title.localeCompare(b[1].title, "es"),
-                        )
-                        .map(([id, group]) => (
-                          <details className="area-pending-group" key={id}>
-                            <summary>
-                              <span>
-                                {profile?.role === "EMPLEADO"
-                                  ? "Tareas por completar"
-                                  : group.title}
-                              </span>
-                              <span className="badge">
-                                {group.tasks.length}{" "}
-                                {group.tasks.length === 1
-                                  ? "pendiente"
-                                  : "pendientes"}
-                              </span>
-                            </summary>
-                            {sortTasks(group.tasks).map((task) => (
-                              <div className="list-line" key={task.id}>
-                                <div>
-                                  <Link href={`${href("tasks")}/${task.id}`}>
-                                    <strong>
-                                      {value(task, "title") ||
-                                        "Tarea pendiente"}
-                                    </strong>
-                                  </Link>
-                                  <small>
-                                    {employeeName(task.employee_id)} ·{" "}
-                                    {value(task, "due_date")
-                                      ? `Vence: ${value(task, "due_date")}`
-                                      : "Sin fecha límite"}
-                                  </small>
-                                  <small>
-                                    Prioridad:{" "}
-                                    {stateLabel(value(task, "priority"))}
-                                  </small>
-                                </div>
-                                <Badge status={value(task, "status")} />
-                              </div>
-                            ))}
-                          </details>
-                        ))}
-                    </div>
-                  )}
-                  {!(
-                    candidate
-                      ? rows("applications")
-                      : scopedTasks.filter((t) => t.status !== "APPROVED")
-                  ).length && (
-                    <p className="empty">No hay pendientes para mostrar.</p>
-                  )}
-                </section>
-                <section className="panel">
-                  <span className="eyebrow">UN PASO A LA VEZ</span>
-                  <h2>
-                    {candidate
-                      ? "Prepara tu perfil"
-                      : "Aprendizaje y desarrollo"}
-                  </h2>
-                  <p>
-                    {candidate
-                      ? "Comparte tus habilidades, experiencia y CV para que RH pueda conocer tu trayectoria."
-                      : "Da seguimiento a la capacitación y las entregas para acompañar el progreso."}
-                  </p>
-                  {!candidate && !admin && (
-                    <>
-                      {scopedCourses.length > 0 ? (
-                        <>
-                          <div className="progress-label">
-                            <span>Cursos completados</span>
-                            <strong>
-                              {Math.round(metrics.course_completion)}%
-                            </strong>
-                          </div>
-                          <progress
-                            max={100}
-                            value={metrics.course_completion}
-                          />
-                        </>
-                      ) : (
-                        <p className="muted">
-                          No hay capacitaciones asignadas en esta vista.
-                        </p>
-                      )}
-                      <div className="progress-label">
-                        <span>Tareas aprobadas</span>
-                        <strong>{Math.round(metrics.task_completion)}%</strong>
-                      </div>
-                      <progress max={100} value={metrics.task_completion} />
-                    </>
-                  )}
-                  <Link
-                    href={
-                      candidate
-                        ? "/candidate/profile"
-                        : admin
-                          ? "/admin/positions"
-                          : href("courses")
-                    }
-                  >
-                    Continuar <ArrowUpRight size={14} />
-                  </Link>
-                </section>
-              </div>
-            </>
+          {view === "overview" && profile && (
+            <OverviewDashboard
+              data={data}
+              profile={profile}
+              tasks={scopedTasks}
+              courses={scopedCourses}
+              href={href}
+              shortcuts={(candidate
+                ? ["jobs", "applications", "profile"]
+                : admin
+                  ? ["users", "employees", "audit"]
+                  : hr
+                    ? ["applications", "employees", "onboarding"]
+                    : manager
+                      ? ["tasks", "employees", "courses"]
+                      : ["tasks", "courses", "onboarding"]
+              )
+                .filter((key) => nav.includes(key))
+                .map((key) => ({ key, label: titles[key], href: href(key) }))}
+            />
           )}
           {view !== "overview" && (
             <>
