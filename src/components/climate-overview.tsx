@@ -133,7 +133,10 @@ export function ClimateOverviewPanel({ profile }: { profile: Profile }) {
           </div>
           <div className="overview-climate-news">
             {data.surveys.slice(0, 3).map((survey) => (
-              <article className="overview-climate-survey" key={survey.id}>
+              <article
+                className={`overview-climate-survey${survey.summary ? " overview-climate-survey-featured" : ""}`}
+                key={survey.id}
+              >
                 <div className="overview-climate-survey-heading">
                   <h3>{survey.title}</h3>
                   <span

@@ -3604,7 +3604,7 @@ thead th { font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
 .chart-multiple .record-grid { align-items: start; }
 
 /* Vista general: lectura rápida, prioridades visibles y detalles bajo demanda. */
-.overview-dashboard { --muted: light-dark(#64756d, #a4b8ae); display: grid; gap: 22px; }
+.overview-dashboard { --muted: light-dark(#64756d, #a4b8ae); display: grid; gap: 22px; container: overview / inline-size; }
 .overview-welcome { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 26px 30px; border: 1px solid var(--border); border-radius: 20px; background: linear-gradient(110deg, var(--mint), var(--surface)); }
 .overview-welcome > div { min-width: 0; max-width: 720px; }
 .overview-welcome h2 { margin: 8px 0 10px; font-size: clamp(21px, 2vw, 27px); line-height: 1.25; letter-spacing: -.5px; }
@@ -3632,7 +3632,6 @@ thead th { font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
 .overview-shortcuts small { font-size: 11px; color: var(--muted); line-height: 1.45; }
 .overview-shortcuts > a > svg { flex-shrink: 0; color: var(--muted); }
 .overview-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; align-items: start; }
-.overview-main { display: grid; gap: 22px; min-width: 0; }
 .overview-dashboard .panel { margin: 0; min-width: 0; }
 .overview-dashboard .section-head h2 { margin-top: 6px; font-size: 19px; }
 .overview-dashboard .section-head a { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; }
@@ -3692,10 +3691,23 @@ thead th { font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
 .operations-compact .error { font-size: 12px; line-height: 1.65; }
 .overview-dashboard a:focus-visible, .overview-dashboard button:focus-visible, .overview-dashboard summary:focus-visible { outline: 2px solid var(--green); outline-offset: 4px; }
 @media (min-width: 1180px) {
-  .overview-columns:has(.overview-insights) { grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr); }
   .overview-welcome > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 28px; flex: 1; max-width: none; }
   .overview-welcome > div > .eyebrow, .overview-welcome h2, .overview-welcome p { grid-column: 1; }
   .overview-welcome-actions { grid-column: 2; grid-row: 1 / 4; flex-direction: column; align-items: flex-start; justify-content: center; margin: 0; }
+}
+@container overview (min-width: 900px) {
+  .overview-columns { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .overview-attention { grid-column: span 7; }
+  .overview-insights { grid-column: span 5; }
+  .overview-development { grid-column: span 7; }
+  .overview-agenda { grid-column: span 5; }
+  .overview-climate { grid-column: 1 / -1; }
+  .overview-columns:not(:has(.overview-agenda)) > .overview-development { grid-column: 1 / -1; }
+  .overview-columns:not(:has(.overview-insights)) > .overview-development { grid-column: span 5; }
+  .overview-columns:not(:has(.overview-insights)) > .overview-agenda { grid-column: 1 / -1; }
+  .overview-development .overview-progress-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overview-climate-news { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+  .overview-climate-news > .overview-climate-survey-featured:first-child { grid-row: span 2; }
 }
 @media (max-width: 700px) {
   .overview-welcome { padding: 22px; }
@@ -3719,7 +3731,8 @@ thead th { font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
 .overview-climate-counts > div { display: grid; gap: 5px; padding: 12px; border-radius: 11px; background: var(--surface-soft); }
 .overview-climate-counts strong { font-size: 22px; color: var(--green); }
 .overview-climate-counts span { color: var(--muted); font-size: 11px; line-height: 1.5; }
-.overview-climate-survey { padding: 18px 0; border-top: 1px solid var(--border); }
+.overview-climate-news { display: grid; gap: 14px; }
+.overview-climate-survey { min-width: 0; padding: 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-soft); }
 .overview-climate-survey-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .overview-climate-survey h3 { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
 .overview-climate-survey .badge { flex-shrink: 0; font-size: 10px; }
