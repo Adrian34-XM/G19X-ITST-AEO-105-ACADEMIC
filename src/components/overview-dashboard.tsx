@@ -24,6 +24,7 @@ import { stateLabel } from "@/modules/workspace/labels";
 import { sortTasks } from "@/modules/workspace/tasks";
 import { performance } from "@/modules/performance/service";
 import { OperationsPanel } from "./operations-panels";
+import { ClimateOverviewPanel } from "./climate-overview";
 
 type Entry = { key: string; label: string; href: string };
 type Indicator = {
@@ -560,6 +561,7 @@ export function OverviewDashboard({
             </div>
           </section>
 
+          {hr && <ClimateOverviewPanel profile={profile} />}
           {(hr || candidate) && (
             <section
               className="panel overview-agenda"

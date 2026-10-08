@@ -13,6 +13,7 @@ import { adminDb } from "@/lib/supabase/server";
 import { generate } from "@/lib/ai/provider";
 import { moduleTopicInstruction } from "@/lib/ai/module-scope";
 import { climateCharts } from "@/modules/workspace/climate-charts";
+import { climateSummarySchema } from "@/modules/workspace/climate-overview";
 const id = z.uuid();
 const climateDraft = z
   .object({
@@ -21,15 +22,7 @@ const climateDraft = z
     questions: z.array(z.string().min(3).max(400)).min(3).max(12),
   })
   .strict();
-const summarySchema = z
-  .object({
-    summary: z.string().min(1).max(3000),
-    sentiment: z.enum(["POSITIVE", "MIXED", "CONCERNING"]),
-    strengths: z.array(z.string().max(700)).max(10),
-    risks: z.array(z.string().max(700)).max(10),
-    recommendations: z.array(z.string().max(1000)).min(1).max(12),
-  })
-  .strict();
+const summarySchema = climateSummarySchema;
 const inputSchema = z.discriminatedUnion("op", [
   z.object({
     op: z.literal("comment"),
@@ -263,6 +256,7 @@ export async function POST(req: Request) {
               ...result,
               response_count: aggregate?.response_count,
               averages: aggregate?.averages,
+              generated_at: new Date().toISOString(),
             },
             model: generated.model,
           })

@@ -788,6 +788,7 @@ function SurveyCard({
           title={s.title}
           questions={s.questions}
           saved={s.summary}
+          viewer={profile.id}
           onSaved={reload}
         />
       )}

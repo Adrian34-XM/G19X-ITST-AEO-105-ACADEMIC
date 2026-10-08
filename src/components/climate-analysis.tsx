@@ -1,22 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { request } from "./forms";
+import { requestAnalysis } from "./ai-requests";
 import { ClimateQuestionChart } from "./climate-question-chart";
-import {
-  climateCharts,
-  type ClimateChart,
-} from "@/modules/workspace/climate-charts";
+import { climateCharts } from "@/modules/workspace/climate-charts";
+import type { ClimateGroupAnalysis } from "@/modules/workspace/climate-overview";
 
-export type ClimateAnalysisResult = {
-  summary: string;
-  sentiment: string;
-  strengths: string[];
-  risks: string[];
-  recommendations: string[];
-  response_count?: number;
-  averages?: { question_index: number; average: number }[];
-  charts?: ClimateChart[];
-};
+export type ClimateAnalysisResult = ClimateGroupAnalysis;
 type Aggregate = {
   status: string;
   responses: number;
@@ -29,17 +19,20 @@ export function ClimateAnalysis({
   questions,
   saved,
   onSaved,
+  viewer,
 }: {
   id: string;
   title: string;
   questions: string[];
   saved: ClimateAnalysisResult | null;
   onSaved: () => Promise<void>;
+  viewer?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [analysis, setAnalysis] = useState(saved);
   const [group, setGroup] = useState<Aggregate | null>(null);
   const [busy, setBusy] = useState(false);
+  const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -63,14 +56,20 @@ export function ClimateAnalysis({
   async function show(update = false) {
     setOpen(true);
     setBusy(true);
+    setWaiting(false);
     setError("");
     try {
       const aggregate = await readGroup();
       if (update || !(analysis || saved)) {
-        const response = await request("/api/climate", {
+        const payload = {
           op: "ai.summary",
           payload: { id },
-        });
+        };
+        const response = viewer
+          ? await requestAnalysis(viewer, "/api/climate", payload, {
+              onWaiting: setWaiting,
+            })
+          : await request("/api/climate", payload);
         setAnalysis({
           ...response.result,
           response_count: aggregate.responses,
@@ -125,9 +124,11 @@ export function ClimateAnalysis({
           <div className="climate-analysis-body">
             {busy && (
               <p role="status">
-                {result
-                  ? "Actualizando resultados…"
-                  : "Preparando el análisis y las gráficas…"}
+                {waiting
+                  ? "Esperando a que termine el otro análisis de tu cuenta…"
+                  : result
+                    ? "Actualizando resultados…"
+                    : "Preparando el análisis y las gráficas…"}
               </p>
             )}
             {error && (
