@@ -10,6 +10,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Snapshot } from "./types";
+import { applicationAnalyses } from "@/lib/private-analyses";
 export const tables = [
   "profiles",
   "departments",
@@ -68,14 +69,10 @@ export async function snapshot(
           : query
       ).limit(1000);
       if (error) throw new Error("DATA_UNAVAILABLE");
-      if (profile?.role === "CANDIDATO" && table === "applications")
+      if (table === "applications")
         return [
           table,
-          (data ?? []).map((row) =>
-            Object.fromEntries(
-              Object.entries(row).filter(([field]) => field !== "ai_result"),
-            ),
-          ),
+          await applicationAnalyses(client, data ?? [], profile?.role ?? ""),
         ] as const;
       return [table, data] as const;
     }),

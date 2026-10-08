@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authenticate, requireRole } from "@/lib/auth";
 import { databaseError, failure } from "@/lib/api";
 import { currentWeek } from "@/modules/workspace/current-week";
+import { climateAnalyses } from "@/lib/private-analyses";
 import {
   climateAnalysisDate,
   climateNews,
@@ -21,7 +22,7 @@ export async function GET() {
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) databaseError(error);
-    const surveys = (data ?? []) as ClimateSurveyRecord[];
+    const surveys = await climateAnalyses(client, data ?? [], profile.role) as ClimateSurveyRecord[];
     const recent = surveys.filter(
       (survey) =>
         survey.status === "OPEN" ||

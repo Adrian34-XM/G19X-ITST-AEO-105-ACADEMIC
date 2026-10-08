@@ -57,6 +57,8 @@ npm run seed
 
 Las migraciones están en `supabase/migrations/` y se ejecutan en orden. Incluyen auditoría, permisos, evidencias, encuestas, conversaciones y fotos de perfil. No ejecutes únicamente una migración de mejoras en una base vacía: depende de las anteriores.
 
+La migración `202610080001_private_ai_analyses.sql` separa las evaluaciones internas de las postulaciones y encuestas visibles a participantes. Conserva los análisis anteriores en tablas privadas y los permisos de RH/jefaturas. Aplícala antes de iniciar esta versión; un cambio de interfaz no sustituye la protección RLS. Los instaladores SQL agregados son históricos y no incluyen esta corrección: actualiza con las migraciones posteriores en orden y comprueba el resultado con `supabase/verificar-migraciones.sql`.
+
 `npm run seed` crea cuentas confirmadas y registros ficticios para probar el sistema. Rechaza una segunda ejecución cuando detecta cuentas demo existentes. La contraseña es el valor de `DEMO_PASSWORD` en tu archivo local; cambiar esa variable después no cambia las contraseñas de usuarios ya creados.
 
 ## 4. Configurar las variables

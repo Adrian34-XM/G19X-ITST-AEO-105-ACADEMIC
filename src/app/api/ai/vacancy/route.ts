@@ -7,9 +7,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticate, requireRole, ApiError } from "@/lib/auth";
-import { checkOrigin, failure, databaseError } from "@/lib/api";
+import { checkOrigin, failure, databaseError, readFormData } from "@/lib/api";
 import { adminDb } from "@/lib/supabase/server";
-import { inspectFile, maxFileSize } from "@/lib/storage/files";
+import { inspectFile } from "@/lib/storage/files";
 import { generate } from "@/lib/ai/provider";
 import { schemas } from "@/modules/commands/schemas";
 const output = schemas["vacancy.save"].omit({
@@ -22,9 +22,7 @@ export async function POST(req: Request) {
     checkOrigin(req);
     const { client, profile } = await authenticate();
     requireRole(profile.role, ["RH_ADMIN"]);
-    if (Number(req.headers.get("content-length") ?? 0) > maxFileSize + 20000)
-      throw new ApiError(413, "El archivo supera 5 MB.");
-    const form = await req.formData();
+    const form = await readFormData(req);
     const positionId = z.uuid().parse(form.get("position_id"));
     const context = z
       .string()

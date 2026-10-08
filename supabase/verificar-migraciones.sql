@@ -6,6 +6,8 @@ with expected(kind, object_name) as (values
  ('table','public.onboarding_learning'), ('table','public.onboarding_attempts'),
  ('table','public.profile_corrections'), ('table','public.task_messages'),
  ('table','public.climate_participation'), ('table','public.climate_assignments'),
+ ('table','public.application_assessments'), ('table','public.climate_analyses'),
+ ('function','public.save_climate_analysis(uuid,uuid,jsonb,text)'),
  ('function','public.hr_hierarchy_ready()'),
  ('function','public.hiring_options_ready()'),
  ('function','public.assign_many(text,uuid[],jsonb)'),

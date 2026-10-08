@@ -47,7 +47,7 @@ export async function POST(
     if (useCase === "recruitment") {
       const { data: a } = await client
         .from("applications")
-        .select("candidate_id,vacancy_id,ai_result")
+        .select("candidate_id,vacancy_id")
         .eq("id", id)
         .single();
       if (!a) throw new ApiError(404, "Postulación no encontrada.");

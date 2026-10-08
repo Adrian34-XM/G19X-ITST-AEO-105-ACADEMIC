@@ -13,6 +13,7 @@ const state = vi.hoisted(() => ({
   },
   generate: vi.fn(),
   update: vi.fn(),
+  save: vi.fn(),
 }));
 vi.mock("@/lib/auth", async (original) => ({
   ...(await original<typeof import("@/lib/auth")>()),
@@ -28,6 +29,7 @@ vi.mock("@/lib/auth", async (original) => ({
 }));
 vi.mock("@/lib/supabase/server", () => ({
   adminDb: () => ({
+    rpc: state.save,
     from: () => ({
       update: (payload: unknown) => {
         state.update(payload);
@@ -52,6 +54,7 @@ beforeEach(() => {
   state.role = "RH_ADMIN";
   state.group.status = "CLOSED";
   state.group.responses = 5;
+  state.save.mockResolvedValue({ error: null });
   state.generate.mockResolvedValue({
     model: "test",
     result: {
@@ -94,9 +97,12 @@ it("guarda el resumen con gráficas calculadas para consultarlo de nuevo", async
     { label: "Pendientes", count: 3 },
   ]);
   expect(result.charts[1].values).toEqual([{ label: "Apoyo", count: 4 }]);
-  expect(state.update).toHaveBeenCalledWith(
+  expect(state.save).toHaveBeenCalledWith(
+    "save_climate_analysis",
     expect.objectContaining({
-      summary: expect.objectContaining({
+      sid: "10000000-0000-4000-8000-000000000001",
+      actor: "u",
+      output: expect.objectContaining({
         charts: result.charts,
         response_count: 5,
       }),

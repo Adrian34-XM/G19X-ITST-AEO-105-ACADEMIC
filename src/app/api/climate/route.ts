@@ -6,6 +6,7 @@
  */
 /** Encuestas de ambiente laboral: borradores revisables, asignación autorizada y respuestas sin identidad. */
 import { NextResponse } from "next/server";
+import { climateAnalyses } from "@/lib/private-analyses";
 import { z } from "zod";
 import { authenticate, requireRole, ApiError } from "@/lib/auth";
 import { checkOrigin, readJson, failure, databaseError } from "@/lib/api";
@@ -113,7 +114,7 @@ export async function GET(req: Request) {
     for (const r of results) if (r.error) dbError(r.error);
     return NextResponse.json(
       {
-        surveys: results[0].data,
+        surveys: await climateAnalyses(client, results[0].data ?? [], profile.role),
         assignments: results[1].data,
         participation: results[2].data,
       },
@@ -249,19 +250,17 @@ export async function POST(req: Request) {
               ),
             };
       if (input.op === "ai.summary") {
-        const { error: save } = await admin
-          .from("climate_surveys")
-          .update({
-            summary: {
+        const { error: save } = await admin.rpc("save_climate_analysis", {
+            sid: input.payload.id,
+            actor: profile.id,
+            output: {
               ...result,
               response_count: aggregate?.response_count,
               averages: aggregate?.averages,
               generated_at: new Date().toISOString(),
             },
-            model: generated.model,
-          })
-          .eq("id", input.payload.id)
-          .eq("status", "CLOSED");
+            model_name: generated.model,
+          });
         if (save) throw new Error("SAVE_FAILED");
       }
       const { error: log } = await admin

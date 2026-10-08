@@ -3,6 +3,7 @@ import { GET } from "@/app/api/climate/overview/route";
 const state = vi.hoisted(() => ({
   role: "RH_ADMIN",
   query: vi.fn(),
+  analyses: vi.fn(),
   rpc: vi.fn(),
 }));
 vi.mock("@/lib/auth", async (original) => ({
@@ -10,9 +11,9 @@ vi.mock("@/lib/auth", async (original) => ({
   authenticate: async () => ({
     profile: { id: "u", role: state.role },
     client: {
-      from: () => ({
-        select: () => ({ order: () => ({ limit: state.query }) }),
-      }),
+      from: (table: string) => table === "climate_analyses"
+        ? { select: () => ({ in: state.analyses }) }
+        : { select: () => ({ order: () => ({ limit: state.query }) }) },
       rpc: state.rpc,
     },
   }),
@@ -22,6 +23,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-08T18:00:00Z"));
   state.role = "RH_ADMIN";
+  state.analyses.mockResolvedValue({ data: [], error: null });
   state.query.mockResolvedValue({
     data: [
       {
@@ -126,6 +128,7 @@ it("incluye análisis guardados esta semana de encuestas anteriores", async () =
     data: { status: "CLOSED", responses: 5, invited: 6, summary },
     error: null,
   });
+  state.analyses.mockResolvedValue({ data: [{ survey_id: "old", summary, model: "mock" }], error: null });
   const body = await (await GET()).json();
   expect(body.new_surveys).toBe(0);
   expect(body.analyzed_this_week).toBe(1);

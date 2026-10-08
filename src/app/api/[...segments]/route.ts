@@ -13,6 +13,7 @@ import { authenticate, ApiError, requireRole } from "@/lib/auth";
 import {
   checkOrigin,
   readJson,
+  readFormData,
   failure,
   databaseError,
   requireCourseEvidenceSchema,
@@ -22,6 +23,7 @@ import { schemas, type Operation } from "@/modules/commands/schemas";
 import { performance } from "@/modules/performance/service";
 import { GET as getFile, POST as uploadFile } from "@/app/api/files/route";
 import { POST as ai } from "@/app/api/ai/[useCase]/route";
+import { applicationAnalyses } from "@/lib/private-analyses";
 type Ctx = { params: Promise<{ segments: string[] }> };
 const resources: Record<string, string> = {
   vacancies: "vacancies",
@@ -160,7 +162,10 @@ export async function GET(req: Request, ctx: Ctx) {
     if (error) databaseError(error);
     if (s[1] && !data?.length)
       throw new ApiError(404, "Recurso no encontrado.");
-    return NextResponse.json(s[1] ? data![0] : { data, page, page_size: 50 }, {
+    const records = table === "applications"
+      ? await applicationAnalyses(client, data ?? [], profile.role)
+      : data;
+    return NextResponse.json(s[1] ? records![0] : { data: records, page, page_size: 50 }, {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (e) {
@@ -185,7 +190,7 @@ async function mutate(req: Request, ctx: Ctx) {
       (s[0] === "tasks" && s[2] === "evidence") ||
       (s[0] === "onboarding" && s[2] === "documents")
     ) {
-      const form = await req.formData();
+      const form = await readFormData(req);
       form.set(
         "bucket",
         s[0] === "candidates"
