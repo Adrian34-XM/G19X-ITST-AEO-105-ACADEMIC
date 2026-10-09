@@ -109,3 +109,24 @@ it("guarda el resumen con gráficas calculadas para consultarlo de nuevo", async
     }),
   );
 });
+it("rechaza borradores de encuestas sobre temas ajenos con orientación útil", async () => {
+  const response = await POST(
+    new Request("http://localhost/api/climate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        op: "ai.draft",
+        payload: {
+          topic: "Preguntas sobre goles y campeones del Mundial de fútbol.",
+        },
+      }),
+    }),
+  );
+  expect(response.status).toBe(422);
+  expect(await response.json()).toMatchObject({
+    code: "AI_OUT_OF_SCOPE",
+    error: expect.stringContaining("encuestas de ambiente laboral"),
+  });
+  expect(state.generate).not.toHaveBeenCalled();
+  expect(state.save).not.toHaveBeenCalled();
+});

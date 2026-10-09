@@ -12,7 +12,11 @@ import { authenticate, requireRole, ApiError } from "@/lib/auth";
 import { checkOrigin, readJson, failure, databaseError } from "@/lib/api";
 import { adminDb } from "@/lib/supabase/server";
 import { generate } from "@/lib/ai/provider";
-import { moduleTopicInstruction } from "@/lib/ai/module-scope";
+import {
+  moduleTopicInstruction,
+  requireModuleTopic,
+  moduleRequest,
+} from "@/lib/ai/module-scope";
 import { climateCharts } from "@/modules/workspace/climate-charts";
 import { climateSummarySchema } from "@/modules/workspace/climate-overview";
 const id = z.uuid();
@@ -114,7 +118,11 @@ export async function GET(req: Request) {
     for (const r of results) if (r.error) dbError(r.error);
     return NextResponse.json(
       {
-        surveys: await climateAnalyses(client, results[0].data ?? [], profile.role),
+        surveys: await climateAnalyses(
+          client,
+          results[0].data ?? [],
+          profile.role,
+        ),
         assignments: results[1].data,
         participation: results[2].data,
       },
@@ -161,6 +169,8 @@ export async function POST(req: Request) {
       if (error) dbError(error);
       return NextResponse.json(data);
     }
+    if (input.op === "ai.draft")
+      requireModuleTopic("climate", input.payload.topic);
     const admin = adminDb();
     let aggregate: Record<string, unknown> | null = null;
     if (input.op === "ai.summary" || input.op === "ai.graphs") {
@@ -209,6 +219,7 @@ export async function POST(req: Request) {
         input.op === "ai.draft"
           ? await generate(
               {
+                ...moduleRequest("climate", input.payload.topic),
                 task: "Crea un borrador de encuesta de ambiente laboral con 3 a 12 afirmaciones valorables de 1 (muy en desacuerdo) a 5 (muy de acuerdo). Redacción clara, neutral y positiva. No pidas nombres, datos de salud ni otros atributos protegidos. El responsable revisará y corregirá antes de publicar.",
                 topic: input.payload.topic,
               },
@@ -251,16 +262,16 @@ export async function POST(req: Request) {
             };
       if (input.op === "ai.summary") {
         const { error: save } = await admin.rpc("save_climate_analysis", {
-            sid: input.payload.id,
-            actor: profile.id,
-            output: {
-              ...result,
-              response_count: aggregate?.response_count,
-              averages: aggregate?.averages,
-              generated_at: new Date().toISOString(),
-            },
-            model_name: generated.model,
-          });
+          sid: input.payload.id,
+          actor: profile.id,
+          output: {
+            ...result,
+            response_count: aggregate?.response_count,
+            averages: aggregate?.averages,
+            generated_at: new Date().toISOString(),
+          },
+          model_name: generated.model,
+        });
         if (save) throw new Error("SAVE_FAILED");
       }
       const { error: log } = await admin

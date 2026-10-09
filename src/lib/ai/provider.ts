@@ -20,6 +20,15 @@ import {
 import { pdfImages } from "./pdf-vision";
 import { ApiError } from "@/lib/auth";
 import {
+  capabilities,
+  isImplicitModuleRequest,
+  moduleScopeError,
+  requireModuleTopic,
+  requestScopeSchema,
+  scopeVerdictSchema,
+  scopeClassifierInstruction,
+} from "./module-scope";
+import {
   groundingContext,
   groundingReview,
   analyticsFactualReview,
@@ -90,21 +99,23 @@ export class GeminiProvider implements AIProvider {
             parts: [
               {
                 text:
-                  schema === chartNarrativeSchema
-                    ? chartNarrativeSystemPrompt
-                    : schema === chartFactualReview
-                      ? chartFactualSystemPrompt
-                      : schema === analyticsFactualReview
-                        ? analyticsFactualSystemPrompt
-                        : schema === groundingReview
-                          ? groundingSystemPrompt
-                          : schema === onboardingDraftReview
-                            ? onboardingDraftSystemPrompt
-                            : schema === trainingFactualReview
-                              ? trainingFactualSystemPrompt
-                              : schema === professionalFactualReview
-                                ? professionalFactualSystemPrompt
-                                : systemPrompt,
+                  schema === scopeVerdictSchema
+                    ? scopeClassifierInstruction
+                    : schema === chartNarrativeSchema
+                      ? chartNarrativeSystemPrompt
+                      : schema === chartFactualReview
+                        ? chartFactualSystemPrompt
+                        : schema === analyticsFactualReview
+                          ? analyticsFactualSystemPrompt
+                          : schema === groundingReview
+                            ? groundingSystemPrompt
+                            : schema === onboardingDraftReview
+                              ? onboardingDraftSystemPrompt
+                              : schema === trainingFactualReview
+                                ? trainingFactualSystemPrompt
+                                : schema === professionalFactualReview
+                                  ? professionalFactualSystemPrompt
+                                  : systemPrompt,
               },
             ],
           },
@@ -121,7 +132,7 @@ export class GeminiProvider implements AIProvider {
             responseMimeType: "application/json",
             responseJsonSchema: generationContract(schema),
             temperature: 0.1,
-            maxOutputTokens: 2000,
+            maxOutputTokens: schema === scopeVerdictSchema ? 128 : 2000,
           },
         }),
       },
@@ -190,21 +201,23 @@ export class OllamaProvider implements AIProvider {
             {
               role: "system",
               content:
-                schema === chartNarrativeSchema
-                  ? chartNarrativeSystemPrompt
-                  : schema === chartFactualReview
-                    ? chartFactualSystemPrompt
-                    : schema === analyticsFactualReview
-                      ? analyticsFactualSystemPrompt
-                      : schema === groundingReview
-                        ? groundingSystemPrompt
-                        : schema === onboardingDraftReview
-                          ? onboardingDraftSystemPrompt
-                          : schema === trainingFactualReview
-                            ? trainingFactualSystemPrompt
-                            : schema === professionalFactualReview
-                              ? professionalFactualSystemPrompt
-                              : systemPrompt,
+                schema === scopeVerdictSchema
+                  ? scopeClassifierInstruction
+                  : schema === chartNarrativeSchema
+                    ? chartNarrativeSystemPrompt
+                    : schema === chartFactualReview
+                      ? chartFactualSystemPrompt
+                      : schema === analyticsFactualReview
+                        ? analyticsFactualSystemPrompt
+                        : schema === groundingReview
+                          ? groundingSystemPrompt
+                          : schema === onboardingDraftReview
+                            ? onboardingDraftSystemPrompt
+                            : schema === trainingFactualReview
+                              ? trainingFactualSystemPrompt
+                              : schema === professionalFactualReview
+                                ? professionalFactualSystemPrompt
+                                : systemPrompt,
             },
             {
               role: "user",
@@ -226,8 +239,14 @@ export class OllamaProvider implements AIProvider {
           ...(attachment || this.releaseAfterResponse ? { keep_alive: 0 } : {}),
           options: {
             temperature: 0.1,
-            num_predict: analytical ? 1200 : 2000,
-            num_ctx: attachment || this.releaseAfterResponse ? 8192 : 16384,
+            num_predict:
+              schema === scopeVerdictSchema ? 128 : analytical ? 1200 : 2000,
+            num_ctx:
+              schema === scopeVerdictSchema
+                ? 8192
+                : attachment || this.releaseAfterResponse
+                  ? 8192
+                  : 16384,
           },
         }),
       },
@@ -294,6 +313,49 @@ export async function generate(
     process.env.AI_PROVIDER === "gemini"
       ? new GeminiProvider()
       : new OllamaProvider(localModelOverride, !!localModelOverride);
+  if (context && typeof context === "object" && "request_scope" in context) {
+    const scope = requestScopeSchema.parse(context.request_scope);
+    requireModuleTopic(scope.module, scope.prompt);
+    if (!isImplicitModuleRequest(scope.prompt)) {
+      // Clasifica solo la intención, sin enviar registros, archivos ni datos personales.
+      const input = {
+        module: scope.module,
+        permitted_topics: capabilities[scope.module],
+        professional_subject: scope.subject,
+        untrusted_request: scope.prompt,
+      };
+      let verdict: { result: unknown; model: string };
+      try {
+        verdict = await provider.generate(input, scopeVerdictSchema);
+      } catch {
+        if (
+          process.env.AI_PROVIDER === "gemini" &&
+          process.env.AI_FALLBACK === "true"
+        ) {
+          provider = new OllamaProvider(
+            localModelOverride,
+            !!localModelOverride,
+          );
+          try {
+            verdict = await provider.generate(input, scopeVerdictSchema);
+          } catch {
+            throw new ApiError(
+              503,
+              "No se pudo verificar el alcance de la solicitud. Intenta de nuevo; no se generó contenido.",
+              "AI_SCOPE_UNAVAILABLE",
+            );
+          }
+        } else
+          throw new ApiError(
+            503,
+            "No se pudo verificar el alcance de la solicitud. Intenta de nuevo; no se generó contenido.",
+            "AI_SCOPE_UNAVAILABLE",
+          );
+      }
+      if (!scopeVerdictSchema.parse(verdict.result).allowed)
+        throw moduleScopeError(scope.module);
+    }
+  }
   let answer: Awaited<ReturnType<AIProvider["generate"]>>;
   try {
     answer = await validated(provider, context);

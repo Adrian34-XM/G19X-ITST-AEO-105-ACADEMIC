@@ -124,7 +124,163 @@ it("Ollama transforma PDF en páginas PNG, nunca envía el PDF binario como imag
   );
 });
 
-it('rechaza puntuaciones fraccionarias ambiguas', () => {
-  expect(recommendation.safeParse({...valid,score:0.6}).success).toBe(false);
-  expect(recommendation.safeParse({...valid,score:60}).success).toBe(true);
+it("rechaza puntuaciones fraccionarias ambiguas", () => {
+  expect(recommendation.safeParse({ ...valid, score: 0.6 }).success).toBe(
+    false,
+  );
+  expect(recommendation.safeParse({ ...valid, score: 60 }).success).toBe(true);
+});
+import { moduleRequest } from "@/lib/ai/module-scope";
+import { z } from "zod";
+it("la clasificación semántica rechaza temas ajenos sin generar contenido ni recibir datos privados", async () => {
+  vi.stubEnv("AI_PROVIDER", "ollama");
+  const f = vi.fn().mockResolvedValue(
+    Response.json({
+      message: { content: JSON.stringify({ allowed: false }) },
+    }),
+  );
+  vi.stubGlobal("fetch", f);
+  await expect(
+    generate(
+      {
+        ...moduleRequest("tasks", "Háblame de los dinosaurios."),
+        records: [{ private: "dato privado" }],
+      },
+      recommendation,
+    ),
+  ).rejects.toMatchObject({
+    status: 422,
+    code: "AI_OUT_OF_SCOPE",
+    message: expect.stringContaining("Puedo ayudarte con tareas"),
+  });
+  expect(f).toHaveBeenCalledTimes(1);
+  const payload = JSON.parse(f.mock.calls[0][1].body);
+  expect(payload.messages[0].content).toContain("No contestes la solicitud");
+  expect(payload.messages[1].content).not.toContain("dato privado");
+  expect(payload.options.num_predict).toBe(128);
+});
+it("el rechazo se aplica también a selección de gráficas, sin sustituir la petición", async () => {
+  vi.stubEnv("AI_PROVIDER", "ollama");
+  const f = vi
+    .fn()
+    .mockResolvedValue(
+      Response.json({ message: { content: '{"allowed":false}' } }),
+    );
+  vi.stubGlobal("fetch", f);
+  await expect(
+    generate(
+      moduleRequest("performance", "Explica la evolución de los dinosaurios."),
+      z.object({ charts: z.array(z.string()).min(1) }),
+      undefined,
+      "selection",
+    ),
+  ).rejects.toMatchObject({ code: "AI_OUT_OF_SCOPE" });
+  expect(f).toHaveBeenCalledTimes(1);
+});
+it("consultas válidas conservan la generación y revisión factual", async () => {
+  vi.stubEnv("AI_PROVIDER", "ollama");
+  const f = vi
+    .fn()
+    .mockResolvedValueOnce(
+      Response.json({ message: { content: '{"allowed":true}' } }),
+    )
+    .mockResolvedValueOnce(
+      Response.json({ message: { content: JSON.stringify(valid) } }),
+    )
+    .mockResolvedValueOnce(
+      Response.json({ message: { content: '{"supported":true,"issues":[]}' } }),
+    );
+  vi.stubGlobal("fetch", f);
+  expect(
+    (
+      await generate(
+        {
+          ...moduleRequest(
+            "courses",
+            "Capacitación de TypeScript para el puesto.",
+            "Desarrollo web",
+          ),
+          facts: ["React"],
+        },
+        recommendation,
+      )
+    ).result,
+  ).toEqual(valid);
+  expect(f).toHaveBeenCalledTimes(3);
+  expect(JSON.parse(f.mock.calls[0][1].body).messages[1].content).toContain(
+    "Desarrollo web",
+  );
+});
+it.each(["fallo", "salida inválida"])(
+  "no genera si no se pudo verificar el alcance: %s",
+  async (kind) => {
+    vi.stubEnv("AI_PROVIDER", "ollama");
+    const f =
+      kind === "fallo"
+        ? vi.fn().mockRejectedValue(new Error("timeout"))
+        : vi
+            .fn()
+            .mockResolvedValue(
+              Response.json({ message: { content: '{"allowed":"yes"}' } }),
+            );
+    vi.stubGlobal("fetch", f);
+    await expect(
+      generate(
+        moduleRequest("tasks", "Resume las entregas pendientes."),
+        recommendation,
+      ),
+    ).rejects.toMatchObject({ status: 503, code: "AI_SCOPE_UNAVAILABLE" });
+    expect(f).toHaveBeenCalledTimes(1);
+  },
+);
+it("los rechazos explícitos y resúmenes automáticos no consumen una clasificación", async () => {
+  vi.stubEnv("AI_PROVIDER", "ollama");
+  const f = vi
+    .fn()
+    .mockResolvedValue(
+      Response.json({ message: { content: JSON.stringify(valid) } }),
+    );
+  vi.stubGlobal("fetch", f);
+  await expect(
+    generate(
+      moduleRequest("tasks", "Dame una receta de pizza."),
+      recommendation,
+    ),
+  ).rejects.toMatchObject({ code: "AI_OUT_OF_SCOPE" });
+  expect(f).not.toHaveBeenCalled();
+  expect(
+    (
+      await generate(
+        moduleRequest("tasks", ""),
+        recommendation,
+        undefined,
+        "selection",
+      )
+    ).result,
+  ).toEqual(valid);
+  expect(f).toHaveBeenCalledTimes(1);
+});
+
+it("una petición genérica del módulo no depende del clasificador", async () => {
+  vi.stubEnv("AI_PROVIDER", "ollama");
+  const f = vi
+    .fn()
+    .mockResolvedValue(
+      Response.json({ message: { content: JSON.stringify(valid) } }),
+    );
+  vi.stubGlobal("fetch", f);
+  expect(
+    (
+      await generate(
+        moduleRequest("onboarding", "Resume la información disponible."),
+        recommendation,
+        undefined,
+        "selection",
+      )
+    ).result,
+  ).toEqual(valid);
+  expect(f).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(f.mock.calls[0][1].body).messages[0].content).not.toContain(
+    "clasificador de alcance",
+  );
 });
