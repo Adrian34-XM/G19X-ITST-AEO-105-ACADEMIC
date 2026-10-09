@@ -7,6 +7,7 @@
  */
 /** Herramientas revisables: el servidor determina el alcance y calcula las cifras. */
 import { StatusText } from "./status-text";
+import { ContentSkeleton, LoadingStatus } from "./loading-skeleton";
 import { pendingTrainingReview } from "@/modules/workspace/training-review";
 import { useEffect, useRef, useState } from "react";
 import { shareSummaryRequest, summaryRequestKey } from "./summary-requests";
@@ -670,12 +671,27 @@ export function WorkforceAI({
               ? "Generar gráficas"
               : "Actualizar resumen"}
       </button>
-      {preparing && waiting && (
-        <p role="status">
-          Se está terminando otro análisis de tu cuenta. Tu solicitud comenzará
-          automáticamente después.
-        </p>
-      )}
+      {preparing &&
+        (result && (!automatic || resultScope === scope) ? (
+          <LoadingStatus
+            label={
+              waiting
+                ? "Esperando a que termine el otro análisis de tu cuenta…"
+                : "Actualizando el análisis…"
+            }
+          />
+        ) : (
+          <ContentSkeleton
+            variant={mode === "chart" ? "charts" : "text"}
+            label={
+              waiting
+                ? "Se está terminando otro análisis de tu cuenta. Tu solicitud comenzará automáticamente después."
+                : mode === "chart"
+                  ? "Preparando el análisis y las gráficas…"
+                  : "Analizando la información autorizada…"
+            }
+          />
+        ))}
       {mode === "chart" && (
         <small>
           Puedes pedir varias vistas del mismo proceso o una gráfica por cada

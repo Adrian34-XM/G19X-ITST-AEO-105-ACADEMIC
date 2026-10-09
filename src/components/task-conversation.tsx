@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { stateLabel } from "@/modules/workspace/labels";
+import { ContentSkeleton } from "./loading-skeleton";
 type Message = {
   id: string;
   sequence: number;
@@ -172,7 +173,9 @@ function Conversation({ taskId, userId }: { taskId: string; userId: string }) {
             <p>{m.body}</p>
           </article>
         ))}
-        {loading && <p>Cargando conversación…</p>}
+        {loading && (
+          <ContentSkeleton variant="messages" label="Cargando conversación…" />
+        )}
         {!loading && !messages.length && !error && (
           <p>
             Aún no hay mensajes. Puedes preguntar o aclarar las instrucciones

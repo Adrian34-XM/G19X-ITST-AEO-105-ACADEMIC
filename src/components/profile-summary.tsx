@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { requestAnalysis } from "./ai-requests";
+import { ContentSkeleton } from "./loading-skeleton";
 type Summary = { summary: string; recommendations?: string[] };
 // Comparte únicamente solicitudes en vuelo de la misma sesión y persona, también en StrictMode.
 const pending = new Map<string, Promise<Summary>>();
@@ -81,7 +82,7 @@ export function ProfileSummary({
         </button>
       </div>
       {state.loading && (
-        <p>Preparando el resumen con la información que puedes consultar…</p>
+        <ContentSkeleton label="Preparando el resumen con la información que puedes consultar…" />
       )}
       {state.error && (
         <p role="alert">

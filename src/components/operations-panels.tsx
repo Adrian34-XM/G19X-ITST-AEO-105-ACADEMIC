@@ -1,5 +1,6 @@
 "use client";
 import { StatusText } from "./status-text";
+import { ContentSkeleton } from "./loading-skeleton";
 import { ProfileAvatar } from "./profile-photo";
 /**
  * @file Paneles de novedades, equipo, desempeño, analíticas y auditoría. Reúne filtros y vistas
@@ -413,11 +414,13 @@ export function OperationsPanel({
         </div>
       )}
       {preparing && (
-        <p role="status">
-          {waiting
-            ? "Se está terminando otro análisis de tu cuenta. El resumen comenzará automáticamente después."
-            : "El orquestador está revisando tus novedades y pendientes…"}
-        </p>
+        <ContentSkeleton
+          label={
+            waiting
+              ? "Se está terminando otro análisis de tu cuenta. El resumen comenzará automáticamente después."
+              : "El orquestador está revisando tus novedades y pendientes…"
+          }
+        />
       )}
       {error && resultScope === scopeKey && (
         <div className="error" role="alert">

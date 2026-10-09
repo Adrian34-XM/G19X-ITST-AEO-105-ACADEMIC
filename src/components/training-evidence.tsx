@@ -9,6 +9,7 @@ import { useState } from "react";
 import Image from "next/image";
 import type { ReactNode } from "react";
 import { request } from "./forms";
+import { ContentSkeleton, LoadingStatus } from "./loading-skeleton";
 import { type Row, value } from "@/modules/workspace/types";
 
 /** Conserva las instrucciones de la última revisión mientras se prepara otra entrega. */
@@ -374,12 +375,13 @@ export function TrainingEvidence({
                 </button>
               )}
             </div>
-            {busy && activeEvidence === e.id && (
-              <p role="status">
-                La IA está contrastando el archivo con lo solicitado. Las
-                imágenes pueden tardar unos minutos.
-              </p>
-            )}
+            {busy &&
+              activeEvidence === e.id &&
+              (opinions[e.id] ? (
+                <LoadingStatus label="Actualizando la revisión del archivo…" />
+              ) : (
+                <ContentSkeleton label="La IA está contrastando el archivo con lo solicitado. Las imágenes pueden tardar unos minutos." />
+              ))}
             {opinions[e.id] && (
               <div className="training-ai-opinion">
                 <p>{opinions[e.id].summary}</p>

@@ -1,4 +1,5 @@
 "use client";
+import { ContentSkeleton, LoadingStatus } from "./loading-skeleton";
 /**
  * @file Contenedor principal de navegación y vistas por rol. Conecta datos autorizados, formularios
  * y paneles especializados; coordina las actualizaciones de pantalla tras las operaciones del
@@ -779,12 +780,12 @@ export function Workspace({
                       </button>
                     )}
                   </div>
-                  {evidenceAnalysis[e.id]?.busy && (
-                    <p role="status">
-                      La IA está contrastando el archivo con las instrucciones
-                      de esta tarea…
-                    </p>
-                  )}
+                  {evidenceAnalysis[e.id]?.busy &&
+                    (e.ai_result ? (
+                      <LoadingStatus label="Actualizando el análisis de la evidencia…" />
+                    ) : (
+                      <ContentSkeleton label="La IA está contrastando el archivo con las instrucciones de esta tarea…" />
+                    ))}
                   {evidenceAnalysis[e.id]?.error && (
                     <div role="alert" className="error">
                       <strong>No se pudo generar el análisis.</strong>

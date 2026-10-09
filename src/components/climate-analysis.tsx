@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { request } from "./forms";
+import { ContentSkeleton, LoadingStatus } from "./loading-skeleton";
 import { requestAnalysis } from "./ai-requests";
 import { ClimateQuestionChart } from "./climate-question-chart";
 import { climateCharts } from "@/modules/workspace/climate-charts";
@@ -122,15 +123,25 @@ export function ClimateAnalysis({
             </button>
           </header>
           <div className="climate-analysis-body">
-            {busy && (
-              <p role="status">
-                {waiting
-                  ? "Esperando a que termine el otro análisis de tu cuenta…"
-                  : result
-                    ? "Actualizando resultados…"
-                    : "Preparando el análisis y las gráficas…"}
-              </p>
-            )}
+            {busy &&
+              (result ? (
+                <LoadingStatus
+                  label={
+                    waiting
+                      ? "Esperando a que termine el otro análisis de tu cuenta…"
+                      : "Actualizando resultados…"
+                  }
+                />
+              ) : (
+                <ContentSkeleton
+                  variant="charts"
+                  label={
+                    waiting
+                      ? "Esperando a que termine el otro análisis de tu cuenta…"
+                      : "Preparando el análisis y las gráficas…"
+                  }
+                />
+              ))}
             {error && (
               <p className="error" role="alert">
                 {error}

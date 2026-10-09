@@ -14,6 +14,7 @@ import {
 import { isHR } from "@/lib/permissions";
 import { useCallback, useEffect, useState } from "react";
 import { request } from "./forms";
+import { ContentSkeleton, LoadingStatus } from "./loading-skeleton";
 import { type Profile, type Snapshot, value } from "@/modules/workspace/types";
 type Draft = {
   id?: string;
@@ -376,7 +377,7 @@ export function WorkplaceClimate({
           independiente de las encuestas que administras.
         </p>
         {loading ? (
-          <p role="status">Consultando tus asignaciones…</p>
+          <ContentSkeleton label="Consultando tus asignaciones…" />
         ) : error ? (
           <p>No se pudieron verificar tus encuestas pendientes.</p>
         ) : !pendingSurveys.length ? (
@@ -431,7 +432,12 @@ export function WorkplaceClimate({
         </button>
         <p>{visibleSurveys.length} encuestas encontradas</p>
       </div>
-      {loading && <p role="status">Cargando encuestas…</p>}
+      {loading &&
+        (loaded.surveys.length ? (
+          <LoadingStatus label="Actualizando encuestas…" />
+        ) : (
+          <ContentSkeleton variant="cards" label="Cargando encuestas…" />
+        ))}
       {!loading && !loaded.surveys.length && !error && (
         <p className="empty">No tienes encuestas disponibles.</p>
       )}

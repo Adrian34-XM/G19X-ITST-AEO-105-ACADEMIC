@@ -8,6 +8,7 @@ import type { Profile } from "@/modules/workspace/types";
 import type { ClimateOverview } from "@/modules/workspace/climate-overview";
 import { stateLabel } from "@/modules/workspace/labels";
 import { ClimateAnalysis } from "./climate-analysis";
+import { ContentSkeleton, LoadingStatus } from "./loading-skeleton";
 
 function preview(text: string, limit: number) {
   return text.length <= limit
@@ -105,9 +106,15 @@ export function ClimateOverviewPanel({ profile }: { profile: Profile }) {
         los análisis guardados de sus encuestas. También puedes dar seguimiento
         a las encuestas que siguen abiertas.
       </p>
-      {loading && (
-        <p role="status">Consultando novedades de ambiente laboral…</p>
-      )}
+      {loading &&
+        (data ? (
+          <LoadingStatus label="Actualizando novedades de ambiente laboral…" />
+        ) : (
+          <ContentSkeleton
+            variant="cards"
+            label="Consultando novedades de ambiente laboral…"
+          />
+        ))}
       {error && (
         <p className="error" role="alert">
           {error}

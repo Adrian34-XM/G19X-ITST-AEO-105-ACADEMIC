@@ -6,6 +6,7 @@
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ContentSkeleton } from "./loading-skeleton";
 import { home } from "@/lib/permissions";
 import type { Profile } from "@/modules/workspace/types";
 type UnreadTask = {
@@ -77,7 +78,7 @@ export function TaskMessageAlerts({ profile }: { profile: Profile }) {
       {error ? (
         <p role="status">{error}</p>
       ) : !loaded ? (
-        <p>Cargando mensajes…</p>
+        <ContentSkeleton label="Cargando mensajes…" />
       ) : !tasks.length ? (
         <p>No tienes mensajes nuevos.</p>
       ) : (
