@@ -4,6 +4,8 @@ Aplicación web para reclutamiento, equipo y organigrama, incorporación, capaci
 
 Tecnologías: Node.js 24, Next.js 16, React 19, TypeScript, Supabase Auth, PostgreSQL y Storage privado. La IA puede usar Ollama local o Gemini.
 
+Repositorio: [G19X-ITST-AEO-105-ACADEMIC](https://github.com/Adrian34-XM/G19X-ITST-AEO-105-ACADEMIC). Este es el nombre actual del repositorio académico, antes llamado `G19X-UTSLP-ARGJ-256-ACADEMIC`.
+
 ## 1. Requisitos
 
 Instala antes de comenzar:
@@ -19,10 +21,10 @@ Puedes elegir **Supabase local** (apartados 2–5) o **Supabase alojado** (apart
 
 ## 2. Obtener el proyecto
 
-Sustituye la URL de ejemplo por la dirección real del repositorio:
+Clona el repositorio académico actual:
 
 ```sh
-git clone <URL_DEL_REPOSITORIO> arquitectura-rh
+git clone https://github.com/Adrian34-XM/G19X-ITST-AEO-105-ACADEMIC.git arquitectura-rh
 cd arquitectura-rh
 npm ci
 ```
@@ -197,10 +199,13 @@ Esta opción utiliza la base de datos en Supabase y la aplicación en tu máquin
 ```sh
 npx supabase login
 npx supabase link --project-ref <IDENTIFICADOR_DEL_PROYECTO>
+npx supabase db push --dry-run --skip-vault
 npx supabase db push
 ```
 
 El enlace puede solicitar la contraseña de PostgreSQL del proyecto; no es la contraseña de una cuenta Nexo. Revisa el destino antes de aplicar cambios. Para una instalación nueva, aplica **todas** las migraciones de `supabase/migrations/` mediante este flujo. No combines este procedimiento con los instaladores SQL agregados, que pueden intentar crear los mismos objetos.
+
+El comando con `--dry-run --skip-vault` permite revisar qué migraciones se aplicarían sin aplicarlas ni actualizar secretos de Vault. Lee ese resultado antes del `db push` real. Para actualizar una instalación alojada existente, respalda los datos y sigue el mismo flujo con su proyecto autorizado; aplica únicamente las migraciones pendientes, sin reset ni seed. Actualizar o subir el código a GitHub no actualiza la base de datos.
 
 4. En Supabase Auth configura la URL del sitio y permite `http://127.0.0.1:3000/auth/confirm` como URL de redirección. Si usas `localhost`, configura también esa variante y utiliza el mismo origen en `APP_URL`.
 5. Configura las plantillas de confirmación, invitación y recuperación tomando como referencia `supabase/templates/`. En un servicio alojado estas plantillas no se instalan automáticamente por ejecutar migraciones SQL. Configura el envío de correo y, para pruebas fuera de las restricciones del servicio predeterminado, un proveedor SMTP propio.
@@ -229,11 +234,21 @@ Para comprobar manualmente los recorridos: entra como candidato, completa el per
 
 Para arrancar una compilación de producción en la misma máquina, detén `npm run dev`, ejecuta `npm run build` y después `npm run start -- --hostname 127.0.0.1`. No ejecutes ambos servidores en el puerto 3000 al mismo tiempo. Esto prueba el modo de producción local; no configura un alojamiento público.
 
+### Consultar desempeño y analíticas
+
+- En **Desempeño**, busca por nombre o apellido desde el panel visible. La búsqueda admite mayúsculas, minúsculas, nombres sin acentos y espacios al principio o al final. RH y superusuario pueden combinarla con el área y un colaborador concreto; **Limpiar búsqueda y filtros** recupera el conjunto autorizado.
+- Las pestañas **Resumen**, **Análisis con IA** y **Por persona** comparten el ámbito filtrado. La vista por persona muestra el número de coincidencias y avisa cuando no hay resultados. El acceso individual del empleado se limita a sus propios registros; la jefatura trabaja con su equipo autorizado.
+- En **Analíticas**, abre **Mostrar filtros** para delimitar el área, colaborador, proceso y periodo disponible. Las gráficas y solicitudes de IA utilizan esos filtros. Las fechas de creación no equivalen a fechas de finalización de actividades.
+- Al solicitar gráficas, indica proceso, desglose y periodo; por ejemplo: «Estados de tareas en cada área durante los últimos 7 días». Revisa la descripción, la fecha utilizada y las limitaciones de cada gráfica antes de tomar decisiones. Los indicadores se calculan sobre los datos autorizados cargados, con un máximo de 1000 registros por tabla; no representan por sí solos una evaluación integral de desempeño.
+
+Las evaluaciones de postulaciones son internas de RH/superusuario. Los análisis de encuestas se reservan a RH/superusuario y a la jefatura creadora; poder contestar una encuesta no concede acceso a su análisis. Estos controles requieren la migración de análisis privados indicada en el apartado 3.
+
 ## 10. Problemas frecuentes
 
 - **No se encontró el sitio:** comprueba que Next.js siga activo, que no haya errores en la terminal y que estés usando el puerto anunciado. Si 3000 está ocupado, detén tu instancia anterior o cambia el puerto y actualiza `APP_URL` y las redirecciones de Auth.
 - **Docker no está disponible:** abre Docker Desktop, activa el motor Linux y vuelve a ejecutar `npx supabase start`.
 - **Faltan tablas o funciones SQL:** verifica que las migraciones se aplicaron al mismo proyecto cuya URL aparece en `.env.local`. No ejecutes una mejora aislada sobre una base vacía.
+- **El sistema pide `202610080001_private_ai_analyses.sql`:** aplica esa migración pendiente en la instancia correcta y ejecuta `supabase/verificar-migraciones.sql`. Conserva los análisis existentes en tablas privadas; no basta con recargar la página ni con hacer push del código. No uses un reset para actualizar una base con datos que quieras conservar.
 - **Faltan claves o el acceso administrativo falla:** revisa URL, clave pública y `SUPABASE_SERVICE_ROLE_KEY`. Las claves de distintos proyectos no son intercambiables. Reinicia Next.js después de editar el entorno.
 - **No llega un correo:** en local revisa el capturador de correo; en alojado revisa confirmación, SMTP, destinatario, cuotas y registros de Auth. Las direcciones `@nexo.test` son ficticias.
 - **El enlace de correo está incompleto o caducado:** utiliza el mensaje más reciente, revisa las plantillas y `APP_URL`, y solicita un enlace nuevo. Los enlaces tienen vigencia y pueden ser de un solo uso.

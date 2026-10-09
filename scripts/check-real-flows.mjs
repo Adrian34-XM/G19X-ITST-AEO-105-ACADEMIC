@@ -509,6 +509,7 @@ try {
   process.exitCode = 1;
 } finally {
   await mkdir(".local", { recursive: true });
+  await mkdir("docs", { recursive: true });
   await writeFile(
     ".local/real-flow-fixture.json",
     JSON.stringify({
