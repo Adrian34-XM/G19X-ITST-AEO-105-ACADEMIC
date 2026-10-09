@@ -1266,12 +1266,16 @@ export function Workspace({
           {view !== "overview" && (
             <>
               <section
-                className="workspace-filters"
+                className={`workspace-filters${view === "performance" ? " performance-filters" : ""}`}
                 aria-label="Buscar y filtrar"
                 hidden={
-                  ["interviews", "profile", "climate", "audit", "employees"].includes(
-                    view,
-                  ) || !!detail
+                  [
+                    "interviews",
+                    "profile",
+                    "climate",
+                    "audit",
+                    "employees",
+                  ].includes(view) || !!detail
                 }
               >
                 <div className="filter-heading">
@@ -1279,7 +1283,7 @@ export function Workspace({
                   <span>
                     Los filtros se aplican a los resultados de esta vista.
                   </span>
-                  {
+                  {view !== "performance" && (
                     <button
                       type="button"
                       className="btn secondary"
@@ -1294,120 +1298,143 @@ export function Workspace({
                         ? " · Activos"
                         : ""}
                     </button>
-                  }
+                  )}
                 </div>
-                <div id="workspace-filter-controls" hidden={!reportFiltersOpen}>
-                  <div className="toolbar">
-                    <div className="search">
-                      <Search size={17} />
-                      <input
-                        aria-label="Buscar registros"
-                        placeholder="Buscar en esta vista…"
-                        value={search}
-                        onChange={(e) => {
-                          setSearch(e.target.value);
-                          changeFilters({ ...filters, query: e.target.value });
-                        }}
-                      />
-                    </div>
-                    <span className="muted">Información actualizada</span>
-                    {filterable && view !== "tasks" && hr && (
+                <div
+                  className="toolbar"
+                  hidden={view !== "performance" && !reportFiltersOpen}
+                >
+                  <div className="search">
+                    <Search size={17} />
+                    <input
+                      aria-label={
+                        view === "performance"
+                          ? "Buscar persona por nombre"
+                          : "Buscar registros"
+                      }
+                      placeholder={
+                        view === "performance"
+                          ? "Buscar por nombre o apellido…"
+                          : "Buscar en esta vista…"
+                      }
+                      value={search}
+                      onChange={(e) => {
+                        setSearch(e.target.value);
+                        changeFilters({ ...filters, query: e.target.value });
+                      }}
+                    />
+                  </div>
+                  <span className="muted">Información actualizada</span>
+                  {filterable && view !== "tasks" && hr && (
+                    <label>
+                      Área
+                      <select
+                        value={filters.department ?? ""}
+                        onChange={(e) =>
+                          changeFilters({
+                            ...filters,
+                            department: e.target.value,
+                            employee: "",
+                          })
+                        }
+                      >
+                        <option value="">Todas las áreas autorizadas</option>
+                        {(authorized.departments ?? []).map((d) => (
+                          <option value={d.id} key={d.id}>
+                            {value(d, "name")}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {[
+                    "performance",
+                    "analytics",
+                    "courses",
+                    "onboarding",
+                  ].includes(view) &&
+                    (hr || manager) &&
+                    !personalPerformance && (
                       <label>
-                        Área
+                        Colaborador
                         <select
-                          value={filters.department ?? ""}
+                          value={filters.employee ?? ""}
                           onChange={(e) =>
                             changeFilters({
                               ...filters,
-                              department: e.target.value,
-                              employee: "",
+                              employee: e.target.value,
                             })
                           }
                         >
-                          <option value="">Todas las áreas autorizadas</option>
-                          {(authorized.departments ?? []).map((d) => (
-                            <option value={d.id} key={d.id}>
-                              {value(d, "name")}
+                          <option value="">
+                            {hr
+                              ? "Todas las personas del área"
+                              : "Todas las personas de mi equipo"}
+                          </option>
+                          {(
+                            filterWorkspace(authorized, {
+                              department: activeFilters.department,
+                            }).employees ?? []
+                          ).map((e) => (
+                            <option key={e.id} value={e.id}>
+                              {name(e.profile_id)}
                             </option>
                           ))}
                         </select>
                       </label>
                     )}
-                    {[
-                      "performance",
-                      "analytics",
-                      "courses",
-                      "onboarding",
-                    ].includes(view) &&
-                      (hr || manager) &&
-                      !personalPerformance && (
-                        <label>
-                          Colaborador
-                          <select
-                            value={filters.employee ?? ""}
-                            onChange={(e) =>
-                              changeFilters({
-                                ...filters,
-                                employee: e.target.value,
-                              })
-                            }
-                          >
-                            <option value="">
-                              {hr
-                                ? "Todas las personas del área"
-                                : "Todas las personas de mi equipo"}
-                            </option>
-                            {(
-                              filterWorkspace(authorized, {
-                                department: activeFilters.department,
-                              }).employees ?? []
-                            ).map((e) => (
-                              <option key={e.id} value={e.id}>
-                                {name(e.profile_id)}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      )}
-                    {view === "analytics" && hr && (
-                      <>
-                        <label>
-                          Proceso
-                          <select
-                            value={filters.process ?? "all"}
-                            onChange={(e) =>
-                              changeFilters({
-                                ...filters,
-                                process: e.target.value,
-                              })
-                            }
-                          >
-                            <option value="all">Todos</option>
-                            <option value="tasks">Tareas</option>
-                            <option value="courses">Capacitación</option>
-                            <option value="applications">Reclutamiento</option>
-                          </select>
-                        </label>
-                        <label>
-                          Fecha de creación
-                          <select
-                            value={filters.days ?? "all"}
-                            onChange={(e) =>
-                              changeFilters({
-                                ...filters,
-                                days: e.target.value,
-                              })
-                            }
-                          >
-                            <option value="all">Todo el periodo</option>
-                            <option value="7">Últimos 7 días</option>
-                            <option value="30">Últimos 30 días</option>
-                            <option value="90">Últimos 90 días</option>
-                          </select>
-                        </label>
-                      </>
-                    )}
-                  </div>
+                  {view === "performance" && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => {
+                        setFilters({});
+                        setSearch("");
+                      }}
+                    >
+                      Limpiar búsqueda y filtros
+                    </button>
+                  )}
+                  {view === "analytics" && hr && (
+                    <>
+                      <label>
+                        Proceso
+                        <select
+                          value={filters.process ?? "all"}
+                          onChange={(e) =>
+                            changeFilters({
+                              ...filters,
+                              process: e.target.value,
+                            })
+                          }
+                        >
+                          <option value="all">Todos</option>
+                          <option value="tasks">Tareas</option>
+                          <option value="courses">Capacitación</option>
+                          <option value="applications">Reclutamiento</option>
+                        </select>
+                      </label>
+                      <label>
+                        Fecha de creación
+                        <select
+                          value={filters.days ?? "all"}
+                          onChange={(e) =>
+                            changeFilters({
+                              ...filters,
+                              days: e.target.value,
+                            })
+                          }
+                        >
+                          <option value="all">Todo el periodo</option>
+                          <option value="7">Últimos 7 días</option>
+                          <option value="30">Últimos 30 días</option>
+                          <option value="90">Últimos 90 días</option>
+                        </select>
+                      </label>
+                    </>
+                  )}
+                </div>
+                <div id="workspace-filter-controls" hidden={!reportFiltersOpen}>
                   {!detail && view !== "profile" && view !== "climate" && (
                     <ModuleFilterBar
                       view={view}
@@ -2691,6 +2718,15 @@ export function Workspace({
                         Abre un perfil para consultar su historial y seguimiento
                         autorizado.
                       </p>
+                      <p className="muted" role="status">
+                        {rows("employees").length} personas encontradas
+                      </p>
+                      {!rows("employees").length && (
+                        <p className="empty">
+                          No hay personas que coincidan con los filtros. Prueba
+                          otro nombre o área.
+                        </p>
+                      )}
                       {rows("employees").map((e) => {
                         const p = performance(
                           rows("tasks")

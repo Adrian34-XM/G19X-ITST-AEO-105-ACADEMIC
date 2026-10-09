@@ -1540,6 +1540,9 @@ code {
 .workspace-filters .toolbar > .muted {
   display: none;
 }
+.performance-filters .toolbar {
+  margin-top: 18px;
+}
 .workspace-filters label {
   margin: 0;
 }

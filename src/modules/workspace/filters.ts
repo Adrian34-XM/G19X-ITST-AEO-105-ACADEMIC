@@ -126,6 +126,7 @@ export function filterWorkspace(
   ) {
     const normalize = (s: string) =>
       s
+        .trim()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLocaleLowerCase();
@@ -139,7 +140,9 @@ export function filterWorkspace(
           (d) => d.id === position?.department_id,
         );
         return normalize(
-          `${person?.full_name ?? ""} ${department?.name ?? ""}`,
+          filters.module === "performance"
+            ? String(person?.full_name ?? "")
+            : `${person?.full_name ?? ""} ${department?.name ?? ""}`,
         ).includes(normalize(filters.query!));
       })
       .map((e) => e.id)
