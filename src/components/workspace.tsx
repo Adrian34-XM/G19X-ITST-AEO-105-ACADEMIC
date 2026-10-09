@@ -449,6 +449,7 @@ export function Workspace({
       (r) =>
         (!detail || r.id === detail) &&
         (!search ||
+          view === "employees" ||
           [
             ...Object.values(r),
             name(r.profile_id),
@@ -812,11 +813,67 @@ export function Workspace({
             <input
               type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                changeFilters({ ...filters, query: event.target.value });
+              }}
               placeholder="Nombre o puesto…"
             />
           </label>
-          <p className="muted">{tableRows.length} personas en esta vista</p>
+          <label>
+            Estado del integrante
+            <select
+              value={filters.state ?? ""}
+              onChange={(event) =>
+                changeFilters({ ...filters, state: event.target.value })
+              }
+            >
+              <option value="">Todos los estados</option>
+              <option value="ACTIVE">Activos</option>
+              <option value="INACTIVE">Inactivos</option>
+            </select>
+          </label>
+          <details className="team-extra-filters">
+            <summary>
+              Filtrar por puesto{filters.position ? " · Activo" : ""}
+            </summary>
+            <label>
+              Puesto del integrante
+              <select
+                value={filters.position ?? ""}
+                onChange={(event) =>
+                  changeFilters({ ...filters, position: event.target.value })
+                }
+              >
+                <option value="">Todos los puestos</option>
+                {(authorized.positions ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {value(p, "name")}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </details>
+          <div className="team-directory-count">
+            <span className="muted" role="status">
+              {tableRows.length} personas encontradas
+            </span>
+            {(search ||
+              filters.department ||
+              filters.state ||
+              filters.position) && (
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setSearch("");
+                  changeFilters({});
+                }}
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
         </div>
       )}
       <table>
@@ -834,13 +891,32 @@ export function Workspace({
           {tableRows.map((r) => (
             <tr key={r.id}>
               <td>
-                <strong>
-                  {view === "employees" || view === "candidates"
-                    ? name(r.profile_id)
-                    : value(r, "full_name") ||
-                      value(r, "name") ||
-                      value(r, "action")}
-                </strong>
+                {view === "employees" ? (
+                  <Link
+                    className="team-person-link"
+                    href={`${href("employees")}/${r.id}`}
+                  >
+                    <ProfileAvatar
+                      id={String(r.profile_id)}
+                      name={name(r.profile_id)}
+                      photoPath={value(
+                        find("profiles", r.profile_id),
+                        "photo_path",
+                      )}
+                      className="team-person-avatar"
+                    />
+                    <strong>{name(r.profile_id)}</strong>
+                    <ArrowUpRight size={15} aria-hidden="true" />
+                  </Link>
+                ) : (
+                  <strong>
+                    {view === "employees" || view === "candidates"
+                      ? name(r.profile_id)
+                      : value(r, "full_name") ||
+                        value(r, "name") ||
+                        value(r, "action")}
+                  </strong>
+                )}
               </td>
               <td>
                 {view === "employees"
@@ -1192,7 +1268,7 @@ export function Workspace({
                 className="workspace-filters"
                 aria-label="Buscar y filtrar"
                 hidden={
-                  ["interviews", "profile", "climate", "audit"].includes(
+                  ["interviews", "profile", "climate", "audit", "employees"].includes(
                     view,
                   ) || !!detail
                 }
@@ -1724,14 +1800,69 @@ export function Workspace({
                 !detail &&
                 profile &&
                 (hr || manager) && (
-                  <div className="team-workspace">
-                    <TeamTree
-                      data={authorized}
-                      profile={profile}
-                      selectedIds={(data.employees ?? []).map((e) => e.id)}
-                    />
-                    {directory}
-                  </div>
+                  <section
+                    className="team-hub"
+                    aria-label="Personas y organización"
+                  >
+                    <div
+                      className="team-metrics"
+                      aria-label="Resumen del equipo filtrado"
+                    >
+                      <div>
+                        <strong>{tableRows.length}</strong>
+                        <span>Integrantes en la vista</span>
+                      </div>
+                      <div>
+                        <strong>
+                          {
+                            tableRows.filter((e) => e.status === "ACTIVE")
+                              .length
+                          }
+                        </strong>
+                        <span>Integrantes activos</span>
+                      </div>
+                      <div>
+                        <strong>
+                          {
+                            new Set(
+                              tableRows
+                                .map(
+                                  (e) =>
+                                    find("positions", e.position_id)
+                                      .department_id,
+                                )
+                                .filter(Boolean),
+                            ).size
+                          }
+                        </strong>
+                        <span>Áreas representadas</span>
+                      </div>
+                    </div>
+                    <div className="team-workspace">
+                      <TeamTree
+                        data={authorized}
+                        profile={profile}
+                        selectedIds={tableRows.map((e) => e.id)}
+                        department={filters.department ?? ""}
+                        onDepartmentChange={(department) =>
+                          changeFilters({ ...filters, department })
+                        }
+                      />
+                      <aside
+                        className="team-sidebar"
+                        aria-label="Directorio y gestión del equipo"
+                      >
+                        {directory}
+                        {hr && (
+                          <StaffEnrollment
+                            data={authorized}
+                            superuser={admin}
+                            onSaved={refresh}
+                          />
+                        )}
+                      </aside>
+                    </div>
+                  </section>
                 )}
               {view === "employees" && detail && profile && (
                 <EmployeeProfile
@@ -2381,13 +2512,6 @@ export function Workspace({
                     )}
                   </div>
                 )}
-              {view === "employees" && !detail && profile && hr && (
-                <StaffEnrollment
-                  data={authorized}
-                  superuser={admin}
-                  onSaved={refresh}
-                />
-              )}
               {["performance", "analytics"].includes(view) && (
                 <section
                   className="report-workspace"

@@ -593,12 +593,16 @@ export function TeamTree({
   data,
   profile,
   selectedIds,
+  department,
+  onDepartmentChange,
 }: {
   data: Snapshot;
   profile: Profile;
   selectedIds?: string[];
+  department?: string;
+  onDepartmentChange?: (department: string) => void;
 }) {
-  const [area, setArea] = useState(""),
+  const [localArea, setLocalArea] = useState(""),
     [visible, setVisible] = useState(true),
     [collapsed, setCollapsed] = useState<string[]>([]);
   const [layout, setLayout] = useState<"areas" | "hierarchy">("areas");
@@ -608,6 +612,7 @@ export function TeamTree({
     [saving, setSaving] = useState(false),
     [message, setMessage] = useState("");
   const router = useRouter();
+  const area = department ?? localArea;
   const authorized = scopeData(data, profile);
   const employees = authorized.employees ?? [];
   const tree = organization(
@@ -744,7 +749,7 @@ export function TeamTree({
       <div className="org-heading">
         <div>
           <span className="org-eyebrow">PERSONAS Y CONEXIONES</span>
-          <h2>Jefes y estructura del equipo</h2>
+          <h2>Organigrama del equipo</h2>
           <p>
             Explora quién forma cada equipo y cómo se conecta con sus
             responsables.
@@ -754,50 +759,7 @@ export function TeamTree({
           <strong>{tree.matches.size}</strong> personas en la vista
         </span>
       </div>
-      <details className="org-management">
-        <summary>Asignar jefe directo o superior</summary>
-        <div className="chart-filters">
-          <PersonSelect
-            label="Integrante o jefe"
-            value={employee}
-            options={assignable.map((e) => ({
-              id: e.id,
-              name: name(e.profile_id),
-            }))}
-            emptyLabel="Selecciona una persona"
-            onChange={(id) => {
-              setEmployee(id);
-              setManager(
-                String(employees.find((e) => e.id === id)?.manager_id ?? ""),
-              );
-            }}
-          />
-          <PersonSelect
-            label="Jefe superior"
-            value={manager}
-            options={managers
-              .filter((m) => m.id !== employee)
-              .map((m) => ({ id: m.id, name: name(m.profile_id) }))}
-            emptyLabel={
-              isHR(profile.role) ? "Sin jefe asignado" : "Selecciona un jefe"
-            }
-            onChange={setManager}
-          />
-        </div>
-        <button
-          disabled={saving || !employee || (!isHR(profile.role) && !manager)}
-          onClick={() => void assign()}
-        >
-          {saving ? "Guardando…" : "Guardar jerarquía"}
-        </button>
-        <p role="status">{message}</p>
-        <p>
-          Un jefe solo puede reorganizar personas y jefes de su jerarquía. RH
-          puede asignar jefes entre áreas. Solo el superior de RH más alto de la
-          cadena y el superusuario pueden modificar a otro RH. No se permiten
-          ciclos.
-        </p>
-      </details>
+
       <div className="chart-filters org-toolbar">
         {isHR(profile.role) && (
           <label>
@@ -805,7 +767,8 @@ export function TeamTree({
             <select
               value={area}
               onChange={(e) => {
-                setArea(e.target.value);
+                if (onDepartmentChange) onDepartmentChange(e.target.value);
+                else setLocalArea(e.target.value);
                 setCollapsed([]);
                 setVisible(true);
               }}
@@ -966,10 +929,56 @@ export function TeamTree({
                 {tree.roots.map((r) => node(r.id, new Set()))}
               </ul>
             )}
-            {!tree.roots.length && <p>No hay personas en esta área.</p>}
+            {!tree.roots.length && (
+              <p>No hay personas que coincidan con los filtros.</p>
+            )}
           </div>
         </div>
       )}
+      <details className="org-management">
+        <summary>Asignar jefe directo o superior</summary>
+        <div className="chart-filters">
+          <PersonSelect
+            label="Integrante o jefe"
+            value={employee}
+            options={assignable.map((e) => ({
+              id: e.id,
+              name: name(e.profile_id),
+            }))}
+            emptyLabel="Selecciona una persona"
+            onChange={(id) => {
+              setEmployee(id);
+              setManager(
+                String(employees.find((e) => e.id === id)?.manager_id ?? ""),
+              );
+            }}
+          />
+          <PersonSelect
+            label="Jefe superior"
+            value={manager}
+            options={managers
+              .filter((m) => m.id !== employee)
+              .map((m) => ({ id: m.id, name: name(m.profile_id) }))}
+            emptyLabel={
+              isHR(profile.role) ? "Sin jefe asignado" : "Selecciona un jefe"
+            }
+            onChange={setManager}
+          />
+        </div>
+        <button
+          disabled={saving || !employee || (!isHR(profile.role) && !manager)}
+          onClick={() => void assign()}
+        >
+          {saving ? "Guardando…" : "Guardar jerarquía"}
+        </button>
+        <p role="status">{message}</p>
+        <p>
+          Un jefe solo puede reorganizar personas y jefes de su jerarquía. RH
+          puede asignar jefes entre áreas. Solo el superior de RH más alto de la
+          cadena y el superusuario pueden modificar a otro RH. No se permiten
+          ciclos.
+        </p>
+      </details>
       <p>
         {employees.filter((e) => !e.manager_id).length} personas visibles sin
         jefe asignado.

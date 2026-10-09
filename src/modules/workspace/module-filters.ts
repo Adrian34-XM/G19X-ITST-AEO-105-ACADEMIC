@@ -100,6 +100,7 @@ export function filterModule(
             r.action,
             r.resource_type,
             profile?.full_name,
+            table === "employees" ? find("positions", position)?.name : "",
             find("vacancies", r.vacancy_id ?? application?.vacancy_id)?.title,
           ].join(" "),
         ).includes(normalized(f.query)))
