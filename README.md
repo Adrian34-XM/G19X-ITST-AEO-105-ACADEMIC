@@ -176,6 +176,8 @@ La configuración local actual **sí exige confirmación de correo para registro
 
 `APP_URL` debe coincidir con la dirección usada para abrir la aplicación. Las plantillas locales se encuentran en `supabase/templates/`. El enlace de acceso llega a `/auth/confirm`.
 
+Para enviar correos a buzones reales con Supabase alojado, sigue la configuración SMTP del apartado 8. El capturador de correo local y un proveedor SMTP cumplen funciones distintas.
+
 ## 7. Uso diario, actualizaciones y parada
 
 Para arrancar otra vez, inicia Docker, ejecuta `npx supabase start`, inicia Ollama si lo usas y ejecuta `npm run dev -- --hostname 127.0.0.1`. No repitas el reset ni el seed.
@@ -216,6 +218,90 @@ La contraseña y las claves son propias de cada instalación. Clonar el reposito
 
 Para diagnosticar una instalación, ejecuta `supabase/verificar-migraciones.sql` en el SQL Editor. No modifica datos; muestra requisitos ausentes. El archivo no sustituye la ejecución ordenada de las migraciones, incluida la de fotos de perfil `202610060001_profile_photos.sql`.
 
+### Correos de acceso con Brevo y Supabase
+
+Nexo utiliza **Supabase Auth** para enviar confirmaciones de registro, invitaciones y recuperación de contraseña. El SMTP se configura en el proyecto de Supabase; no necesitas añadir una biblioteca de correo a Next.js. El servicio predeterminado de Supabase tiene restricciones de destinatarios y cuotas: configura un SMTP personalizado para tus usuarios. Consulta [Supabase SMTP](https://supabase.com/docs/guides/auth/auth-smtp).
+
+**1. Preparar el remitente en Brevo**
+
+- Crea una cuenta en [Brevo](https://www.brevo.com/) y elige su plan gratuito si cubre tus necesidades; revisa sus cuotas vigentes.
+- En **Configuración → Remitentes, dominios e IP → Remitentes**, añade el nombre `Nexo` y un correo al que tengas acceso. Verifícalo con el código recibido.
+- Para pruebas sin dominio propio, puedes añadir un remitente de un proveedor gratuito si tu cuenta lo permite y confirmar **Add this sender anyway**. No añadas `gmail.com` como dominio tuyo. Brevo puede sustituir la dirección visible por una de sus dominios; revisa también spam. Para producción, autentica un dominio propio. [Requisitos de remitentes](https://help.brevo.com/hc/en-us/articles/14925263522578-Comply-with-Gmail-Yahoo-and-Microsoft-s-requirements-for-email-senders).
+
+**2. Obtener las credenciales SMTP**
+
+En el menú de cuenta de Brevo, abre **SMTP & API → SMTP**, copia el **SMTP login** y genera una **clave SMTP** llamada `Nexo`. El login es el usuario SMTP asignado, que puede ser diferente de tu correo remitente. La clave SMTP es distinta de una API key y de la contraseña de tu cuenta. [Guía de Brevo](https://help.brevo.com/hc/en-us/articles/7924908994450-Send-transactional-emails-using-Brevo-SMTP).
+
+**3. Configurar Supabase**
+
+En **Authentication → Email → SMTP Settings**, activa **Custom SMTP**, completa estos campos y guarda:
+
+- **Sender email:** el correo verificado en Brevo.
+- **Sender name:** `Nexo`.
+- **Host:** `smtp-relay.brevo.com`.
+- **Port:** `465`.
+- **Username:** el **SMTP login** de Brevo.
+- **Password:** la **clave SMTP** generada.
+
+Guarda la clave únicamente en la configuración privada de Supabase y en tu gestor de contraseñas. No la pongas en el README, en código, en variables `NEXT_PUBLIC_*` ni en Git. Configurar SMTP en el panel no requiere reiniciar Next.js.
+
+**4. Configurar los destinos de los enlaces**
+
+En **Supabase → Authentication → URL Configuration**, para desarrollo local configura:
+
+- **Site URL:** `http://127.0.0.1:3000`.
+- **Redirect URLs:** `http://127.0.0.1:3000/auth/confirm`.
+
+En `.env.local`, utiliza el mismo origen:
+
+```env
+APP_URL=http://127.0.0.1:3000
+```
+
+Reinicia Next.js si cambias `APP_URL`. Si utilizas `localhost`, configura y utiliza esa variante de forma consistente. Los enlaces locales deben abrirse en la máquina donde corre Nexo: `127.0.0.1` apunta al dispositivo de quien abre el correo. Para otros equipos, configura la URL HTTPS pública de tu instalación tanto en `APP_URL` como en **Site URL**, y permite su ruta `/auth/confirm` en **Redirect URLs**. [Configuración de redirecciones](https://supabase.com/docs/guides/auth/redirect-urls).
+
+**5. Instalar las tres plantillas de correo**
+
+En **Authentication → Email → Email Templates**, configura cada plantilla. Los archivos en `supabase/templates/` se aplican a Supabase local mediante `config.toml`; para el proyecto alojado debes copiar su contenido al panel. Conserva exactamente las expresiones `{{ .RedirectTo }}` y `{{ .TokenHash }}`. [Variables de las plantillas](https://supabase.com/docs/guides/auth/auth-email-templates).
+
+**Confirm sign up** — asunto: `Confirma tu correo en Nexo`.
+
+```html
+<h2>Confirma tu correo en Nexo</h2>
+<p><a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=signup">Confirmar correo</a></p>
+<p>Si no creaste esta cuenta, ignora este correo. No compartas el enlace.</p>
+```
+
+**Reset password** — asunto: `Recupera tu acceso a Nexo`.
+
+```html
+<h2>Recupera tu acceso a Nexo</h2>
+<p><a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=recovery">Elegir una nueva contraseña</a></p>
+<p>Si no solicitaste este cambio, ignora este correo. No compartas el enlace.</p>
+```
+
+**Invite user** — asunto: `Tu invitación a Nexo`.
+
+```html
+<h2>Te invitamos a Nexo</h2>
+<p>Confirma tu correo y define tu contraseña para acceder a tu espacio de trabajo.</p>
+<p><a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=invite">Aceptar invitación</a></p>
+<p>Si no esperabas esta invitación, puedes ignorarla. No compartas este enlace.</p>
+```
+
+Guarda cada plantilla. En la configuración del proveedor **Email** de Supabase Auth, conserva activada la confirmación de correo para registros públicos; las cuentas demo confirmadas por el seed no sirven para comprobar ese envío.
+
+**6. Probar la entrega y los enlaces**
+
+1. Con Nexo encendido, abre una ventana de incógnito y entra en `/register`.
+2. Registra una cuenta de prueba con un correo real que controles y que no esté registrado. Comprueba que el mensaje llega, confirma el enlace y verifica el inicio de sesión.
+3. Desde `/login`, prueba **Recuperar acceso** con esa cuenta, abre el mensaje más reciente y completa el cambio de contraseña.
+4. Para probar invitaciones, utiliza una cuenta superusuario y un correo de prueba distinto, todavía no registrado.
+
+Si no llega el mensaje, revisa spam, el remitente verificado, las credenciales, las cuotas y los registros de **Auth** en Supabase y de **Transactional → Logs** en Brevo. La respuesta genérica de registro o recuperación no confirma por sí sola que se haya enviado el correo. Si llega pero el enlace falla, revisa `APP_URL`, las redirecciones, las tres plantillas y que Nexo esté accesible desde el dispositivo. No publiques enlaces de confirmación ni capturas de claves.
+
+Los avisos de avance de postulaciones se muestran **dentro de Nexo**, en la campana del candidato; no se envían por SMTP. Configurar este proveedor tampoco activa correos de tareas, entrevistas o encuestas.
+
 ## 9. Comprobar la instalación
 
 ```sh
@@ -231,6 +317,8 @@ La comprobación de Supabase es de disponibilidad y permisos anónimos; no demue
 Para pruebas de navegador, instala Chromium con `npx playwright install chromium`. En Windows, la configuración utiliza Edge por defecto; si quieres utilizar Chromium, define `E2E_BROWSER_CHANNEL=chromium` en el entorno de la terminal antes de `npm run test:e2e`.
 
 Para comprobar manualmente los recorridos: entra como candidato, completa el perfil y sube un CV antes de postularte; continúa como RH con la entrevista y contratación; verifica el acceso del nuevo empleado, la incorporación y sus entregas. Como jefe o RH revisa tareas y capacitaciones, y comprueba como superusuario la auditoría. Una respuesta de IA no equivale a aprobación humana.
+
+En el espacio del candidato, la vista general y **Mis postulaciones** muestran tarjetas con la etapa actual y los cambios registrados. La campana consulta los avances cada 15 segundos mientras la pestaña está visible; permite marcar avisos como leídos y abrir la postulación. La lectura se conserva en ese navegador. Los estados proceden de las postulaciones y su auditoría, sin mostrar evaluaciones internas de RH ni dar por completadas etapas sin registro. El seguimiento requiere las migraciones de auditoría ya incluidas; no necesita una migración adicional. Si la contratación convierte la cuenta en empleado, su campana conserva los avisos de esa candidatura propia.
 
 Para arrancar una compilación de producción en la misma máquina, detén `npm run dev`, ejecuta `npm run build` y después `npm run start -- --hostname 127.0.0.1`. No ejecutes ambos servidores en el puerto 3000 al mismo tiempo. Esto prueba el modo de producción local; no configura un alojamiento público.
 
