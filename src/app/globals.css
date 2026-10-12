@@ -3618,6 +3618,46 @@ thead th { font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
 .notification-popover .record-grid { grid-template-columns: 1fr; gap: 12px; }
 .notification-popover .record { padding: 16px; }
 .notification-popover h3 { font-size: 15px; overflow-wrap: anywhere; }
+.candidate-overview-application { padding: 18px 0; border-bottom: 1px solid var(--border); }
+.candidate-overview-application:last-child { border-bottom: 0; }
+.candidate-overview-application > .section-head { gap: 16px; align-items: flex-start; }
+.candidate-overview-application > .section-head a { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; font-size: 12px; }
+.candidate-progress { margin-top: 16px; padding: 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+.candidate-progress-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.candidate-progress-heading strong { color: var(--green); }
+.candidate-progress.closed .candidate-progress-heading strong { color: light-dark(#a34639, #f0a69a); }
+.candidate-progress > p { margin: 12px 0; }
+.candidate-progress-stages { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); list-style: none; padding: 0; margin: 22px 0 14px; gap: 8px; }
+.candidate-progress-stages li { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 7px; font-size: 11px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.candidate-stage-marker { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 50%; background: var(--bg); flex-shrink: 0; }
+.candidate-progress-stages .current { color: var(--green); font-weight: 700; }
+.candidate-progress-stages .current .candidate-stage-marker { background: var(--mint); border: 2px solid var(--green); }
+.candidate-progress-stages .recorded .candidate-stage-marker { color: var(--green); background: var(--mint); }
+.candidate-progress-stages small { display: block; font-size: 10px; }
+.candidate-progress .candidate-progress-caption { font-size: 11px; color: var(--muted); }
+.candidate-progress-history { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+.candidate-progress-history summary { display: flex; align-items: center; gap: 7px; cursor: pointer; color: var(--green); font-size: 12px; font-weight: 600; }
+.candidate-progress-history ol { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 12px; }
+.candidate-progress-history li { border-left: 2px solid var(--border); padding-left: 12px; font-size: 12px; }
+.candidate-progress-history time { display: block; color: var(--muted); }
+.candidate-agenda-link { display: inline-flex; align-items: center; gap: 4px; }
+.candidate-notice-list { display: grid; gap: 8px; margin: 14px 0; }
+.candidate-notice { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; color: var(--ink); }
+.candidate-notice:hover { text-decoration: none; background: var(--bg); }
+.candidate-notice.unread { background: var(--mint); }
+.candidate-notice > span:nth-child(2) { flex: 1; min-width: 0; }
+.candidate-notice strong, .candidate-notice small, .candidate-notice > span > span { display: block; overflow-wrap: anywhere; }
+.candidate-notice small { color: var(--muted); font-size: 11px; }
+.candidate-notice-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); margin-top: 6px; flex-shrink: 0; }
+.candidate-notice.unread .candidate-notice-dot { background: var(--green); }
+.candidate-progress-notice { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); background: var(--mint); padding: 14px 18px; border-radius: 10px; }
+@media (max-width: 600px) {
+  .candidate-progress { padding: 14px; }
+  .candidate-progress-stages { grid-template-columns: 1fr; gap: 10px; }
+  .candidate-progress-stages li { flex-direction: row; text-align: left; font-size: 12px; }
+  .candidate-overview-application > .section-head { flex-wrap: wrap; }
+  .candidate-notifications .notification-popover { position: fixed; top: 75px; right: 16px; }
+}
 .vacancies-layout > .vacancy-assistant { grid-column: 1 / -1; grid-row: 1; }
 .vacancies-layout > .vacancy-list { grid-column: 1 / -1; }
 .team-hub { display: grid; gap: 20px; }

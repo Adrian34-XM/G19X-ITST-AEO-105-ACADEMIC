@@ -6,6 +6,7 @@ import { StatusText } from "../src/components/status-text";
 import { pendingTrainingReview } from "../src/modules/workspace/training-review";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh() {}, push() {} }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 it.each(["departments", "positions", "users"])(
   "renderiza %s sin pasar objetos a React",
@@ -47,6 +48,41 @@ it("traduce estados de IA a etiquetas conservando el resto del texto", () => {
   expect(html).toContain("En progreso");
   expect(html).not.toContain("PENDING");
   expect(html).toContain(": 4.");
+});
+it("la vista general del candidato muestra una tarjeta de avance y su campana sin evaluaciones internas", () => {
+  const html = renderToStaticMarkup(
+    createElement(Workspace, {
+      path: ["candidate"],
+      profile: {
+        id: "candidate-user",
+        full_name: "Candidato de prueba",
+        email: "fixture@test.invalid",
+        role: "CANDIDATO",
+      },
+      data: {
+        candidates: [
+          { id: "c", profile_id: "candidate-user", cv_path: "private/cv.pdf" },
+        ],
+        applications: [
+          {
+            id: "a",
+            candidate_id: "c",
+            vacancy_id: "v",
+            status: "EN_REVISION",
+            applied_at: "2026-10-12T12:00:00Z",
+          },
+        ],
+        vacancies: [
+          { id: "v", title: "Vacante de prueba", status: "PUBLISHED" },
+        ],
+      },
+    }),
+  );
+  expect(html).toContain("Avance de mi postulación");
+  expect(html).toContain("Notificaciones de postulaciones");
+  expect(html).toContain("Etapa actual");
+  expect(html).toContain("Vacante de prueba");
+  expect(html).not.toContain("Evaluar candidato");
 });
 it("un curso completado no es revisable aunque conserve una bandera antigua", () => {
   expect(

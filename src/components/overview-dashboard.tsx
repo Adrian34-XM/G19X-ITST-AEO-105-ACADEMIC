@@ -25,6 +25,7 @@ import { sortTasks } from "@/modules/workspace/tasks";
 import { performance } from "@/modules/performance/service";
 import { OperationsPanel } from "./operations-panels";
 import { ClimateOverviewPanel } from "./climate-overview";
+import { CandidateApplicationProgress } from "./candidate-progress";
 
 type Entry = { key: string; label: string; href: string };
 type Indicator = {
@@ -367,20 +368,26 @@ export function OverviewDashboard({
                 {rows("applications")
                   .slice(0, 5)
                   .map((a) => (
-                    <Link
-                      className="overview-task"
+                    <article
+                      className="candidate-overview-application"
                       key={a.id}
-                      href={href("applications")}
                     >
-                      <span>
-                        <strong>
-                          {value(find("vacancies", a.vacancy_id), "title") ||
-                            "Postulación"}
-                        </strong>
-                        <small>Consulta los detalles de tu candidatura</small>
-                      </span>
-                      <Status status={value(a, "status")} />
-                    </Link>
+                      <div className="section-head">
+                        <span>
+                          <strong>
+                            {value(find("vacancies", a.vacancy_id), "title") ||
+                              "Postulación"}
+                          </strong>
+                        </span>
+                        <Link
+                          href={`${href("applications")}?stage=${value(a, "status")}#postulacion-${a.id}`}
+                        >
+                          Ver postulación{" "}
+                          <ArrowUpRight size={14} aria-hidden="true" />
+                        </Link>
+                      </div>
+                      <CandidateApplicationProgress application={a} />
+                    </article>
                   ))}
                 {!rows("applications").length && (
                   <div className="overview-empty">

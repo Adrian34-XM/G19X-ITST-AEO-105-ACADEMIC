@@ -7,6 +7,12 @@ import { ContentSkeleton, LoadingStatus } from "./loading-skeleton";
  * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
  */
 import { CandidateSession } from "./candidate-session";
+import {
+  CandidateUpdatesProvider,
+  CandidateApplicationNotifications,
+  CandidateApplicationProgress,
+  CandidateProgressNotice,
+} from "./candidate-progress";
 import { ApplicationAccess } from "./application-access";
 import { TaskConversation } from "./task-conversation";
 import { TaskCalendar } from "./task-calendar";
@@ -42,8 +48,8 @@ import { OverviewDashboard } from "./overview-dashboard";
 import { moduleDescriptions } from "@/modules/workspace/interface-copy";
 import { isHR } from "@/lib/permissions";
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ShieldCheck,
   LogOut,
@@ -168,15 +174,44 @@ function AIResult({ result }: { result: unknown }) {
     </section>
   );
 }
-export function Workspace({
-  data: rawData,
-  path,
-  profile,
-}: {
+type WorkspaceProps = {
   data: Snapshot;
   path: string[];
   profile: Profile | null;
-}) {
+};
+
+export function Workspace(props: WorkspaceProps) {
+  const { profile, data } = props;
+  const ownCandidateIds = new Set(
+    (data.candidates ?? [])
+      .filter((c) => c.profile_id === profile?.id)
+      .map((c) => c.id),
+  );
+  const candidateTracking =
+    profile?.role === "CANDIDATO" ||
+    (profile?.role === "EMPLEADO" &&
+      (data.applications ?? []).some(
+        (a) =>
+          a.status === "CONTRATADO" &&
+          ownCandidateIds.has(String(a.candidate_id)),
+      ));
+  return (
+    <CandidateUpdatesProvider
+      key={profile?.id || "public"}
+      profileId={candidateTracking ? profile!.id : ""}
+      initialApplications={data.applications ?? []}
+    >
+      <WorkspaceContent {...props} candidateTracking={candidateTracking} />
+    </CandidateUpdatesProvider>
+  );
+}
+
+function WorkspaceContent({
+  data: rawData,
+  path,
+  profile,
+  candidateTracking,
+}: WorkspaceProps & { candidateTracking: boolean }) {
   const [assignment, setAssignment] = useState<{ course?: string } | null>(
     null,
   );
@@ -200,7 +235,24 @@ export function Workspace({
       : taskSection === "review"
         ? t.status === "SUBMITTED"
         : !["APPROVED", "SUBMITTED"].includes(value(t, "status"));
-  const [applicationStatus, setApplicationStatus] = useState("POSTULADO");
+  const searchParams = useSearchParams();
+  const requestedStage = searchParams.get("stage");
+  const requestedApplication = searchParams.get("application");
+  const [applicationStatus, setApplicationStatus] = useState(
+    requestedStage && Object.hasOwn(applicationSections, requestedStage)
+      ? requestedStage
+      : "POSTULADO",
+  );
+  useEffect(() => {
+    if (requestedStage && Object.hasOwn(applicationSections, requestedStage)) {
+      setApplicationStatus(requestedStage);
+      if (requestedApplication) {
+        setFilters({});
+        setSearch("");
+        setApplicationVacancy("");
+      }
+    }
+  }, [requestedStage, requestedApplication]);
   const [evidenceAnalysis, setEvidenceAnalysis] = useState<
     Record<string, { busy: boolean; error?: string; result?: unknown }>
   >({});
@@ -1130,6 +1182,13 @@ export function Workspace({
             <strong>{titles[view] ?? "Detalle"}</strong>
           </div>
           <div className="user">
+            {candidateTracking && (
+              <CandidateApplicationNotifications
+                applicationHref={
+                  candidate ? "/candidate/applications" : home[profile!.role]
+                }
+              />
+            )}
             {hr && (
               <HiringAssignmentNotices data={authorized} onSaved={refresh} />
             )}
@@ -1163,6 +1222,7 @@ export function Workspace({
           data-detail={detail ? "yes" : "no"}
         >
           {candidate && <CandidateSession />}
+          {candidateTracking && <CandidateProgressNotice />}
           {candidate &&
             !authorized.candidates?.some(
               (c) =>
@@ -1665,28 +1725,7 @@ export function Workspace({
                         )}
                       </p>
                       {candidate && (
-                        <p className="application-next-step">
-                          {
-                            (
-                              {
-                                POSTULADO:
-                                  "Tu solicitud fue recibida. Puedes consultar aquí su avance.",
-                                EN_REVISION:
-                                  "Tu postulación está en revisión por el equipo de selección.",
-                                PRESELECCIONADO:
-                                  "Tu perfil fue preseleccionado. Consulta el apartado de entrevistas para seguir el proceso.",
-                                ENTREVISTA:
-                                  "Revisa los detalles de tu entrevista en el apartado de entrevistas.",
-                                CONTRATADO:
-                                  "Esta postulación concluyó con una contratación.",
-                                RECHAZADO:
-                                  "El proceso terminó para esta vacante. Puedes explorar otras oportunidades.",
-                                RETIRADO:
-                                  "Retiraste esta solicitud. Si la vacante sigue abierta, puedes volver a postularte desde Vacantes.",
-                              } as Record<string, string>
-                            )[value(a, "status")]
-                          }
-                        </p>
+                        <CandidateApplicationProgress application={a} />
                       )}
                       {hr && (
                         <>
@@ -1749,7 +1788,9 @@ export function Workspace({
                                   "¿Retirar esta postulación? Se conservará en tu historial y se cancelarán sus entrevistas pendientes. Podrás volver a postularte si la vacante sigue abierta.",
                                 )
                               )
-                                void act("application.withdraw", { id: a.id });
+                                void act("application.withdraw", {
+                                  id: a.id,
+                                });
                             }}
                           >
                             Retirar postulación
