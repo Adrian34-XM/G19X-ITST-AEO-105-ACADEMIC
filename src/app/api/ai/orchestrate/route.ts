@@ -33,6 +33,7 @@ import {
   overviewSummaryInput,
   overviewScopeViolation,
   compactOverview,
+  overviewNarrativeSchema,
 } from "@/lib/ai/overview-summary";
 import { isHR } from "@/lib/permissions";
 import { scopeData } from "@/modules/workspace/insights";
@@ -278,7 +279,7 @@ export async function POST(req: Request) {
     const fingerprint =
       area === "overview" && mode === "analyze"
         ? createHash("sha256")
-            .update(JSON.stringify({ context, prompt, filters, version: 15 }))
+            .update(JSON.stringify({ context, prompt, filters, version: 18 }))
             .digest("hex")
         : null;
     if (fingerprint && !force) {
@@ -533,7 +534,9 @@ export async function POST(req: Request) {
               : area === "analytics"
                 ? analyticsSelection
                 : area === "overview"
-                  ? personalSummarySchema
+                  ? profile.role === "EMPLEADO"
+                    ? personalSummarySchema
+                    : overviewNarrativeSchema
                   : outputSchema,
         undefined,
         operationalSummary || performanceAnalysis

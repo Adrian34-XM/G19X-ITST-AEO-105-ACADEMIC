@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 import {
   overviewSummaryInput,
   compactOverview,
+  overviewReviewContext,
 } from "@/lib/ai/overview-summary";
 import {
   overviewContext,
@@ -75,6 +76,9 @@ it("agrupa indicadores por área sin incluir tareas de otros equipos", () => {
     { nombre: "Tecnología", tareas_sin_finalizar: 1, tareas_atrasadas: 1 },
   ]);
   expect(summary.nuevas_postulaciones).toBeUndefined();
+  expect(summary.verified_facts).toEqual([
+    "Tecnología: de los registros creados esta semana, su estado actual muestra tareas sin finalizar: 1, tareas atrasadas: 1. No demuestra cuándo se completaron.",
+  ]);
 });
 it("no presenta ceros semanales como ausencia general de pendientes", () => {
   const context = overviewContext(
@@ -92,6 +96,43 @@ it("no presenta ceros semanales como ausencia general de pendientes", () => {
   expect(input.areas).toEqual([]);
   expect(input.nuevas_postulaciones).toBe(0);
   expect(input.limitation).toContain("no afirmes que no hay pendientes");
+  expect(input.verified_facts[0]).toContain(
+    "no significa que no haya pendientes anteriores",
+  );
+});
+it("comparte hechos de postulaciones con el revisor sin convertir instrucciones en evidencia", () => {
+  const context = overviewContext(
+    {
+      applications: [{ id: "a" }],
+      tasks: [],
+      departments: [],
+      positions: [],
+      employees: [],
+    },
+    { id: "rh", role: "RH_ADMIN", full_name: "RH", email: "test@nexo.test" },
+    "2026-10-12",
+  );
+  const source = overviewSummaryInput(context, "Revisa mis novedades");
+  const answer = {
+    summary: "Esta semana se recibió una postulación. Sugiero revisarla.",
+  };
+  const review = overviewReviewContext(source, answer);
+  expect(source.verified_facts[0]).toContain("1 postulación");
+  expect(source.verified_facts[0]).toContain("pueden incluir reactivadas");
+  expect(review.verified_facts).toEqual(source.verified_facts);
+  expect(review.proposed_answer).toBe(answer);
+  expect(review).not.toHaveProperty("instructions");
+  expect(review).not.toHaveProperty("user_request");
+});
+it("una semana sin altas no agrega reclutamiento a las fuentes de una jefatura", () => {
+  const context = overviewContext(
+    { employees: [], tasks: [] },
+    { id: "boss", role: "JEFE", full_name: "Jefe", email: "test@nexo.test" },
+    "2026-10-12",
+  );
+  const facts = overviewSummaryInput(context, "").verified_facts.join(" ");
+  expect(facts).not.toMatch(/postulaciones|vacantes/);
+  expect(facts).toContain("pendientes anteriores");
 });
 it("resume señales autorizadas sin textos privados ni expedientes de otra jerarquía", () => {
   const result = overviewContext(

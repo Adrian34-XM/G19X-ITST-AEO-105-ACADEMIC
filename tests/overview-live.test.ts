@@ -1,8 +1,10 @@
 import { it, expect, vi } from "vitest";
 import { createClient } from "@supabase/supabase-js";
-import { z } from "zod";
 import { overviewContext } from "@/modules/workspace/overview";
-import { overviewSummaryInput } from "@/lib/ai/overview-summary";
+import {
+  overviewSummaryInput,
+  overviewNarrativeSchema,
+} from "@/lib/ai/overview-summary";
 import { generate } from "@/lib/ai/provider";
 import type { Snapshot } from "@/modules/workspace/types";
 it.skipIf(process.env.NEXO_OVERVIEW_LIVE !== "1")(
@@ -43,7 +45,7 @@ it.skipIf(process.env.NEXO_OVERVIEW_LIVE !== "1")(
     try {
       const result = await generate(
         overviewSummaryInput(context, ""),
-        z.object({ summary: z.string().min(1).max(1200) }).strict(),
+        overviewNarrativeSchema,
         undefined,
         "analysis",
         true,
