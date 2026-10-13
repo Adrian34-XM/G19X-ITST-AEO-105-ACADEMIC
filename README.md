@@ -156,6 +156,16 @@ npm run dev -- --hostname 127.0.0.1
 
 Deja esa terminal abierta y visita [http://127.0.0.1:3000/login](http://127.0.0.1:3000/login). El listado público de vacantes está en `/jobs`.
 
+En Windows también puedes arrancar en segundo plano, desde PowerShell en la carpeta del proyecto:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1
+```
+
+Este comando inicia Next.js y, si `AI_PROVIDER=ollama` apunta al puerto local 11434, inicia Ollama cuando hace falta. Conserva los procesos que ya están activos, comprueba la página de acceso y guarda registros y PID en `.local/start-system/`. No cambia claves, no inicia Supabase ni reinicia la base de datos. Los modelos de Ollama deben estar descargados. Si usas Supabase local, inicia sus servicios con `npx supabase start` antes; con Supabase alojado no necesitas Docker para abrir Nexo.
+
+Los procesos siguen activos al cerrar la terminal, pero debes volver a arrancarlos después de reiniciar Windows. Puedes usar `-NoAI` para iniciar solo Nexo. Si aparece `ERR_CONNECTION_REFUSED`, comprueba que el proceso del servidor siga activo; esa pantalla significa que el navegador no logra conectar con el puerto, no que haya fallado un módulo de la aplicación.
+
 Supabase Studio está normalmente en [http://127.0.0.1:54323](http://127.0.0.1:54323). Ejecuta `npx supabase status` para consultar las direcciones de tu instalación; su salida también contiene claves y no debe compartirse públicamente.
 
 ### Usuarios de demostración

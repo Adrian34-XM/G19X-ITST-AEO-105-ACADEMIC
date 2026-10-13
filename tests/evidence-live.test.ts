@@ -2,7 +2,7 @@ import { it, expect, vi } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
 import { generate, sanitize } from "@/lib/ai/provider";
-import { verification } from "@/lib/ai/schemas";
+import { evidenceOpinion } from "@/lib/ai/schemas";
 it.skipIf(process.env.NEXO_EVIDENCE_LIVE !== "1")(
   "analiza la evidencia indicada con Ollama y valida su respuesta sin guardar cambios",
   async () => {
@@ -13,7 +13,9 @@ it.skipIf(process.env.NEXO_EVIDENCE_LIVE !== "1")(
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { persistSession: false } },
     );
-    const id = "e023ba4a-7f60-49f0-9010-8ca4b6961fa1";
+    const id =
+      process.env.NEXO_EVIDENCE_TASK_ID ||
+      "e023ba4a-7f60-49f0-9010-8ca4b6961fa1";
     const { data: t, error: te } = await c
       .from("tasks")
       .select("description")
@@ -38,12 +40,12 @@ it.skipIf(process.env.NEXO_EVIDENCE_LIVE !== "1")(
           evidence_text_truncated: e.evidence_text.length > 14000,
           writing_instructions: instruction,
         },
-        verification,
+        evidenceOpinion,
         undefined,
-        "analysis",
+        "professional-evidence",
         true,
       );
-      const result = verification.parse(answer.result);
+      const result = evidenceOpinion.parse(answer.result);
       expect(result.reason.length).toBeGreaterThan(20);
       expect(result.status).not.toBe("APPROVED");
       console.log(
