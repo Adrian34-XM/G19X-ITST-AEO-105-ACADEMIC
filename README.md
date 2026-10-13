@@ -341,6 +341,25 @@ Para arrancar una compilación de producción en la misma máquina, detén `npm 
 
 Las evaluaciones de postulaciones son internas de RH/superusuario. Los análisis de encuestas se reservan a RH/superusuario y a la jefatura creadora; poder contestar una encuesta no concede acceso a su análisis. Estos controles requieren la migración de análisis privados indicada en el apartado 3.
 
+### LM-IA-01 · Rechazo intermitente de análisis: limitación aceptada del MVP
+
+**Estado:** aceptada para el alcance del MVP el **13 de octubre de 2026**, por solicitud expresa del responsable del proyecto en este chat. Esta aceptación cierra el pendiente de documentar y aceptar esta limitación concreta. La comprobación de registro, confirmación de correo y recuperación de contraseña conserva su seguimiento independiente.
+
+**Comportamiento observado.** Un análisis de evidencia ficticia con Ollama y `qwen2.5:3b` fue rechazado por la revisión factual: «La respuesta de IA no pudo respaldarse con los datos disponibles. No se guardó esa evaluación; revisa los registros o archivos e intenta nuevamente». Al repetir únicamente el mismo caso, sin desactivar la validación, se obtuvo una respuesta válida y la prueba pasó. La causa específica de la variación no quedó determinada de forma concluyente.
+
+**Evidencia del 13 de octubre de 2026.** La ejecución completa de IA real tuvo **23 pruebas aprobadas y 1 fallida de 24**. La repetición del caso fallido tuvo **1 aprobada y 0 fallidas**. El caso es `analiza la evidencia indicada con Ollama y valida su respuesta sin guardar cambios`, en [tests/evidence-live.test.ts](tests/evidence-live.test.ts). Los informes originales se conservan localmente en `.local/mvp-final-ai-complete-20261013.json` y `.local/mvp-final-evidence-recheck.json`; esos archivos no se distribuyen en Git. La repetición aprobada se registra por separado y no convierte retrospectivamente la ejecución completa en una suite sin fallos. Estos resultados tampoco establecen una tasa de fallo general ni garantizan el siguiente análisis.
+
+**Impacto aceptado.** Una consulta válida puede terminar sin análisis y requerir un nuevo intento o revisión manual de los archivos. Se acepta esa interrupción puntual para la demostración y uso supervisado del MVP. La aceptación no acredita la exactitud universal de las respuestas ni certifica disponibilidad para una operación empresarial continua.
+
+**Tratamiento operativo y controles que se conservan:**
+
+1. Revisar que el archivo sea legible, que corresponda a la actividad y que la solicitud esté dentro del módulo autorizado.
+2. Esperar a que termine la solicitud anterior y repetir una vez el análisis. Si vuelve a ser rechazado, continuar con la revisión humana del documento y registrar la incidencia; evitar reintentos repetidos sin revisar su causa.
+3. Conservar el rechazo de resultados sin respaldo y el aviso al usuario. Un resultado rechazado no se presenta como una evaluación válida.
+4. Mantener la decisión humana sobre contratación y aprobación de tareas o cursos, junto con los permisos y la privacidad de los archivos.
+
+**Seguimiento.** Reabrir LM-IA-01 si el rechazo se vuelve reproducible con una entrada válida, bloquea un flujo principal o se presenta como válida una respuesta sin respaldo. Al cambiar modelo, proveedor o instrucciones, repetir los casos de generación y revisión factual, incluyendo los casos que deben rechazarse. Esta aceptación registra una limitación conocida; no declara corregida su intermitencia.
+
 ## 10. Problemas frecuentes
 
 - **No se encontró el sitio:** comprueba que Next.js siga activo, que no haya errores en la terminal y que estés usando el puerto anunciado. Si 3000 está ocupado, detén tu instancia anterior o cambia el puerto y actualiza `APP_URL` y las redirecciones de Auth.
