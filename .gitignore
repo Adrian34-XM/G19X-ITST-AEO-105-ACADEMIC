@@ -22,10 +22,11 @@ supabase/.branches/
 backups/
 uploads/
 
-# Publicar las guías citadas por el código; conservar local el resto de documentos.
+# Publicar las guías del código y arquitectura; conservar local el resto de documentos.
 /docs/*
 !/docs/CODIGO.md
 !/docs/MAPA_CODIGO.md
+!/docs/ARQUITECTURA_Y_AGENTES.md
 /IDEAS_PARA_EL_SISTEMA.md
 /MVP_Sistema_RRHH_IA.md
 /PRD_Sistema_RH.md
