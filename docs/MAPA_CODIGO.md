@@ -570,6 +570,66 @@ Comprueba tamaño y dimensiones y normaliza las fotos antes de almacenarlas; lim
 
 Entradas exportadas: `maxPhotoSize`, `normalizeProfilePhoto`.
 
+### [src/lib/ai/orchestration/analytics.ts](../src/lib/ai/orchestration/analytics.ts)
+
+Separa las instrucciones de selección de procesos y la explicación de agregados calculados. La selección no redacta cifras ni conclusiones.
+
+Entradas exportadas: `analyticsSelectionInput`, `analyticsNarrativeInput`.
+
+### [src/lib/ai/orchestration/contracts.ts](../src/lib/ai/orchestration/contracts.ts)
+
+Contratos Zod del módulo solicitado y de la respuesta con recomendaciones. Mantiene los tipos de recurso, prioridades y límites admitidos.
+
+Entradas exportadas: `areaSchema`, `outputSchema`.
+
+### [src/lib/ai/orchestration/courses.ts](../src/lib/ai/orchestration/courses.ts)
+
+Construye la entrada de capacitación según corresponda un análisis del contexto autorizado o un resumen automático de agregados filtrados.
+
+Entradas exportadas: `coursesInput`.
+
+### [src/lib/ai/orchestration/draft.ts](../src/lib/ai/orchestration/draft.ts)
+
+Prepara propuestas revisables de instrucciones para un análisis posterior, conservando el alcance personal o colectivo permitido.
+
+Entradas exportadas: `promptSchema`, `draftInput`.
+
+### [src/lib/ai/orchestration/overview.ts](../src/lib/ai/orchestration/overview.ts)
+
+Separa el resumen personal de la vista general organizacional. El primero omite actividades finalizadas y agrupa solo registros personales; el segundo usa los hechos verificados del resumen semanal.
+
+Entradas exportadas: `personalSummarySchema`, `overviewInput`.
+
+### [src/lib/ai/orchestration/performance.ts](../src/lib/ai/orchestration/performance.ts)
+
+Prepara señales operativas de desempeño y un catálogo de siguientes pasos sugeridos. El contrato rechaza cifras en la narrativa y valoraciones de bajo desempeño sin respaldo.
+
+Entradas exportadas: `performanceSteps`, `performanceAdvice`, `performanceInput`.
+
+### [src/lib/ai/orchestration/request.ts](../src/lib/ai/orchestration/request.ts)
+
+Selecciona las instrucciones y el contrato de generación por módulo y modalidad. Añade metadatos de alcance del servidor y conserva el propósito y la reparación, sin consultar servicios ni ampliar permisos.
+
+Entradas exportadas: `OrchestrationGeneration`, `buildOrchestrationRequest`.
+
+### [src/lib/ai/orchestration/shared.ts](../src/lib/ai/orchestration/shared.ts)
+
+Construye entradas comunes de análisis operativo y resúmenes automáticos. Los resúmenes automáticos reciben agregados; el análisis conserva el contexto ya filtrado y retira la búsqueda libre de los filtros enviados.
+
+Entradas exportadas: `operationalAnalysisInput`, `automaticSummaryInput`.
+
+### [src/lib/ai/orchestration/tasks.ts](../src/lib/ai/orchestration/tasks.ts)
+
+Define el estilo de tareas y elige entre el análisis del módulo y el resumen automático. Distingue entrega de aprobación y no atribuye lectura del contenido de evidencias al contexto de metadatos.
+
+Entradas exportadas: `taskWritingStyle`, `tasksInput`.
+
+### [src/lib/ai/orchestration/types.ts](../src/lib/ai/orchestration/types.ts)
+
+Tipos de contexto, agregados y opciones de las entradas del orquestador; no sustituyen las comprobaciones de autorización realizadas por la ruta.
+
+Entradas exportadas: `OrchestrationContext`, `OperationalMetrics`, `AnalysisInput`, `OrchestrationRequest`.
+
 ## src/modules
 
 ### [src/modules/workspace/activity-context.ts](../src/modules/workspace/activity-context.ts)
