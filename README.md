@@ -4,8 +4,6 @@ Aplicación web para reclutamiento, equipo y organigrama, incorporación, capaci
 
 Tecnologías: Node.js 24, Next.js 16, React 19, TypeScript, Supabase Auth, PostgreSQL y Storage privado. La IA puede usar Ollama local o Gemini.
 
-Repositorio: [G19X-ITST-AEO-105-ACADEMIC](https://github.com/Adrian34-XM/G19X-ITST-AEO-105-ACADEMIC). Este es el nombre actual del repositorio académico, antes llamado `G19X-UTSLP-ARGJ-256-ACADEMIC`.
-
 Documentación técnica: [arquitectura y agentes de IA](docs/ARQUITECTURA_Y_AGENTES.md), [guía de funcionamiento](docs/CODIGO.md) y [mapa de archivos y exportaciones](docs/MAPA_CODIGO.md).
 
 ## 1. Requisitos
