@@ -3,21 +3,23 @@
 import { Pause, Play } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
+import { useDarkTheme } from "./theme-toggle";
 
 // The decorative renderer is loaded separately from the authentication form.
 const MicroSlats = dynamic(() => import("./micro-slats"), { ssr: false });
 
 export function LoginBackdrop() {
   const [paused, setPaused] = useState(false);
+  const dark = useDarkTheme();
 
   return (
     <>
       <div className="auth-slats" aria-hidden="true">
         <MicroSlats
           preset="swell"
-          color="#10b981"
-          glintColor="#d4ffed"
-          backgroundColor="#0a211b"
+          color={dark ? "#10b981" : "#2f9468"}
+          glintColor={dark ? "#d4ffed" : "#196e53"}
+          backgroundColor={dark ? "#0a211b" : "#eaf6ef"}
           slatWidth={10}
           slatHeight={25}
           gap={3}

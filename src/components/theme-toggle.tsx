@@ -20,9 +20,13 @@ function subscribe(notify: () => void) {
 function snapshot() {
   return document.documentElement.dataset.theme === "dark";
 }
+/** Comparte el tema activo con elementos que dibujan fuera del CSS, como canvas. */
+export function useDarkTheme() {
+  return useSyncExternalStore(subscribe, snapshot, () => false);
+}
 /** La preferencia pertenece al navegador y se conserva al cambiar de módulo. */
 export function ThemeToggle() {
-  const dark = useSyncExternalStore(subscribe, snapshot, () => false);
+  const dark = useDarkTheme();
   return (
     <button
       type="button"

@@ -204,7 +204,7 @@ Entradas exportadas: `BulkAssignment`.
 
 ### [src/components/card-slats-background.tsx](../src/components/card-slats-background.tsx)
 
-Fondo decorativo verde MicroSlats con preset signal para la tarjeta de bienvenida y la foto de perfil. Conserva los parámetros de densidad e interacción de cada tarjeta, carga diferida y control para pausar; no recibe datos del usuario ni captura las acciones de los formularios.
+Fondo decorativo verde MicroSlats con preset signal para la tarjeta de bienvenida y la foto de perfil. Ajusta su paleta al tema claro u oscuro. Conserva los parámetros de densidad e interacción de cada tarjeta, carga diferida y control para pausar; no recibe datos del usuario ni captura las acciones de los formularios.
 
 Entradas exportadas: `CardSlatsBackground`.
 
@@ -396,7 +396,7 @@ Entradas exportadas: `Skeleton`, `LoadingStatus`, `ContentSkeleton`, `WorkspaceS
 
 ### [src/components/login-backdrop.tsx](../src/components/login-backdrop.tsx)
 
-Carga de forma diferida el fondo MicroSlats del login y mantiene el control para pausar o reanudar la animación.
+Carga de forma diferida el fondo MicroSlats del login, adapta sus colores al tema y mantiene el control para pausar o reanudar la animación.
 
 Entradas exportadas: `LoginBackdrop`.
 
@@ -444,9 +444,9 @@ Entradas exportadas: `summaryRequestKey`, `shareSummaryRequest`.
 
 ### [src/components/theme-toggle.tsx](../src/components/theme-toggle.tsx)
 
-Alterna el tema claro u oscuro y sincroniza la preferencia del navegador entre módulos y pestañas.
+Alterna el tema claro u oscuro y sincroniza la preferencia del navegador entre módulos y pestañas. Comparte el tema activo mediante `useDarkTheme` con los fondos dibujados en canvas.
 
-Entradas exportadas: `ThemeToggle`.
+Entradas exportadas: `ThemeToggle`, `useDarkTheme`.
 
 ### [src/components/workspace-navigation.tsx](../src/components/workspace-navigation.tsx)
 

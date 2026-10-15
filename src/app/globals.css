@@ -838,8 +838,8 @@ code {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background: radial-gradient(ellipse at 80% 75%, #17654c, #0a211b 70%);
-  color: #c5e2d6;
+  background: radial-gradient(ellipse at 80% 75%, light-dark(#cdebd9, #17654c), light-dark(#eef8f2, #0a211b) 70%);
+  color: light-dark(#365e4a, #c5e2d6);
 }
 .auth-slats,
 .auth-layout-slats .auth-story::after {
@@ -856,15 +856,15 @@ code {
 }
 .auth-layout-slats .auth-story::after {
   content: "";
-  background: linear-gradient(180deg, #0a211b80, transparent 35%, #0a211bb3),
-    linear-gradient(90deg, #0a211be8, #0a211b6b 78%, transparent);
+  background: linear-gradient(180deg, light-dark(#eef8f280, #0a211b80), transparent 35%, light-dark(#eef8f2b3, #0a211bb3)),
+    linear-gradient(90deg, light-dark(#eef8f2e8, #0a211be8), light-dark(#eef8f26b, #0a211b6b) 78%, transparent);
 }
 .auth-layout-slats .auth-story .brand,
 .auth-layout-slats .auth-story h1 {
-  color: #e8fff4;
+  color: light-dark(#143c2b, #e8fff4);
 }
 .auth-layout-slats .auth-story .eyebrow {
-  color: #9ce5c7;
+  color: light-dark(#286947, #9ce5c7);
 }
 .auth-layout-slats .auth-story-copy {
   position: relative;
@@ -875,31 +875,31 @@ code {
   top: 24px;
   right: 24px;
   padding: 8px 10px;
-  border: 1px solid #9ce5c73d;
-  background: #0a211bcc;
-  color: #c5e2d6;
+  border: 1px solid light-dark(#33704e4d, #9ce5c73d);
+  background: light-dark(#f6fcf8cc, #0a211bcc);
+  color: light-dark(#365e4a, #c5e2d6);
   font-size: 11px;
   font-weight: 400;
   backdrop-filter: blur(8px);
 }
 .auth-motion-toggle:focus-visible {
-  outline: 2px solid #9ce5c7;
+  outline: 2px solid light-dark(#196e53, #9ce5c7);
   outline-offset: 4px;
 }
 /* Decorative card backgrounds keep controls above the canvas in both themes. */
 .overview-welcome.card-slats-surface,
 .profile-photo-editor.card-slats-surface {
-  --ink: #edf8f2;
-  --muted: #cadbd2;
-  --green: #9ce5c7;
-  --border: #ffffff29;
-  --slats-accent: #9ce5c7;
+  --ink: light-dark(#173d2e, #edf8f2);
+  --muted: light-dark(#486556, #cadbd2);
+  --green: light-dark(#196e53, #9ce5c7);
+  --border: light-dark(#bcd9c7, #ffffff29);
+  --slats-accent: light-dark(#196e53, #9ce5c7);
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  color-scheme: dark;
+  color-scheme: inherit;
   color: var(--ink);
-  background: radial-gradient(ellipse at right, #124c38, #000 75%);
+  background: radial-gradient(ellipse at right, light-dark(#c8e8d5, #124c38), light-dark(#f3fbf6, #000) 75%);
 }
 .card-slats {
   position: absolute;
@@ -917,10 +917,10 @@ code {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, #000e, #000a 60%, #0008);
+  background: linear-gradient(90deg, light-dark(#f3fbf6ed, #000e), light-dark(#f3fbf6c9, #000a) 60%, light-dark(#f3fbf680, #0008));
 }
 .card-slats-profile .card-slats::after {
-  background: linear-gradient(90deg, #000d, #000b 60%, #000a);
+  background: linear-gradient(90deg, light-dark(#f3fbf6e0, #000d), light-dark(#f3fbf6cc, #000b) 60%, light-dark(#f3fbf6b3, #000a));
 }
 .card-slats-surface .eyebrow {
   color: var(--slats-accent);
@@ -933,9 +933,9 @@ code {
   width: 32px;
   height: 32px;
   padding: 0;
-  border: 1px solid #ffffff40;
-  background: #000b;
-  color: #f1f8f4;
+  border: 1px solid light-dark(#93bfa6, #ffffff40);
+  background: light-dark(#f7fcf4e8, #000b);
+  color: var(--ink);
   backdrop-filter: blur(8px);
 }
 .card-slats-toggle:focus-visible {
@@ -943,7 +943,7 @@ code {
   outline-offset: 3px;
 }
 .card-slats-surface .overview-welcome-symbol {
-  background: #081b13c9;
+  background: light-dark(#ffffffb3, #081b13c9);
 }
 .card-slats-surface .profile-photo-controls h2 {
   padding-right: 28px;

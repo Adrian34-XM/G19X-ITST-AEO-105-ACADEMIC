@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { Pause, Play } from "lucide-react";
 import { useState } from "react";
+import { useDarkTheme } from "./theme-toggle";
 
 const MicroSlats = dynamic(() => import("./micro-slats"), { ssr: false });
 
@@ -13,6 +14,7 @@ export function CardSlatsBackground({
   variant: "overview" | "profile";
 }) {
   const [paused, setPaused] = useState(false);
+  const dark = useDarkTheme();
   const profile = variant === "profile";
 
   return (
@@ -20,9 +22,9 @@ export function CardSlatsBackground({
       <div className="card-slats" aria-hidden="true">
         <MicroSlats
           preset="signal"
-          color="#10b981"
-          glintColor="#ffffff"
-          backgroundColor="#000000"
+          color={dark ? "#10b981" : "#57b88a"}
+          glintColor={dark ? "#ffffff" : "#196e53"}
+          backgroundColor={dark ? "#000000" : "#edf8f1"}
           slatWidth={10}
           slatHeight={25}
           gap={profile ? 1 : 3}
