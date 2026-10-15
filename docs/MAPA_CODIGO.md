@@ -202,6 +202,12 @@ Diálogo de asignación múltiple de tareas o cursos. Muestra personas seleccion
 
 Entradas exportadas: `BulkAssignment`.
 
+### [src/components/card-slats-background.tsx](../src/components/card-slats-background.tsx)
+
+Fondo decorativo verde MicroSlats con preset signal para la tarjeta de bienvenida y la foto de perfil. Conserva los parámetros de densidad e interacción de cada tarjeta, carga diferida y control para pausar; no recibe datos del usuario ni captura las acciones de los formularios.
+
+Entradas exportadas: `CardSlatsBackground`.
+
 ### [src/components/climate-results.tsx](../src/components/climate-results.tsx)
 
 Muestra participación, resultados agregados y análisis de gráficas de encuestas. Mantiene separados los datos de participación y el contenido anónimo de respuestas.

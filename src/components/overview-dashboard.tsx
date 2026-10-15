@@ -26,6 +26,7 @@ import { performance } from "@/modules/performance/service";
 import { OperationsPanel } from "./operations-panels";
 import { ClimateOverviewPanel } from "./climate-overview";
 import { CandidateApplicationProgress } from "./candidate-progress";
+import { CardSlatsBackground } from "./card-slats-background";
 
 type Entry = { key: string; label: string; href: string };
 type Indicator = {
@@ -260,10 +261,11 @@ export function OverviewDashboard({
   return (
     <div className="overview-dashboard">
       <section
-        className="overview-welcome"
+        className="overview-welcome card-slats-surface card-slats-green"
         aria-labelledby="overview-welcome-title"
       >
-        <div>
+        <CardSlatsBackground variant="overview" />
+        <div className="overview-welcome-copy">
           <span className="eyebrow">TU ESPACIO, DE UN VISTAZO</span>
           <h2 id="overview-welcome-title">
             {candidate

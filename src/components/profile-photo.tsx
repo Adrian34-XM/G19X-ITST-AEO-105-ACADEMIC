@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { CardSlatsBackground } from "./card-slats-background";
 
 /** La URL usa la sesión del navegador; un fallo de lectura vuelve a las iniciales. */
 export function ProfileAvatar({
@@ -89,7 +90,11 @@ export function ProfilePhotoEditor({
     }
   }
   return (
-    <section className="panel profile-photo-editor" aria-label="Foto de perfil">
+    <section
+      className="panel profile-photo-editor card-slats-surface card-slats-green card-slats-profile"
+      aria-label="Foto de perfil"
+    >
+      <CardSlatsBackground variant="profile" />
       <div className="profile-photo-preview">
         {preview ? (
           <Image
