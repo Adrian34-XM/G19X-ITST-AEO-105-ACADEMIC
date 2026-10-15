@@ -6,6 +6,8 @@ Tecnologías: Node.js 24, Next.js 16, React 19, TypeScript, Supabase Auth, Postg
 
 Repositorio: [G19X-ITST-AEO-105-ACADEMIC](https://github.com/Adrian34-XM/G19X-ITST-AEO-105-ACADEMIC). Este es el nombre actual del repositorio académico, antes llamado `G19X-UTSLP-ARGJ-256-ACADEMIC`.
 
+Documentación del código: [guía de funcionamiento](docs/CODIGO.md) y [mapa de archivos y exportaciones](docs/MAPA_CODIGO.md).
+
 ## 1. Requisitos
 
 Instala antes de comenzar:

@@ -22,8 +22,10 @@ supabase/.branches/
 backups/
 uploads/
 
-# Documentación informativa generada: conservar únicamente en la carpeta local.
-/docs/
+# Publicar las guías citadas por el código; conservar local el resto de documentos.
+/docs/*
+!/docs/CODIGO.md
+!/docs/MAPA_CODIGO.md
 /IDEAS_PARA_EL_SISTEMA.md
 /MVP_Sistema_RRHH_IA.md
 /PRD_Sistema_RH.md
