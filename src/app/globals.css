@@ -833,6 +833,73 @@ code {
 .auth-form a {
   font-size: 12px;
 }
+/* MicroSlats stays behind the welcome content, away from the login fields. */
+.auth-layout-slats .auth-story {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 80% 75%, #17654c, #0a211b 70%);
+  color: #c5e2d6;
+}
+.auth-slats,
+.auth-layout-slats .auth-story::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.auth-slats .micro-slats {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.auth-layout-slats .auth-story::after {
+  content: "";
+  background: linear-gradient(180deg, #0a211b80, transparent 35%, #0a211bb3),
+    linear-gradient(90deg, #0a211be8, #0a211b6b 78%, transparent);
+}
+.auth-layout-slats .auth-story .brand,
+.auth-layout-slats .auth-story h1 {
+  color: #e8fff4;
+}
+.auth-layout-slats .auth-story .eyebrow {
+  color: #9ce5c7;
+}
+.auth-layout-slats .auth-story-copy {
+  position: relative;
+  padding-block: 48px;
+}
+.auth-motion-toggle {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  padding: 8px 10px;
+  border: 1px solid #9ce5c73d;
+  background: #0a211bcc;
+  color: #c5e2d6;
+  font-size: 11px;
+  font-weight: 400;
+  backdrop-filter: blur(8px);
+}
+.auth-motion-toggle:focus-visible {
+  outline: 2px solid #9ce5c7;
+  outline-offset: 4px;
+}
+@media (max-width: 760px) {
+  .auth-layout-slats .auth-story-copy {
+    padding-block: 0;
+  }
+  .auth-motion-toggle {
+    top: 26px;
+    right: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-motion-toggle {
+    display: none;
+  }
+}
 .mobile-menu {
   display: none !important;
 }

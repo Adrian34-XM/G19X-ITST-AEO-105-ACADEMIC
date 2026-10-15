@@ -9,6 +9,7 @@
  */
 import Link from "next/link";
 import { useState } from "react";
+import { LoginBackdrop } from "./login-backdrop";
 export function AuthForm({
   register,
   configured,
@@ -43,13 +44,14 @@ export function AuthForm({
     }
   }
   return (
-    <main className="auth-layout">
+    <main className={`auth-layout${register ? "" : " auth-layout-slats"}`}>
       <section className="auth-story">
+        {!register && <LoginBackdrop />}
         <Link className="brand" href="/jobs">
           <span className="brand-mark">n</span> nexo
           <span className="brand-dot">.</span>
         </Link>
-        <div>
+        <div className="auth-story-copy">
           <span className="eyebrow">PERSONAS QUE HACEN LA DIFERENCIA</span>
           <h1>
             Conecta el talento.
