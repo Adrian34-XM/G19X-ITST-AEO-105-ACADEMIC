@@ -4,7 +4,15 @@ Aplicación web para reclutamiento, equipo y organigrama, incorporación, capaci
 
 Tecnologías: Node.js 24, Next.js 16, React 19, TypeScript, Supabase Auth, PostgreSQL y Storage privado. La IA puede usar Ollama local o Gemini.
 
-Documentación técnica: [arquitectura y agentes de IA](docs/ARQUITECTURA_Y_AGENTES.md), [guía de funcionamiento](docs/CODIGO.md) y [mapa de archivos y exportaciones](docs/MAPA_CODIGO.md).
+## Índice de documentación
+
+- [Arquitectura y agentes de IA](docs/ARQUITECTURA_Y_AGENTES.md): componentes del sistema, orquestador, clasificador de alcance, generador, revisor factual, permisos y decisiones humanas.
+- [Referencia de las API](docs/API.md): rutas HTTP, métodos, autenticación, parámetros, respuestas, errores y ejemplos de uso.
+- [Guía del código](docs/CODIGO.md): explicación de los flujos de negocio, autenticación, archivos, inteligencia artificial y base de datos.
+- [Mapa del código](docs/MAPA_CODIGO.md): índice de archivos, responsabilidades y funciones o componentes exportados.
+- [Avisos de terceros](THIRD_PARTY_NOTICES.md): atribuciones y condiciones de los componentes externos incorporados.
+
+La instalación, configuración, operación y resolución de problemas se describen en los apartados siguientes de este README.
 
 ## 1. Requisitos
 
