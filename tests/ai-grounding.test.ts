@@ -6,6 +6,8 @@ import { analyticsNarrativeSchema } from "@/modules/workspace/analytics-summary"
 import {
   chartNarrativeSchema,
   chartNarrativeSystemPrompt,
+  chartNarrativeRepairInstruction,
+  chartNarrativeFailure,
   chartFactualSystemPrompt,
   chartReviewContext,
   readableChartNarrative,
@@ -50,7 +52,7 @@ it("redacta desde patrones y revisa contra las cifras completas", async () => {
   const review = JSON.parse(
     JSON.parse(fetcher.mock.calls[1][1].body).messages[1].content,
   );
-  expect(review.statements[0].source_text).toBe("Aprobado: 3. Pendiente: 3.");
+  expect(review.source_text).toBe("Aprobado: 3. Pendiente: 3.");
   expect(JSON.parse(fetcher.mock.calls[1][1].body).messages[0].content).toBe(
     chartFactualSystemPrompt,
   );
@@ -105,9 +107,9 @@ it("revisa las frases del análisis en llamadas separadas sin mezclar sus cifras
   const second = JSON.parse(
     JSON.parse(fetcher.mock.calls[2][1].body).messages[1].content,
   );
-  expect(first.statements).toHaveLength(1);
-  expect(first.statements[0].source_text).not.toContain("Tecnología");
-  expect(second.statements[0].source_text).not.toContain("Área F");
+  expect(first.answer_text).toBe("Área F tiene tres aprobadas.");
+  expect(first.source_text).not.toContain("Tecnología");
+  expect(second.source_text).not.toContain("Área F");
 });
 it("rechaza una conclusión de crecimiento general que contradice un área", async () => {
   vi.stubEnv("AI_PROVIDER", "ollama");
@@ -681,3 +683,122 @@ it.each([{ factually_consistent: true }, { factually_consistent: false }])(
     expect(input).not.toHaveProperty("source_course_requirements");
   },
 );
+
+it("separa las fuentes por proceso y conserva ambos al comparar procesos", () => {
+  const tasks = "Tecnología (tareas): En progreso: 4; Pendiente: 2.";
+  const courses = "Tecnología (capacitaciones): Completado: 3.";
+  const context = {
+    evidence: [tasks, courses].join("\n"),
+    verified_metrics: [
+      { area: "Tecnología", process: "tareas" },
+      { area: "Tecnología", process: "capacitaciones" },
+    ],
+  };
+  const { statements } = chartReviewContext(context, {
+    summary:
+      "Tecnología tiene cuatro tareas en progreso. Las tres capacitaciones están completadas. Hay más tareas que capacitaciones.",
+  });
+  expect(statements[0].source_text).toBe(tasks);
+  expect(statements[1].source_text).toBe(courses);
+  expect(statements[2].source_text).toBe(context.evidence);
+});
+
+it("repara gráficas con sus instrucciones y vuelve a revisar; no utiliza criterios de evidencia o candidatos", async () => {
+  vi.stubEnv("AI_PROVIDER", "ollama");
+  const fetcher = vi
+    .fn()
+    .mockResolvedValueOnce(
+      response({ summary: "Hay nueve tareas.", recommendations: [] }),
+    )
+    .mockResolvedValueOnce(
+      response({
+        explanation: "La fuente solo contiene dos tareas.",
+        contains_fabrication: true,
+      }),
+    )
+    .mockResolvedValueOnce(
+      response({ summary: "Hay dos tareas.", recommendations: [] }),
+    )
+    .mockResolvedValueOnce(
+      response({
+        explanation: "Coincide con la fuente.",
+        contains_fabrication: false,
+      }),
+    );
+  vi.stubGlobal("fetch", fetcher);
+  const answer = await generate(
+    {
+      evidence: "Hay dos tareas.",
+      narrative_input: { verified_facts: ["Hay dos tareas."] },
+    },
+    chartNarrativeSchema,
+    undefined,
+    "professional-evidence",
+    true,
+  );
+  expect((answer.result as { summary: string }).summary).toBe(
+    "Hay dos tareas.",
+  );
+  const repair = JSON.parse(
+    JSON.parse(fetcher.mock.calls[2][1].body).messages[1].content,
+  );
+  expect(repair.revision_task).toBe(chartNarrativeRepairInstruction);
+  expect(repair.verified_facts).toEqual(["Hay dos tareas."]);
+  expect(fetcher).toHaveBeenCalledTimes(4);
+});
+
+it("conserva el rechazo si la corrección todavía contradice los datos", async () => {
+  vi.stubEnv("AI_PROVIDER", "ollama");
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValueOnce(
+        response({ summary: "Hay nueve tareas.", recommendations: [] }),
+      )
+      .mockResolvedValueOnce(
+        response({
+          explanation: "Solo hay dos tareas.",
+          contains_fabrication: true,
+        }),
+      )
+      .mockResolvedValueOnce(
+        response({ summary: "Hay ocho tareas.", recommendations: [] }),
+      )
+      .mockResolvedValueOnce(
+        response({
+          explanation: "Sigue contradiciendo las dos tareas.",
+          contains_fabrication: true,
+        }),
+      ),
+  );
+  await expect(
+    generate(
+      {
+        evidence: "Hay dos tareas.",
+        narrative_input: { verified_facts: ["Hay dos tareas."] },
+      },
+      chartNarrativeSchema,
+      undefined,
+      "professional-evidence",
+      true,
+    ),
+  ).rejects.toHaveProperty("code", "AI_CHART_FACTUAL_REJECTION");
+});
+
+it("distingue los fallos públicos de interpretación sin revelar detalles privados", () => {
+  expect(
+    chartNarrativeFailure({ code: "AI_CHART_FACTUAL_REJECTION" }).code,
+  ).toBe("AI_CHART_FACTUAL_REJECTION");
+  expect(
+    chartNarrativeFailure(new DOMException("privado", "TimeoutError")).code,
+  ).toBe("AI_CHART_TIMEOUT");
+  expect(chartNarrativeFailure(new SyntaxError("privado")).code).toBe(
+    "AI_CHART_INVALID_OUTPUT",
+  );
+  const failure = chartNarrativeFailure(
+    new Error("credencial privada del proveedor"),
+  );
+  expect(failure.code).toBe("AI_CHART_PROVIDER_FAILED");
+  expect(failure.message).not.toContain("credencial");
+});

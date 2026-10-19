@@ -9,6 +9,7 @@ import Dark from "@amcharts/amcharts5/themes/Dark";
 import esES from "@amcharts/amcharts5/locales/es_ES";
 import {
   chartRows,
+  chartTooltip,
   type DataChartProps,
   type ChartValue,
 } from "@/lib/charts/data";
@@ -56,7 +57,11 @@ export default function AmChart({
         ...(dark ? [Dark.new(root)] : []),
       ]);
       root.numberFormatter.set("numberFormat", decimals ? "#,###.##" : "#,###");
-      root.container.set("layout", root.verticalLayout);
+      root.container.setAll({
+        layout: root.verticalLayout,
+        // La marca de amCharts ocupa el borde inferior, fuera de la leyenda.
+        paddingBottom: kind === "pie" || kind === "donut" ? 30 : 0,
+      });
       root.container.children.push(
         am5.Label.new(root, {
           text: title,
@@ -70,26 +75,28 @@ export default function AmChart({
       );
       const rows = chartRows(JSON.parse(valuesKey) as ChartValue[]);
       const numberFormat = decimals ? "#,###.##" : "#,###";
-      const text = `{label}: {value.formatNumber('${numberFormat}')} ${unit}`;
+      const text = chartTooltip(kind, unit, decimals);
 
       if (kind === "pie" || kind === "donut") {
         const chart = root.container.children.push(
           am5percent.PieChart.new(root, {
-            layout: root.verticalLayout,
+            width: am5.p100,
+            height: am5.p100,
+            radius: am5.percent(78),
             innerRadius: kind === "donut" ? am5.percent(55) : 0,
           }),
         );
         const series = chart.series.push(
           am5percent.PieSeries.new(root, {
             valueField: "value",
-            categoryField: "label",
+            categoryField: "categoryLabel",
             alignLabels: false,
           }),
         );
         series.labels.template.set("forceHidden", true);
         series.ticks.template.set("forceHidden", true);
         series.slices.template.setAll({
-          tooltipText: text + " ({valuePercentTotal.formatNumber('0.0')}%)",
+          tooltipText: text,
           focusable: true,
           ariaLabel: text,
           toggleKey: "none",
@@ -99,23 +106,37 @@ export default function AmChart({
           maxWidth: 280,
           oversizedBehavior: "wrap",
         });
-        const legend = chart.children.push(
+        // Leyenda fuera del PieChart: su altura se reserva antes de dimensionar
+        // el círculo y no se superpone con el gráfico ni con la marca inferior.
+        const legend = root.container.children.push(
           am5.Legend.new(root, {
             width: am5.p100,
-            maxHeight: 110,
-            verticalScrollbar: am5.Scrollbar.new(root, {
-              orientation: "vertical",
-            }),
-            layout: am5.GridLayout.new(root, {
-              maxColumns: 2,
-              fixedWidthGrid: true,
-            }),
+            height: Math.min(5, rows.length) * 32 + 12,
+            marginTop: 8,
+            ...(rows.length > 5
+              ? {
+                  verticalScrollbar: am5.Scrollbar.new(root, {
+                    orientation: "vertical",
+                  }),
+                }
+              : {}),
+            layout: root.verticalLayout,
             clickTarget: "none",
           }),
         );
+        legend.itemContainers.template.setAll({
+          width: am5.p100,
+          paddingTop: 4,
+          paddingBottom: 4,
+          paddingLeft: 0,
+          paddingRight: 0,
+        });
+        legend.markers.template.setAll({ width: 16, height: 16 });
         legend.labels.template.setAll({
+          width: am5.p100,
           fontSize: 12,
-          oversizedBehavior: "wrap",
+          oversizedBehavior: "truncate",
+          tooltipText: "{category}",
           ignoreFormatting: true,
         });
         legend.valueLabels.template.set("forceHidden", true);
@@ -241,7 +262,9 @@ export default function AmChart({
   const height =
     kind === "bars"
       ? Math.min(720, Math.max(340, values.length * 42 + 90))
-      : 400;
+      : kind === "pie" || kind === "donut"
+        ? 392 + Math.min(5, values.length) * 32
+        : 400;
   return (
     <div
       ref={element}

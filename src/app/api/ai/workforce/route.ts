@@ -17,7 +17,10 @@ import { filterWorkspace } from "@/modules/workspace/filters";
 import { isHR } from "@/lib/permissions";
 import { activityContext } from "@/modules/workspace/activity-context";
 import { stateLabel } from "@/modules/workspace/labels";
-import { readableChartNarrative } from "@/lib/ai/chart-narrative";
+import {
+  readableChartNarrative,
+  chartNarrativeFailure,
+} from "@/lib/ai/chart-narrative";
 import {
   buildChartReports,
   chartNarrativeContext,
@@ -342,15 +345,10 @@ export async function POST(req: Request) {
             "La solicitud produce más de 48 gráficas. Selecciona menos áreas o procesos para poder revisarlas.",
           );
         let narrativeError = "";
+        let narrativeErrorCode = "";
         const narrativeMetrics = chartNarrativeContext(reports).slice(0, 3);
-        const narrativeFacts = narrativeMetrics.flatMap((metric) =>
-          metric.facts.filter(
-            (_, index) =>
-              index === 1 ||
-              index === 2 ||
-              (index === 3 &&
-                /compar|evolu|tend|creci|dismin|anterior/i.test(body.prompt)),
-          ),
+        const narrativeFacts = narrativeMetrics.flatMap(
+          (metric) => metric.facts,
         );
         const narrative = await generate(
           {
@@ -358,10 +356,13 @@ export async function POST(req: Request) {
             request: body.prompt,
             module_scope: moduleTopicInstruction(analysisModule),
             response_instructions:
-              "Devuelve summary con dos párrafos breves y recommendations como lista vacía. El resumen prioriza las vistas incluidas en verified_metrics; las demás gráficas permanecen visibles y no debes inventar su interpretación.",
+              "Devuelve summary con una o dos frases verificables y recommendations como lista vacía. No fuerces diferencias si no hay base. El resumen prioriza las vistas incluidas en verified_metrics; las demás gráficas permanecen visibles y no debes inventar su interpretación.",
             evidence: narrativeFacts.join("\n"),
             narrative_input: {
               verified_facts: narrativeFacts,
+              untrusted_request: body.prompt,
+              limitations:
+                "Cada proceso y periodo es independiente. Estados actuales de registros autorizados, no personas ni un historial de cambios de estado.",
             },
             verified_metrics: narrativeMetrics.map(
               ({ process, area, facts, has_records_in_period }) => ({
@@ -385,29 +386,10 @@ export async function POST(req: Request) {
           "professional-evidence",
           true,
         ).catch((error: unknown) => {
-          console.warn(
-            "Chart narrative failed: " +
-              (error instanceof z.ZodError
-                ? "schema: " +
-                  JSON.stringify(
-                    error.issues.map((i) => ({ code: i.code, path: i.path })),
-                  )
-                : error instanceof ApiError
-                  ? "factual-review"
-                  : error instanceof Error &&
-                      [
-                        "AI_INCOMPLETE_OUTPUT",
-                        "PROVIDER_FAILED",
-                        "TimeoutError",
-                        "AbortError",
-                      ].includes(error.message)
-                    ? error.message
-                    : error instanceof Error
-                      ? error.name
-                      : "unknown"),
-          );
-          narrativeError =
-            "No se pudo completar la interpretación de IA. Las gráficas conservan los conteos verificados; puedes volver a generar el análisis.";
+          const failure = chartNarrativeFailure(error);
+          console.warn("Chart narrative failed: " + failure.code);
+          narrativeError = failure.message;
+          narrativeErrorCode = failure.code;
           return null;
         });
         result = {
@@ -418,7 +400,11 @@ export async function POST(req: Request) {
                   chartNarrativeSchema.parse(narrative.result).summary,
                 ),
               }
-            : { summary: "", narrative_error: narrativeError }),
+            : {
+                summary: "",
+                narrative_error: narrativeError,
+                narrative_error_code: narrativeErrorCode,
+              }),
           charts: reports,
           narrative_scope:
             narrative && reports.length > narrativeMetrics.length

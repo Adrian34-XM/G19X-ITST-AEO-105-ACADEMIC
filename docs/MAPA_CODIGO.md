@@ -6,7 +6,7 @@ Este índice explica los archivos propios del sistema. Complementa [la guía de 
 
 - [src/components/data-chart.tsx](../src/components/data-chart.tsx): `DataChart`, carga diferida sin SSR, tabla accesible y recuperación ante errores del canvas.
 - [src/components/am-chart.tsx](../src/components/am-chart.tsx): representación con amCharts 5, cinco tipos, temas claro/oscuro, movimiento reducido y liberación de cada instancia.
-- [src/lib/charts/data.ts](../src/lib/charts/data.ts): tipos `ChartKind`, `ChartValue`, `DataChartProps`, validación de valores mediante `chartRows` y compatibilidad de tipos mediante `chartKind`. No calcula métricas de negocio.
+- [src/lib/charts/data.ts](../src/lib/charts/data.ts): tipos `ChartKind`, `ChartValue`, `DataChartProps`, validación de valores mediante `chartRows`, compatibilidad de tipos mediante `chartKind` y textos de detalle mediante `chartTooltip`. Evita colisiones con propiedades internas de amCharts. No calcula métricas de negocio.
 
 - [src/lib/charts/module-loader.ts](../src/lib/charts/module-loader.ts): `createChartModuleLoader`, descarga compartida con estados, límite de espera y reintento sin recargar la página.
 
@@ -548,7 +548,7 @@ Entradas exportadas: `nonWorkingDay`, `mexicoDate`.
 
 Define el contrato y las instrucciones de la explicación de gráficas y su revisión factual, conservando las fuentes de cada afirmación.
 
-Entradas exportadas: `chartNarrativeSchema`, `chartNarrativeSystemPrompt`, `chartFactualReview`, `chartFactualSystemPrompt`, `chartReviewContext`, `readableChartNarrative`.
+Entradas exportadas: `chartNarrativeSchema`, `chartNarrativeSystemPrompt`, `chartNarrativeRepairInstruction`, `chartFactualReview`, `chartFactualSystemPrompt`, `chartNarrativeFailure`, `chartReviewContext`, `readableChartNarrative`.
 
 ### [src/lib/ai/grounding.ts](../src/lib/ai/grounding.ts)
 

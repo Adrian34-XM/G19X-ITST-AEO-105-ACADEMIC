@@ -154,7 +154,7 @@ export function chartNarrativeContext(charts: ChartReport[]) {
       return {
         total: c.report.total,
         facts: [
-          `La fecha utilizada en esta vista es la ${c.report.period.dateDescription}. Se muestran estados actuales; no es un historial de cambios de estado ni una evaluación de personas.`,
+          `Periodo: ${c.report.period.from ?? "todos los registros cargados"} a ${c.report.period.to}. La fecha utilizada es la ${c.report.period.dateDescription}. Se muestran estados actuales; no es un historial de cambios de estado ni una evaluación de personas.`,
           `${c.report.available ? (c.report.total ? `sí hay registros: ${c.report.total} ${unit[c.dataset]}. Distribución: ${c.values.map((v) => `${v.label}: ${v.count}`).join("; ")}.` : `no hay ${unit[c.dataset]} con los filtros y el periodo de esta gráfica.`) : "no se dispone de esta tabla, no equivale a ausencia de actividad."}`,
           ...(maximum > 0
             ? [

@@ -406,6 +406,7 @@ it("si falla la redacción conserva las gráficas verificadas e informa del fall
     const result = (await response.json()).result;
     expect(result.summary).toBe("");
     expect(result.narrative_error).toContain("interpretación de IA");
+    expect(result.narrative_error_code).toBe("AI_CHART_PROVIDER_FAILED");
     expect(result.charts[0].values).toEqual([
       { label: "En revisión", count: 1 },
     ]);
@@ -709,3 +710,42 @@ it.each([
   expect(state.generate).not.toHaveBeenCalled();
   expect(state.rpc).not.toHaveBeenCalled();
 });
+
+it.each([
+  [
+    { code: "AI_CHART_FACTUAL_REJECTION" },
+    "AI_CHART_FACTUAL_REJECTION",
+    "comprobación",
+  ],
+  [
+    new DOMException("detalle privado", "TimeoutError"),
+    "AI_CHART_TIMEOUT",
+    "tiempo de espera",
+  ],
+])(
+  "conserva conteos y explica la causa concreta si falla la narrativa",
+  async (error, code, message) => {
+    const prior = state.generate.getMockImplementation()!;
+    state.generate.mockImplementation(async (...args) => {
+      if (args[0].verified_metrics) throw error;
+      return prior(...args);
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const response = await POST(
+        req({ mode: "chart", prompt: "Tareas por estado" }),
+      );
+      const { result } = await response.json();
+      expect(response.status).toBe(200);
+      expect(result.summary).toBe("");
+      expect(result.narrative_error_code).toBe(code);
+      expect(result.narrative_error).toContain(message);
+      expect(result.narrative_error).not.toContain("detalle privado");
+      expect(result.charts[0].values).toEqual([
+        { label: "En revisión", count: 1 },
+      ]);
+    } finally {
+      warn.mockRestore();
+    }
+  },
+);

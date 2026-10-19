@@ -10,6 +10,8 @@ Las gráficas ofrecen detalles al pasar el puntero y una tabla HTML en **Ver dat
 
 Los conteos incluyen los valores cero. Las gráficas vacías muestran un aviso; los promedios mantienen hasta dos decimales. Las líneas conectan categorías ordenadas por el informe: una agrupación por creación no reconstruye cambios históricos de estado. El color distingue categorías, sin asignar por sí solo un juicio sobre desempeño.
 
+En las gráficas circular y dona, la leyenda ocupa un espacio propio debajo del círculo, con altura reservada y una fila por categoría. Las leyendas extensas permiten desplazamiento y las etiquetas abreviadas conservan el nombre completo al pasar el puntero. Se deja espacio para la marca de amCharts en el borde inferior. Los detalles usan `{category}` para estas series y `categoryLabel` en los datos de presentación: `label` es un objeto interno de la librería y no debe utilizarse para mostrar el nombre de una categoría. `tests/chart-tooltip.test.ts` reproduce esa colisión con el formateador real y verifica nombres, cifras, porcentajes y decimales.
+
 ## Arquitectura
 
 1. `chartSchema` valida las propuestas de representación. `chart-report.ts` y los agregados de encuestas determinan las cifras con datos autorizados.
@@ -43,6 +45,12 @@ Los registros de Next.js mostraron peticiones de actualización `/_next/hmr` blo
 El cargador anterior mostraba siempre el indicador de espera y no tenía un plazo de salida. Su botón de recuperación llamaba a `window.location.reload()`, perdiendo el estado de pantalla. El cargador actual distingue descarga, error y disponibilidad; comparte una sola importación y permite reintentar sin navegar. Las pruebas `chart-module-loader.test.ts` reproducen rechazo, espera agotada, recuperación y promesas obsoletas; `dev-origins.test.ts` reproduce el 403 original y verifica acceso local conservando el bloqueo externo.
 
 La corrección pasó 29 pruebas de regresión, TypeScript, ESLint y la compilación de producción. Se comprobó también la sintaxis del arranque PowerShell. La validación visual en el navegador sigue pendiente por el bloqueo de la herramienta de inspección.
+
+## Interpretación de IA y revisión factual
+
+La lectura del análisis se genera después de calcular las gráficas. El redactor recibe hechos autorizados, procesos, áreas y periodos; no debe forzar una comparación cuando solo hay una vista o faltan datos. Cada frase se contrasta en una llamada con `answer_text` y `source_text`, restringiendo las fuentes al proceso y área mencionados. Una comparación entre procesos conserva las fuentes de ambos. Las correcciones utilizan instrucciones de gráficas, sin aplicar criterios de evaluación de CV o evidencias.
+
+El 19 de octubre se reprodujo con datos ficticios un rechazo incorrecto del modelo local: comparaba una afirmación sobre tareas con cifras de capacitación y rechazaba un texto correcto. La corrección separa las fuentes y simplifica el contrato de revisión. Pasaron cuatro pruebas con el proveedor Ollama real: procesos distintos, una vista vacía, comparación entre áreas y rechazo de un estado inventado. La comprobación reduce errores, pero sigue dependiendo del modelo; un texto que no supere la revisión no se publica. La API conserva las gráficas y distingue rechazo factual, tiempo agotado, salida inválida o fallo del proveedor mediante `narrative_error_code`.
 
 ## Fuentes y licencia
 

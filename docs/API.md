@@ -531,11 +531,13 @@ El inicio personalizado no puede ser posterior a hoy y se comprueba compatibilid
 
 Éxito: `{ result }`, cuyo contrato depende del modo:
 
-- `chart`: `summary`, `charts`, `narrative_scope` y, si falla solo la interpretación, `narrative_error`. Los informes de gráfica incluyen sus datos, periodo, comparaciones, descripción y limitaciones según [chart-report.ts](../src/modules/workspace/chart-report.ts). La expansión por área puede producir más informes que las configuraciones inicialmente propuestas.
+- `chart`: `summary`, `charts`, `narrative_scope` y, si falla solo la interpretación, `narrative_error` y `narrative_error_code`. Los informes de gráfica incluyen sus datos, periodo, comparaciones, descripción y limitaciones según [chart-report.ts](../src/modules/workspace/chart-report.ts). La expansión por área puede producir más informes que las configuraciones inicialmente propuestas.
 - `training`: `title`, `description`, `content`, `duration_minutes`; borrador formativo, sin guardado automático como curso.
 - `profile`, `onboarding`, `tasks`: `summary` y `recommendations` como lista de textos, no objetos de recomendación del orquestador.
 
 **Fallo parcial en gráficas:** puede recibirse `200` con gráficas calculadas, `summary: ""` y `narrative_error`. Conserva las gráficas y muestra el aviso; no presentes una explicación inventada ni interpretes el `200` como una narrativa completa.
+
+`narrative_error_code` distingue `AI_CHART_FACTUAL_REJECTION` (texto no respaldado), `AI_CHART_TIMEOUT` (tiempo agotado), `AI_CHART_INVALID_OUTPUT` (JSON incompleto o inválido) y `AI_CHART_PROVIDER_FAILED` (fallo del proveedor). Los mensajes públicos explican la causa sin incluir respuestas rechazadas ni datos privados del proveedor. No cambian permisos ni los conteos ya calculados.
 
 El cliente dibuja estos valores con amCharts 5; el contrato de la API no depende de la librería. Cambiar entre barras, columnas, líneas, circular y dona reutiliza la misma respuesta, sin ejecutar otra solicitud al modelo ni ampliar los filtros. Véase [la guía de gráficas](GRAFICAS.md).
 
