@@ -124,7 +124,6 @@ Estas comprobaciones no consumen Gemini ni demuestran que el servicio remoto est
 
 No modificar manualmente `node_modules`, `.next`, `next-env.d.ts` ni los archivos de bloqueo para añadir explicaciones: son dependencias, salidas o archivos administrados por herramientas. Los nombres de API, tablas y variables permanecen en su forma original para no romper contratos; las explicaciones están en español.
 
-
 ## Mejoras de operaciones RH del 21 de septiembre
 
 El superadministrador hereda los permisos de RH a través de isHR, requireRole y public.is_hr(), conservando su rol para auditoría. La migración 202609210001_hr_operations.sql amplía los controles de las funciones SQL existentes y añade el bloqueo de una segunda entrevista pendiente por candidato. El bloqueo usa una transacción y se aplica también entre distintas vacantes.
@@ -136,7 +135,6 @@ filterWorkspace relaciona áreas, puestos, empleados, tareas y onboarding. Se ap
 WorkplaceClimate separa edición, vista previa, publicación y respuesta. Las tarjetas se reordenan antes de publicar; después quedan congeladas. Las respuestas anónimas y los recibos de participación se guardan por separado. El resumen solo se permite con encuesta cerrada y cinco respuestas. La jerarquía multinivel se aplica desde la migración 202609170002_climate_hierarchy.sql.
 
 Los pasos para aplicar las migraciones están en el README: [Supabase local](../README.md#3-preparar-supabase-local) y [Supabase alojado](../README.md#8-alternativa-supabase-alojado). Se deben aplicar las actualizaciones en orden y conservar las restricciones de acceso del proveedor configurado.
-
 
 ## Asignación múltiple y organigrama
 
@@ -201,6 +199,8 @@ Desempeño utiliza procesos laborales de tareas, capacitación e incorporación.
 `canReviewTeamPerformance` permite seguimiento colectivo a RH o a un usuario con rol JEFE y subordinados autorizados. Un perfil EMPLEADO conserva el alcance propio; la existencia de una relación jerárquica no convierte por sí sola su rol en JEFE.
 
 `chartSchema` limita procesos, agrupaciones y representaciones. `requestedCharts` interpreta preferencias explícitas del texto; `chartValues` calcula conteos sobre los registros permitidos. El modelo no devuelve consultas SQL ni JavaScript para ejecutar. Una gráfica por fecha de creación muestra cuándo se registraron los elementos, no reconstruye sus cambios de estado diarios.
+
+La representación utiliza [DataChart](../src/components/data-chart.tsx), que carga [AmChart](../src/components/am-chart.tsx) solo en el navegador mediante un importador compartido con límite de 30 segundos y reintento local. amCharts 5 dibuja barras, columnas, líneas, circular o dona a partir de los valores recibidos, sin volver a consultar la IA. Cada instancia libera su `Root` al desmontarse o cambiar los datos, el tipo o el tema. El componente respeta el tema claro/oscuro y el movimiento reducido; ofrece una tabla HTML y recuperación ante fallos de renderizado. Las preguntas de clima conservan decimales, escala fija de 0 a 5 y acceso a agregados de grupos permitidos. Consulta [la guía de gráficas](GRAFICAS.md).
 
 `analyticsSummary` produce cifras y afirmaciones con código determinista; la IA selecciona temas de una lista permitida. Los resultados siguen limitados al conjunto cargado. La ausencia de registros no acredita bajo desempeño ni que un proceso no exista fuera de ese conjunto.
 

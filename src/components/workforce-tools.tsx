@@ -6,6 +6,8 @@
  * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
  */
 /** Herramientas revisables: el servidor determina el alcance y calcula las cifras. */
+import { DataChart } from "./data-chart";
+import { chartKind } from "@/lib/charts/data";
 import { StatusText } from "./status-text";
 import { ContentSkeleton, LoadingStatus } from "./loading-skeleton";
 import { pendingTrainingReview } from "@/modules/workspace/training-review";
@@ -80,39 +82,7 @@ export function DataGraph({ chart }: { chart: Graph }) {
       month: "short",
       day: "numeric",
     });
-  const total = chart.values.reduce((s, v) => s + v.count, 0),
-    max = Math.max(1, ...chart.values.map((v) => v.count));
-  const colors = [
-    "#2761a2",
-    "#438947",
-    "#d08b20",
-    "#a04359",
-    "#8059aa",
-    "#279a99",
-  ];
-  const colorFor = (label: string, index: number) =>
-    chart.group === "status"
-      ? ((
-          {
-            Pendiente: "#d08b20",
-            "En progreso": "#2761a2",
-            "En revisión": "#8059aa",
-            Aprobado: "#438947",
-            Completado: "#438947",
-            Rechazado: "#a04359",
-            Asignado: "#d08b20",
-          } as Record<string, string>
-        )[label] ?? colors[index % colors.length])
-      : colors[index % colors.length];
-  const slices = chart.values.map((v, i) => {
-    const start = total
-      ? (chart.values.slice(0, i).reduce((sum, v) => sum + v.count, 0) /
-          total) *
-        100
-      : 0;
-    const offset = start + (total ? (v.count / total) * 100 : 0);
-    return `${colorFor(v.label, i)} ${start}% ${offset}%`;
-  });
+  const total = chart.values.reduce((sum, value) => sum + value.count, 0);
   return (
     <article className="record">
       {chart.report?.areaAlias && (
@@ -186,164 +156,24 @@ export function DataGraph({ chart }: { chart: Graph }) {
           <option value="donut">Dona</option>
         </select>
       </label>
-      {!total ? (
-        <p>Sin datos con estos filtros.</p>
-      ) : (
-        <>
-          {["pie", "donut"].includes(kind) && (
-            <div
-              role="img"
-              aria-label={`${chart.title}: ${chart.values.map((v) => `${v.label} ${v.count}`).join(", ")}`}
-              style={{
-                width: 180,
-                height: 180,
-                borderRadius: "50%",
-                background: `conic-gradient(${slices.join(",")})`,
-                margin: "12px auto",
-                ...(kind === "donut"
-                  ? {
-                      maskImage:
-                        "radial-gradient(circle, transparent 38%, black 39%)",
-                    }
-                  : {}),
-              }}
-            />
-          )}
-          {["line", "columns"].includes(kind) && (
-            <div style={{ overflowX: "auto" }}>
-              <svg
-                role="img"
-                aria-label={`${chart.title}: ${chart.values.map((v) => `${v.label}: ${v.count}`).join(", ")}`}
-                viewBox={`0 0 ${Math.max(360, chart.values.length * 65)} 230`}
-                style={{
-                  width: "100%",
-                  minWidth: Math.max(360, chart.values.length * 65),
-                  height: 230,
-                }}
-              >
-                <line
-                  x1={25}
-                  y1={190}
-                  x2={Math.max(360, chart.values.length * 65) - 10}
-                  y2={190}
-                  stroke="currentColor"
-                />
-                {kind === "line" && (
-                  <polyline
-                    fill="none"
-                    stroke="#2761a2"
-                    strokeWidth={3}
-                    points={chart.values
-                      .map(
-                        (v, i) =>
-                          `${40 + i * ((Math.max(360, chart.values.length * 65) - 70) / Math.max(1, chart.values.length - 1))},${190 - (v.count / max) * 150}`,
-                      )
-                      .join(" ")}
-                  />
-                )}
-                {chart.values.map((v, i) => {
-                  const x =
-                    40 +
-                    i *
-                      ((Math.max(360, chart.values.length * 65) - 70) /
-                        Math.max(1, chart.values.length - 1));
-                  const y = 190 - (v.count / max) * 150;
-                  return (
-                    <g key={v.label}>
-                      <title>
-                        {label(v.label)}: {v.count} {unit}
-                      </title>
-                      {kind === "line" ? (
-                        <circle cx={x} cy={y} r={4} fill="#2761a2" />
-                      ) : (
-                        <rect
-                          x={x - 14}
-                          y={y}
-                          width={28}
-                          height={190 - y}
-                          fill={colorFor(v.label, i)}
-                        />
-                      )}
-                      <text
-                        x={x}
-                        y={y - 8}
-                        textAnchor="middle"
-                        fontSize={12}
-                        fill="currentColor"
-                      >
-                        {v.count}
-                      </text>
-                      <text
-                        x={x}
-                        y={210}
-                        textAnchor="middle"
-                        fontSize={10}
-                        fill="currentColor"
-                      >
-                        {dated
-                          ? chart.group === "month"
-                            ? v.label
-                            : v.label.slice(5)
-                          : i + 1}
-                      </text>
-                    </g>
-                  );
-                })}
-              </svg>
-              <p className="muted">
-                {dated
-                  ? "El eje horizontal muestra fechas o el inicio de cada intervalo."
-                  : "Los números del eje corresponden a las categorías del listado inferior."}{" "}
-                Eje vertical: cantidad de {unit}.
-              </p>
-            </div>
-          )}
-          <h4>Leyenda: qué representa cada color</h4>
-          <p className="muted">
-            {kind === "line"
-              ? `La línea azul muestra la cantidad de ${unit} en cada categoría.`
-              : dated
-                ? `Los colores distinguen los intervalos de ${chart.report?.period.dateDescription ?? "creación"}; no indican su estado ni su prioridad.`
-                : `Cada color identifica una categoría del listado.`}
-          </p>
-          {chart.values.map((v, i) => (
-            <div key={v.label} className="chart-count">
-              <span>
-                <span
-                  aria-hidden="true"
-                  style={{
-                    display: "inline-block",
-                    width: 14,
-                    height: 14,
-                    borderRadius: 3,
-                    marginRight: 8,
-                    background:
-                      kind === "line" ? colors[0] : colorFor(v.label, i),
-                  }}
-                />
-                {["line", "columns"].includes(kind) ? `${i + 1}. ` : ""}
-                {label(v.label)}:{" "}
-                <strong>
-                  {v.count} {unit}
-                </strong>
-              </span>
-              {kind === "bars" ? (
-                <div
-                  style={{
-                    height: 12,
-                    borderRadius: 6,
-                    background: colorFor(v.label, i),
-                    width: `${(v.count / max) * 100}%`,
-                  }}
-                />
-              ) : ["pie", "donut"].includes(kind) ? (
-                <span> ({Math.round((v.count / total) * 100)}%)</span>
-              ) : null}
-            </div>
-          ))}
-          <p>Total: {total}</p>
-        </>
+      <DataChart
+        title={chart.title}
+        kind={chartKind(kind)}
+        values={chart.values.map((v) => ({
+          label: label(v.label),
+          count: v.count,
+        }))}
+        unit={unit}
+      />
+      {dated && (
+        <p className="muted">
+          Los intervalos corresponden a la fecha indicada arriba; no
+          reconstruyen cambios de estado históricos.
+        </p>
       )}
+      <p>
+        Total: {total} {unit}
+      </p>
       {chart.report && (
         <div className="chart-report-reading">
           <details>

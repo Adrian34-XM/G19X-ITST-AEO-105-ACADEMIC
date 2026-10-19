@@ -537,6 +537,8 @@ El inicio personalizado no puede ser posterior a hoy y se comprueba compatibilid
 
 **Fallo parcial en gráficas:** puede recibirse `200` con gráficas calculadas, `summary: ""` y `narrative_error`. Conserva las gráficas y muestra el aviso; no presentes una explicación inventada ni interpretes el `200` como una narrativa completa.
 
+El cliente dibuja estos valores con amCharts 5; el contrato de la API no depende de la librería. Cambiar entre barras, columnas, líneas, circular y dona reutiliza la misma respuesta, sin ejecutar otra solicitud al modelo ni ampliar los filtros. Véase [la guía de gráficas](GRAFICAS.md).
+
 ### Cuotas y tratamiento de fallos
 
 Las reservas de orquestación limitan ejecuciones por usuario; otras rutas utilizan reservas por caso de uso y recurso. `force` no evita cuotas. No hay una garantía de idempotencia general para POST.

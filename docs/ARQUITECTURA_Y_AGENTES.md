@@ -47,6 +47,8 @@ Los correos de confirmación, recuperación e invitación los envía Supabase Au
 
 Los fondos MicroSlats de la interfaz utilizan OGL y WebGL en el navegador. Son decorativos, admiten pausa y movimiento reducido y no reciben datos del negocio. Su implementación está en [micro-slats.tsx](../src/components/micro-slats.tsx) y su atribución en [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).
 
+Las gráficas utilizan amCharts 5 como dependencia local de npm, cargada bajo demanda en el navegador. [DataChart](../src/components/data-chart.tsx) conserva la tabla accesible y [AmChart](../src/components/am-chart.tsx) administra el canvas, el tema y su liberación al cambiar de vista. La IA propone representaciones y redacta análisis; el servidor calcula las cifras autorizadas y el navegador las dibuja. No se ejecuta código ni configuración arbitraria del modelo. Los límites de muestras, periodos y anonimato permanecen en las rutas y funciones de dominio. Consulta [Gráficas con amCharts 5](GRAFICAS.md).
+
 ## 2. Roles y fronteras de confianza
 
 El [catálogo de permisos](../src/lib/permissions/index.ts) define cinco roles:

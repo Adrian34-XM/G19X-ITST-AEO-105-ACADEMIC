@@ -57,7 +57,7 @@ if (Test-NexoPort $Port) {
     if (-not (Test-Path -LiteralPath (Join-Path $nexoRoot 'node_modules/next/dist/bin/next'))) {
         throw 'Faltan dependencias. Ejecuta npm ci en el proyecto antes de arrancar.'
     }
-    $app = Start-Process -FilePath $node -ArgumentList @('node_modules/next/dist/bin/next', 'dev', '--hostname', '127.0.0.1', '--port', "$Port") -WorkingDirectory $nexoRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $nexoLogs 'next.stdout.log') -RedirectStandardError (Join-Path $nexoLogs 'next.stderr.log')
+    $app = Start-Process -FilePath $node -ArgumentList @('node_modules/next/dist/bin/next', 'dev', '--webpack', '--hostname', '127.0.0.1', '--port', "$Port") -WorkingDirectory $nexoRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $nexoLogs 'next.stdout.log') -RedirectStandardError (Join-Path $nexoLogs 'next.stderr.log')
     $app.Id | Set-Content -LiteralPath (Join-Path $nexoLogs 'next.pid')
 }
 $ready = $false

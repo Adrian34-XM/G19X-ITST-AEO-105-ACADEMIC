@@ -1,4 +1,6 @@
 "use client";
+import { DataChart } from "./data-chart";
+import { chartKind } from "@/lib/charts/data";
 import { StatusText } from "./status-text";
 import { ContentSkeleton } from "./loading-skeleton";
 import { ProfileAvatar } from "./profile-photo";
@@ -1029,22 +1031,6 @@ function AnalyticsChart({ data, metric }: { data: Snapshot; metric: string }) {
     const k = value(r, "status");
     groups[k] = (groups[k] ?? 0) + 1;
   }
-  const maximum = Math.max(1, ...Object.values(groups));
-  const colors = [
-    "#287c61",
-    "#bb7730",
-    "#516bb0",
-    "#a45878",
-    "#537a8d",
-    "#8b7432",
-    "#697d46",
-  ];
-  let angle = 0;
-  const segments = Object.values(groups).map((count, i) => {
-    const start = angle;
-    angle += (count / Math.max(1, selected.length)) * 360;
-    return `${colors[i % colors.length]} ${start}deg ${angle}deg`;
-  });
   const labels: Record<string, string> = {
     PENDING: "Pendientes",
     IN_PROGRESS: "En progreso",
@@ -1085,39 +1071,14 @@ function AnalyticsChart({ data, metric }: { data: Snapshot; metric: string }) {
         </label>
       </div>
       <p>{selected.length} registros · distribución por estado</p>
-      {chart === "ring" && selected.length > 0 && (
-        <div
-          className="donut-chart"
-          role="img"
-          aria-label={`Distribución de ${selected.length} registros; cantidades detalladas debajo`}
-          style={{ background: `conic-gradient(${segments.join(",")})` }}
-        >
-          <span>
-            {selected.length}
-            <small>registros</small>
-          </span>
-        </div>
-      )}
-      <div className="bar-chart">
-        {Object.entries(groups).map(([status, count], index) => (
-          <div className="chart-row" key={status}>
-            <span>{labels[status] ?? stateLabel(status)}</span>
-            <div className="chart-track">
-              <div
-                className="chart-bar"
-                style={{
-                  width: `${(count / maximum) * 100}%`,
-                  background: colors[index % colors.length],
-                }}
-              />
-            </div>
-            <strong>
-              {count} ({Math.round((count / selected.length) * 100)}%)
-            </strong>
-          </div>
-        ))}
-      </div>
-      {!selected.length && <p>No hay datos para estos filtros.</p>}
+      <DataChart
+        title="Distribución por estado"
+        kind={chartKind(chart)}
+        values={Object.entries(groups).map(([status, count]) => ({
+          label: labels[status] ?? stateLabel(status),
+          count,
+        }))}
+      />
       <p className="muted">
         Gráficas basadas en los registros cargados (hasta 1000 por tabla). Las
         recomendaciones de IA respetan el área, persona, proceso y periodo

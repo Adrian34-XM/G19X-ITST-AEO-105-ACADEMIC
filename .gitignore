@@ -10,6 +10,11 @@ supabase/.branches/
 *.tsbuildinfo
 .local/
 
+# Skills locales de los asistentes; no forman parte de la aplicación.
+**/.agents/skills/
+**/.codex/skills/
+**/.cursor/skills/
+
 # Archivos locales, credenciales privadas y respaldos: no publicar.
 *.lnk
 *.pem
@@ -28,6 +33,7 @@ uploads/
 !/docs/MAPA_CODIGO.md
 !/docs/ARQUITECTURA_Y_AGENTES.md
 !/docs/API.md
+!/docs/GRAFICAS.md
 /IDEAS_PARA_EL_SISTEMA.md
 /MVP_Sistema_RRHH_IA.md
 /PRD_Sistema_RH.md

@@ -5,6 +5,8 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  // Mismo equipo, dos nombres locales. No permite orígenes de otros equipos.
+  allowedDevOrigins: ["127.0.0.1"],
   // PDF.js resuelve su trabajador respecto del paquete en tiempo de ejecución.
   serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
   async headers() {

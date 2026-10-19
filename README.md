@@ -2,17 +2,20 @@
 
 Aplicación web para reclutamiento, equipo y organigrama, incorporación, capacitación, tareas y evidencias, desempeño, analíticas y ambiente laboral. Incluye roles de superusuario, RH, jefe, empleado y candidato. La IA aporta análisis sujetos a revisión humana; no contrata ni aprueba entregas automáticamente.
 
-Tecnologías: Node.js 24, Next.js 16, React 19, TypeScript, Supabase Auth, PostgreSQL y Storage privado. La IA puede usar Ollama local o Gemini.
+Tecnologías: Node.js 24, Next.js 16, React 19, TypeScript, Supabase Auth, PostgreSQL, Storage privado y amCharts 5 para gráficas interactivas. La IA puede usar Ollama local o Gemini.
 
 ## Índice de documentación
 
 - [Arquitectura y agentes de IA](docs/ARQUITECTURA_Y_AGENTES.md): componentes del sistema, orquestador, clasificador de alcance, generador, revisor factual, permisos y decisiones humanas.
 - [Referencia de las API](docs/API.md): rutas HTTP, métodos, autenticación, parámetros, respuestas, errores y ejemplos de uso.
+- [Gráficas con amCharts 5](docs/GRAFICAS.md): tipos de gráfica, filtros, datos autorizados, accesibilidad, temas y mantenimiento.
 - [Guía del código](docs/CODIGO.md): explicación de los flujos de negocio, autenticación, archivos, inteligencia artificial y base de datos.
 - [Mapa del código](docs/MAPA_CODIGO.md): índice de archivos, responsabilidades y funciones o componentes exportados.
 - [Avisos de terceros](THIRD_PARTY_NOTICES.md): atribuciones y condiciones de los componentes externos incorporados.
 
 La instalación, configuración, operación y resolución de problemas se describen en los apartados siguientes de este README.
+
+Las gráficas de desempeño, analíticas y preguntas de ambiente laboral utilizan `@amcharts/amcharts5`, instalado con las demás dependencias de npm. La librería se carga en el navegador al mostrar una gráfica. Las cifras y los permisos siguen calculándose en el servidor; cambiar la representación no ejecuta otra consulta de IA. Se conserva la marca de amCharts conforme a su licencia, documentada en [los avisos de terceros](THIRD_PARTY_NOTICES.md). Las skills locales de los asistentes se excluyen de Git y no se requieren para ejecutar Nexo.
 
 ## 1. Requisitos
 
@@ -163,6 +166,8 @@ npm run dev -- --hostname 127.0.0.1
 ```
 
 Deja esa terminal abierta y visita [http://127.0.0.1:3000/login](http://127.0.0.1:3000/login). El listado público de vacantes está en `/jobs`.
+
+El comando de desarrollo utiliza webpack. `localhost` y `127.0.0.1` pueden acceder al canal local de actualización; otros orígenes siguen bloqueados. Durante la edición del código, Next.js puede actualizar o recargar la vista. Para una demostración sin esas actualizaciones, utiliza el modo de producción descrito más adelante. Si una gráfica no termina de cargar en 30 segundos, muestra un aviso y permite reintentar solo esa gráfica, conservando el análisis y las cifras; consulta [la guía de gráficas](docs/GRAFICAS.md).
 
 En Windows también puedes arrancar en segundo plano, desde PowerShell en la carpeta del proyecto:
 

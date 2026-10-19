@@ -2,6 +2,16 @@
 
 Este índice explica los archivos propios del sistema. Complementa [la guía de funcionamiento](CODIGO.md); los comentarios junto al código describen responsabilidades y límites. Las dependencias instaladas y los archivos generados no se documentan modificándolos.
 
+## Motor de gráficas
+
+- [src/components/data-chart.tsx](../src/components/data-chart.tsx): `DataChart`, carga diferida sin SSR, tabla accesible y recuperación ante errores del canvas.
+- [src/components/am-chart.tsx](../src/components/am-chart.tsx): representación con amCharts 5, cinco tipos, temas claro/oscuro, movimiento reducido y liberación de cada instancia.
+- [src/lib/charts/data.ts](../src/lib/charts/data.ts): tipos `ChartKind`, `ChartValue`, `DataChartProps`, validación de valores mediante `chartRows` y compatibilidad de tipos mediante `chartKind`. No calcula métricas de negocio.
+
+- [src/lib/charts/module-loader.ts](../src/lib/charts/module-loader.ts): `createChartModuleLoader`, descarga compartida con estados, límite de espera y reintento sin recargar la página.
+
+Guía de uso y mantenimiento: [Gráficas con amCharts 5](GRAFICAS.md).
+
 ## src/app
 
 ### [src/app/[[...path]]/page.tsx](../src/app/[[...path]]/page.tsx)
