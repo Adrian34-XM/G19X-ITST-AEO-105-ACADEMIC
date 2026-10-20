@@ -3804,7 +3804,9 @@ thead th { font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
 .team-workspace > * { min-width: 0; }
 .team-sidebar { display: grid; gap: 14px; }
 .content .team-sidebar > .panel { margin: 0; padding: 20px; }
-.team-directory-heading { position: sticky; top: 0; z-index: 2; background: var(--surface); padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--border); display: grid; gap: 12px; }
+/* El espacio superior forma parte del encabezado opaco, no del área desplazable. */
+.content .team-directory { padding-top: 0; }
+.team-directory-heading { position: sticky; top: 0; z-index: 2; background: var(--surface); padding-top: 24px; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--border); display: grid; gap: 12px; }
 .team-directory-heading h2 { font-size: 19px; margin: 0; }
 .team-directory-heading label { margin: 0; }
 .team-directory-count { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
@@ -3814,6 +3816,9 @@ thead th { font-size: 12px; letter-spacing: .3px; white-space: nowrap; }
 .team-directory { max-height: 78vh; overflow: auto; scrollbar-gutter: stable; }
 .team-directory thead { position: sticky; top: 0; z-index: 1; background: var(--surface); }
 .team-directory td, .team-directory th { padding: 12px 8px; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .team-directory-heading { padding-top: 18px; }
+}
 @media (min-width: 1200px) {
   .team-workspace { grid-template-columns: minmax(0, 1.8fr) minmax(320px, 1fr); }
   .team-sidebar { position: sticky; top: 94px; }
