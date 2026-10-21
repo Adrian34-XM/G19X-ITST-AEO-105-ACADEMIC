@@ -9,10 +9,13 @@ with expected(kind, object_name) as (values
  ('table','public.application_assessments'), ('table','public.climate_analyses'),
  ('function','public.save_climate_analysis(uuid,uuid,jsonb,text)'),
  ('function','public.hr_hierarchy_ready()'),
+ ('function','public.hr_hierarchy_version()'),
  ('function','public.hiring_options_ready()'),
  ('function','public.assign_many(text,uuid[],jsonb)'),
  ('function','public.save_department(uuid,text)'),
  ('function','public.delete_unused_department(uuid)'),
+ ('function','public.save_department_manager(uuid,uuid)'),
+ ('function','public.is_hr_employee(uuid)'),
  ('function','public.delete_unused_position(uuid)'),
  ('function','public.mx_working_day(date)'),
  ('function','public.next_working_day(date)'),
@@ -20,12 +23,15 @@ with expected(kind, object_name) as (values
  ('function','public.guard_completed_climate_assignment()'),
  ('function','public.set_profile_photo(text)'),
  ('column','public.profiles:photo_path'),
+ ('column','public.departments:manager_employee_id'),
  ('bucket','profile-photos'),
  ('trigger','public.climate_assignments:climate_completed_assignment'),
  ('trigger','public.tasks:working_day_guard'),
  ('trigger','public.interviews:working_day_guard'),
  ('trigger','public.onboarding_items:onboarding_learning_guard'),
- ('trigger','public.applications:candidate_application_guard')
+ ('trigger','public.applications:candidate_application_guard'),
+ ('trigger','public.employees:guard_hr_hierarchy'),
+ ('trigger','public.employees:validate_manager_tree')
 ), inspected as (
  select kind,object_name,case
  when kind='table' then to_regclass(object_name) is not null

@@ -74,7 +74,13 @@ Las migraciones están en `supabase/migrations/` y se ejecutan en orden. Incluye
 
 La migración `202610080001_private_ai_analyses.sql` separa las evaluaciones internas de las postulaciones y encuestas visibles a participantes. Conserva los análisis anteriores en tablas privadas y los permisos de RH/jefaturas. Aplícala antes de iniciar esta versión; un cambio de interfaz no sustituye la protección RLS. Los instaladores SQL agregados son históricos y no incluyen esta corrección: actualiza con las migraciones posteriores en orden y comprueba el resultado con `supabase/verificar-migraciones.sql`.
 
-`npm run seed` crea cuentas confirmadas y registros ficticios para probar el sistema. Rechaza una segunda ejecución cuando detecta cuentas demo existentes. La contraseña es el valor de `DEMO_PASSWORD` en tu archivo local; cambiar esa variable después no cambia las contraseñas de usuarios ya creados.
+La migración `202610210001_hr_top_manager_only.sql` endurece la edición de datos laborales de RH: solo la persona RH más alta en la jerarquía puede modificar a otro integrante RH. En una instancia alojada, aplica esta y todas las migraciones posteriores en orden antes de utilizar esas operaciones.
+
+La migración `202610220001_hr_department_manager.sql` garantiza que exista un área llamada **Recursos Humanos** y añade su campo de encargado. El superadministrador puede asignar, cambiar o quitar al encargado desde **Administración → Áreas**; debe ser un empleado activo, con cuenta activa y rol RH o jefe. RH puede consultar quién está asignado, pero no cambiar al encargado ni renombrar o eliminar el área protegida. En Supabase alojado, aplica esta migración junto con las anteriores, en orden.
+
+La migración `202610220002_hr_area_hierarchy.sql` liga automáticamente al encargado actual del área a toda nueva incorporación con un puesto de Recursos Humanos. Requiere que el superadministrador haya asignado un encargado activo; el sistema no permite guardar el alta sin esa relación. El encargado RH puede enlazar una sola vez las cuentas anteriores que todavía no tienen jefe directo; después, los cambios de puesto y jefe directo requieren al RH de mayor jerarquía de la cadena y no pueden crear ciclos. El superadministrador no puede cambiar directamente los datos laborales de integrantes del área. Aplica la migración en Supabase después de las anteriores para habilitar el flujo.
+
+`npm run seed` crea cuentas confirmadas y registros ficticios para probar el sistema; también incorpora a Mariana Torres al organigrama con un puesto del área Recursos Humanos. Rechaza una segunda ejecución cuando detecta cuentas demo existentes. La contraseña es el valor de `DEMO_PASSWORD` en tu archivo local; cambiar esa variable después no cambia las contraseñas de usuarios ya creados. En instalaciones existentes, un superadministrador puede incorporar una cuenta RH desde **Equipo → Incorporar personal y RH al organigrama**.
 
 ## 4. Configurar las variables
 
@@ -293,7 +299,11 @@ En **Authentication → Email → Email Templates**, configura cada plantilla. L
 
 ```html
 <h2>Confirma tu correo en Nexo</h2>
-<p><a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=signup">Confirmar correo</a></p>
+<p>
+  <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=signup"
+    >Confirmar correo</a
+  >
+</p>
 <p>Si no creaste esta cuenta, ignora este correo. No compartas el enlace.</p>
 ```
 
@@ -301,17 +311,32 @@ En **Authentication → Email → Email Templates**, configura cada plantilla. L
 
 ```html
 <h2>Recupera tu acceso a Nexo</h2>
-<p><a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=recovery">Elegir una nueva contraseña</a></p>
-<p>Si no solicitaste este cambio, ignora este correo. No compartas el enlace.</p>
+<p>
+  <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=recovery"
+    >Elegir una nueva contraseña</a
+  >
+</p>
+<p>
+  Si no solicitaste este cambio, ignora este correo. No compartas el enlace.
+</p>
 ```
 
 **Invite user** — asunto: `Tu invitación a Nexo`.
 
 ```html
 <h2>Te invitamos a Nexo</h2>
-<p>Confirma tu correo y define tu contraseña para acceder a tu espacio de trabajo.</p>
-<p><a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=invite">Aceptar invitación</a></p>
-<p>Si no esperabas esta invitación, puedes ignorarla. No compartas este enlace.</p>
+<p>
+  Confirma tu correo y define tu contraseña para acceder a tu espacio de
+  trabajo.
+</p>
+<p>
+  <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=invite"
+    >Aceptar invitación</a
+  >
+</p>
+<p>
+  Si no esperabas esta invitación, puedes ignorarla. No compartas este enlace.
+</p>
 ```
 
 Guarda cada plantilla. En la configuración del proveedor **Email** de Supabase Auth, conserva activada la confirmación de correo para registros públicos; las cuentas demo confirmadas por el seed no sirven para comprobar ese envío.

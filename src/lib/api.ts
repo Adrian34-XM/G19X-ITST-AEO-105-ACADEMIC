@@ -14,11 +14,11 @@ import { ApiError } from "@/lib/auth";
 import type { SupabaseClient } from "@supabase/supabase-js";
 /** Exige el esquema que valida la jerarquía de RH antes de editar personal. */
 export async function requireHrHierarchySchema(client: SupabaseClient) {
-  const { error } = await client.rpc("hr_hierarchy_ready");
-  if (error)
+  const { data, error } = await client.rpc("hr_hierarchy_version");
+  if (error || Number(data) < 3)
     throw new ApiError(
       503,
-      "Activa supabase/activar-mejoras-rh.sql en Supabase para habilitar los permisos de jerarquía de RH.",
+      "Aplica las migraciones pendientes de supabase/migrations para habilitar la protección actualizada de la jerarquía de RH.",
     );
 }
 /** Evita ejecutar el flujo antiguo de autoaprobación mientras falta activar la migración. */
@@ -112,9 +112,11 @@ export function databaseError(error: { code?: string; message: string }) {
   if (error.message === "HR_HIERARCHY_FORBIDDEN")
     throw new ApiError(
       403,
-      "Solo el superior de RH más alto de esta cadena o el superusuario puede modificar a este integrante de RH.",
+      "Solo el integrante de RH de mayor jerarquía de esta cadena puede modificar los datos laborales de otro integrante RH.",
     );
   const messages: Record<string, string> = {
+    HR_DEPARTMENT_MANAGER_REQUIRED:
+      "Asigna primero al encargado activo del área Recursos Humanos desde Administración → Áreas.",
     INTERVIEW_IN_PAST:
       "Selecciona una fecha y hora posterior al momento actual.",
     INVALID_HIRING_AREA: "Selecciona un puesto que pertenezca al área elegida.",
@@ -130,7 +132,8 @@ export function databaseError(error: { code?: string; message: string }) {
     INVALID_TRANSITION: "El estado actual no permite esta acción.",
     VACANCY_CLOSED: "Esta vacante ya no recibe postulaciones.",
     CLOSE_FIRST: "Cierra la vacante antes de eliminarla.",
-    RATE_LIMIT: "Límite de IA alcanzado. Espera un minuto.",
+    RATE_LIMIT:
+      "Límite de análisis de Nexo alcanzado: se permiten 3 solicitudes por usuario cada minuto, también con Ollama local. Espera un minuto antes de reintentar.",
     AI_IN_PROGRESS: "Ya hay un análisis en curso.",
     INTERVIEW_REQUIRED: "Agenda una entrevista antes de contratar.",
     ALREADY_EMPLOYEE: "La persona ya fue contratada.",

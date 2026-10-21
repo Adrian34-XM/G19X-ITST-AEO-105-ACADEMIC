@@ -76,7 +76,7 @@ Entradas exportadas: `GET`, `POST`.
 
 ### [src/app/api/commands/route.ts](../src/app/api/commands/route.ts)
 
-Entrada de comandos de negocio con contrato estricto. Comprueba los requisitos de las operaciones y conserva la sesión al invocar SQL; nunca acepta SQL arbitrario del cliente.
+Entrada de comandos de negocio con contrato estricto. Comprueba los requisitos de las operaciones y conserva la sesión al invocar SQL; nunca acepta SQL arbitrario del cliente. `department.manager.save` requiere `SUPERUSER` y delega la asignación del encargado de RH a la RPC protegida `save_department_manager`.
 
 Entradas exportadas: `POST`.
 
@@ -346,7 +346,7 @@ Entradas exportadas: `WorkplaceClimate`.
 
 ### [src/components/workspace.tsx](../src/components/workspace.tsx)
 
-Contenedor principal de navegación y vistas por rol. Conecta datos autorizados, formularios y paneles especializados; coordina las actualizaciones de pantalla tras las operaciones del servidor.
+Contenedor principal de navegación y vistas por rol. Conecta datos autorizados, formularios y paneles especializados; coordina las actualizaciones de pantalla tras las operaciones del servidor. En la administración de áreas presenta el encargado de RH como dato de consulta y solo ofrece sus controles de alta, cambio o retiro al superadministrador.
 
 Entradas exportadas: `Workspace`.
 
@@ -504,7 +504,7 @@ Entradas exportadas: `trainingOpinion`, `reviewTrainingOpinion`.
 
 ### [src/lib/api.ts](../src/lib/api.ts)
 
-Controles HTTP reutilizables: origen, tamaño real del cuerpo, requisitos de esquema y errores públicos. La validación del transporte se complementa con Zod y las reglas de autorización de cada operación SQL.
+Controles HTTP reutilizables: origen, tamaño real del cuerpo, requisitos de esquema y errores públicos. `requireHrHierarchySchema` exige la versión de migración que elimina la excepción de edición de RH para el superusuario. La validación del transporte se complementa con Zod y las reglas de autorización de cada operación SQL.
 
 Entradas exportadas: `requireHrHierarchySchema`, `requireWorkforceSchema`, `requireCourseEvidenceSchema`, `validateInterviewSchedule`, `requireHiringSchema`, `checkOrigin`, `databaseError`, `failure`, `readFormData`, `readJson`.
 
@@ -716,7 +716,7 @@ Entradas exportadas: `ModuleFilters`, `moduleTables`, `filterModule`.
 
 ### [src/modules/workspace/organization.ts](../src/modules/workspace/organization.ts)
 
-Construye el organigrama, conserva ancestros autorizados y protege recorridos contra ciclos. También refleja en la interfaz quién puede editar a integrantes de RH; PostgreSQL vuelve a exigir esa regla.
+Construye el organigrama, conserva ancestros autorizados y protege recorridos contra ciclos. También refleja en la interfaz quién puede editar a integrantes de RH; PostgreSQL vuelve a exigir la regla de que solo el RH de mayor jerarquía edite a otro RH.
 
 Entradas exportadas: `canEditStaff`, `organization`.
 

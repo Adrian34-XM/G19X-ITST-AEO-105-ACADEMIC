@@ -16,6 +16,9 @@ const id = z.uuid(),
 const optionalId = id.optional();
 export const schemas = {
   "department.delete": z.object({ id }).strict(),
+  "department.manager.save": z
+    .object({ department_id: id, employee_id: z.union([id, z.literal("")]) })
+    .strict(),
   "position.delete": z.object({ id }).strict(),
   "department.save": z.object({ id: optionalId, name: short }).strict(),
   "position.save": z

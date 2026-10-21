@@ -2,7 +2,10 @@ import { it, expect } from "vitest";
 import { filterWorkspace } from "../src/modules/workspace/filters";
 import { insightContext, scopeData } from "../src/modules/workspace/insights";
 import { formFor } from "../src/modules/workspace/forms";
-import { organization } from "../src/modules/workspace/organization";
+import {
+  canEditStaff,
+  organization,
+} from "../src/modules/workspace/organization";
 import type { Snapshot, Profile } from "../src/modules/workspace/types";
 const data: Snapshot = {
   departments: [{ id: "area1" }, { id: "area2" }],
@@ -97,6 +100,73 @@ it("organigrama vacío y ciclos históricos no bloquean el recorrido", () => {
   });
   expect(cycle.roots).toHaveLength(1);
   expect(cycle.employees).toHaveLength(2);
+});
+it("solo el RH de mayor jerarquía puede modificar a otro integrante RH", () => {
+  const rhData: Snapshot = {
+    departments: [
+      {
+        id: "rh-department",
+        name: "Recursos Humanos",
+        manager_employee_id: "top-row",
+      },
+    ],
+    positions: [{ id: "rh-position", department_id: "rh-department" }],
+    profiles: [
+      { id: "top", role: "RH_ADMIN", active: true },
+      { id: "middle", role: "RH_ADMIN", active: true },
+      { id: "worker", role: "EMPLEADO", active: true },
+    ],
+    employees: [
+      { id: "top-row", profile_id: "top", status: "ACTIVE" },
+      {
+        id: "middle-row",
+        profile_id: "middle",
+        manager_id: "top-row",
+        status: "ACTIVE",
+      },
+      {
+        id: "worker-row",
+        profile_id: "worker",
+        manager_id: "middle-row",
+        position_id: "rh-position",
+        status: "ACTIVE",
+      },
+      {
+        id: "orphan-row",
+        profile_id: "worker",
+        position_id: "rh-position",
+        status: "ACTIVE",
+      },
+    ],
+  };
+  const top: Profile = {
+    id: "top",
+    role: "RH_ADMIN",
+    full_name: "RH principal",
+    email: "",
+  };
+  const middle: Profile = {
+    id: "middle",
+    role: "RH_ADMIN",
+    full_name: "RH subordinado",
+    email: "",
+  };
+  const superuser: Profile = {
+    id: "admin",
+    role: "SUPERUSER",
+    full_name: "Administración",
+    email: "",
+  };
+  expect(canEditStaff(rhData, top, rhData.employees![1])).toBe(true);
+  expect(canEditStaff(rhData, middle, rhData.employees![0])).toBe(false);
+  expect(canEditStaff(rhData, middle, rhData.employees![1])).toBe(false);
+  expect(canEditStaff(rhData, superuser, rhData.employees![1])).toBe(false);
+  expect(canEditStaff(rhData, top, rhData.employees![2])).toBe(true);
+  expect(canEditStaff(rhData, middle, rhData.employees![2])).toBe(false);
+  expect(canEditStaff(rhData, superuser, rhData.employees![2])).toBe(false);
+  expect(canEditStaff(rhData, top, rhData.employees![3])).toBe(true);
+  expect(canEditStaff(rhData, middle, rhData.employees![3])).toBe(false);
+  expect(canEditStaff(rhData, superuser, rhData.employees![3])).toBe(false);
 });
 it("filtra onboarding, tareas, evidencias y postulaciones de forma coherente por área", () => {
   const result = filterWorkspace(data, { department: "area1" });

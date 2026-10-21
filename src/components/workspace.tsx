@@ -218,6 +218,9 @@ function WorkspaceContent({
   const [filters, setFilters] = useState<WorkspaceFilters>({});
   const [reportTab, setReportTab] = useState("summary");
   const [interviewSection, setInterviewSection] = useState("SCHEDULED");
+  const [interviewPage, setInterviewPage] = useState(1);
+  const [vacancySearch, setVacancySearch] = useState("");
+  const [vacancyPage, setVacancyPage] = useState(1);
   const [courseSection, setCourseSection] = useState(
     profile?.role === "EMPLEADO" ? "pending" : "catalog",
   );
@@ -305,6 +308,7 @@ function WorkspaceContent({
   const changeFilters = (next: WorkspaceFilters) => setFilters(next);
   const router = useRouter();
   const [search, setSearch] = useState(""),
+    [interviewSearch, setInterviewSearch] = useState(""),
     [applicationVacancy, setApplicationVacancy] = useState(""),
     [spec, setSpec] = useState<FormSpec | null>(() =>
       path[2] === "new" && path[1] === "vacancies" && isHR(profile?.role)
@@ -313,7 +317,10 @@ function WorkspaceContent({
     ),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
-    [mobile, setMobile] = useState(false);
+    [mobile, setMobile] = useState(false),
+    [departmentManagerDrafts, setDepartmentManagerDrafts] = useState<
+      Record<string, string>
+    >({});
   const root = path[0] ?? "jobs",
     view = root === "jobs" ? "jobs" : (path[1] ?? "overview"),
     detail =
@@ -332,6 +339,12 @@ function WorkspaceContent({
   const name = (id: unknown) =>
     value(find("profiles", id), "full_name") || "Persona";
   const employeeName = (id: unknown) => name(find("employees", id).profile_id);
+  const isHrDepartment = (row: Row) =>
+    value(row, "name")
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase() === "recursos humanos";
   const refresh = () => {
     router.refresh();
     setNotice("Cambios guardados.");
@@ -502,18 +515,32 @@ function WorkspaceContent({
       (r) =>
         (!detail || r.id === detail) &&
         (!search ||
-          view === "employees" ||
           [
             ...Object.values(r),
             name(r.profile_id),
             employeeName(r.employee_id),
+            value(find("positions", r.position_id), "name"),
+            value(
+              find(
+                "departments",
+                find("positions", r.position_id).department_id,
+              ),
+              "name",
+            ),
             name(find("candidates", r.candidate_id).profile_id),
             value(find("vacancies", r.vacancy_id), "title"),
           ]
             .filter((x) => typeof x === "string" || Array.isArray(x))
             .join(" ")
-            .toLowerCase()
-            .includes(search.toLowerCase())),
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLocaleLowerCase()
+            .includes(
+              search
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLocaleLowerCase(),
+            )),
     );
   const mine = rows("employees").find((e) => e.profile_id === profile?.id);
   const scopedTasks = rows("tasks").filter(
@@ -563,6 +590,82 @@ function WorkspaceContent({
               (c) => c.id === a.candidate_id && c.profile_id === profile?.id,
             ),
         )),
+  );
+  const normalizedVacancySearch = vacancySearch
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase();
+  const searchedVacancies = availableVacancies.filter((vacancy) =>
+    !normalizedVacancySearch
+      ? true
+      : [
+          value(vacancy, "title"),
+          value(vacancy, "description"),
+          value(find("positions", vacancy.position_id), "name"),
+          value(
+            find(
+              "departments",
+              find("positions", vacancy.position_id).department_id,
+            ),
+            "name",
+          ),
+        ]
+          .join(" ")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLocaleLowerCase()
+          .includes(normalizedVacancySearch),
+  );
+  const vacancyPageSize = 8;
+  const vacancyPageCount = Math.max(
+    1,
+    Math.ceil(searchedVacancies.length / vacancyPageSize),
+  );
+  const currentVacancyPage = Math.min(vacancyPage, vacancyPageCount);
+  const visibleVacancies = searchedVacancies.slice(
+    (currentVacancyPage - 1) * vacancyPageSize,
+    currentVacancyPage * vacancyPageSize,
+  );
+  const normalizedInterviewSearch = interviewSearch
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase();
+  const interviewRows = rows("interviews")
+    .filter((interview) =>
+      detail ? interview.id === detail : interview.status === interviewSection,
+    )
+    .filter((interview) => {
+      if (!normalizedInterviewSearch) return true;
+      const application = find("applications", interview.application_id);
+      const vacancy = find("vacancies", application.vacancy_id);
+      const candidateProfile = find(
+        "candidates",
+        application.candidate_id,
+      ).profile_id;
+      return [
+        value(interview, "notes"),
+        value(vacancy, "title"),
+        name(candidateProfile),
+        value(interview, "scheduled_at"),
+      ]
+        .join(" ")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLocaleLowerCase()
+        .includes(normalizedInterviewSearch);
+    })
+    .sort((a, b) =>
+      value(a, "scheduled_at").localeCompare(value(b, "scheduled_at")),
+    );
+  const interviewPageSize = 6;
+  const interviewPageCount = Math.max(
+    1,
+    Math.ceil(interviewRows.length / interviewPageSize),
+  );
+  const currentInterviewPage = Math.min(interviewPage, interviewPageCount);
+  const visibleInterviews = interviewRows.slice(
+    (currentInterviewPage - 1) * interviewPageSize,
+    currentInterviewPage * interviewPageSize,
   );
   function vacancyCard(v: Row) {
     return (
@@ -935,6 +1038,7 @@ function WorkspaceContent({
             <th>{view === "audit" ? "Acción" : "Nombre"}</th>
             <th>Detalle</th>
             <th>Estado / fecha</th>
+            {view === "departments" && <th>Encargado de RH</th>}
             <th>
               <span className="sr-only">Acciones</span>
             </th>
@@ -989,8 +1093,81 @@ function WorkspaceContent({
                   new Date(value(r, "created_at")).toLocaleDateString("es-MX")
                 )}
               </td>
+              {view === "departments" && (
+                <td>
+                  {isHrDepartment(r) ? (
+                    admin ? (
+                      <div className="department-manager-control">
+                        <select
+                          aria-label="Encargado de Recursos Humanos"
+                          disabled={busy}
+                          value={
+                            departmentManagerDrafts[r.id] ??
+                            value(r, "manager_employee_id")
+                          }
+                          onChange={(event) =>
+                            setDepartmentManagerDrafts((current) => ({
+                              ...current,
+                              [r.id]: event.target.value,
+                            }))
+                          }
+                        >
+                          <option value="">Sin encargado</option>
+                          {(authorized.employees ?? [])
+                            .filter(
+                              (employee) =>
+                                employee.id ===
+                                  value(r, "manager_employee_id") ||
+                                (employee.status === "ACTIVE" &&
+                                  (authorized.profiles ?? []).some(
+                                    (person) =>
+                                      person.id === employee.profile_id &&
+                                      person.active &&
+                                      ["RH_ADMIN", "JEFE"].includes(
+                                        value(person, "role"),
+                                      ),
+                                  )),
+                            )
+                            .map((employee) => (
+                              <option key={employee.id} value={employee.id}>
+                                {name(employee.profile_id)}
+                              </option>
+                            ))}
+                        </select>
+                        <button
+                          className="secondary"
+                          disabled={
+                            busy ||
+                            (departmentManagerDrafts[r.id] ??
+                              value(r, "manager_employee_id")) ===
+                              value(r, "manager_employee_id")
+                          }
+                          onClick={() =>
+                            void act("department.manager.save", {
+                              department_id: r.id,
+                              employee_id:
+                                departmentManagerDrafts[r.id] ??
+                                value(r, "manager_employee_id"),
+                            })
+                          }
+                        >
+                          Guardar encargado
+                        </button>
+                      </div>
+                    ) : value(r, "manager_employee_id") ? (
+                      employeeName(value(r, "manager_employee_id"))
+                    ) : (
+                      "Sin encargado asignado"
+                    )
+                  ) : (
+                    "—"
+                  )}
+                </td>
+              )}
               <td>
-                {((hr && ["positions", "departments"].includes(view)) ||
+                {((hr &&
+                  ["positions", "departments"].includes(view) &&
+                  !(view === "departments" && isHrDepartment(r))) ||
                   (admin &&
                     ["users", "positions", "departments"].includes(view)) ||
                   (hr &&
@@ -1005,30 +1182,31 @@ function WorkspaceContent({
                     Editar
                   </button>
                 )}
-                {view === "departments" && hr && (
-                  <button
-                    className="secondary"
-                    disabled={
-                      busy ||
-                      (authorized.positions ?? []).some(
-                        (p) => p.department_id === r.id,
-                      )
-                    }
-                    title="Solo se pueden eliminar áreas sin puestos ni otros registros vinculados"
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          `¿Eliminar el área «${value(r, "name")}»? Esta acción no se puede deshacer.`,
+                {view === "departments" &&
+                  (admin || (hr && !isHrDepartment(r))) && (
+                    <button
+                      className="secondary"
+                      disabled={
+                        busy ||
+                        (authorized.positions ?? []).some(
+                          (p) => p.department_id === r.id,
                         )
-                      )
-                        void act("department.delete", {
-                          id: r.id,
-                        });
-                    }}
-                  >
-                    Eliminar área
-                  </button>
-                )}
+                      }
+                      title="Solo se pueden eliminar áreas sin puestos ni otros registros vinculados"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `¿Eliminar el área «${value(r, "name")}»? Esta acción no se puede deshacer.`,
+                          )
+                        )
+                          void act("department.delete", {
+                            id: r.id,
+                          });
+                      }}
+                    >
+                      Eliminar área
+                    </button>
+                  )}
                 {view === "positions" && hr && (
                   <button
                     className="secondary"
@@ -1568,9 +1746,26 @@ function WorkspaceContent({
                       }
                     />
                   )}
+                  <div className="vacancy-list-toolbar">
+                    <label>
+                      Buscar vacante
+                      <input
+                        type="search"
+                        value={vacancySearch}
+                        onChange={(event) => {
+                          setVacancySearch(event.target.value);
+                          setVacancyPage(1);
+                        }}
+                        placeholder="Título, puesto o área…"
+                      />
+                    </label>
+                    <span className="muted" role="status">
+                      {searchedVacancies.length} vacantes encontradas
+                    </span>
+                  </div>
                   <div className="record-grid vacancy-list">
-                    {availableVacancies.map(vacancyCard)}
-                    {!availableVacancies.length && (
+                    {visibleVacancies.map(vacancyCard)}
+                    {!searchedVacancies.length && (
                       <p className="empty">
                         {candidate
                           ? "No hay nuevas vacantes que coincidan con tu búsqueda. Consulta tus postulaciones y retiros en Mis postulaciones."
@@ -1578,6 +1773,33 @@ function WorkspaceContent({
                       </p>
                     )}
                   </div>
+                  {searchedVacancies.length > vacancyPageSize && (
+                    <nav
+                      className="list-pagination"
+                      aria-label="Páginas de vacantes"
+                    >
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={currentVacancyPage === 1}
+                        onClick={() => setVacancyPage(currentVacancyPage - 1)}
+                      >
+                        Anterior
+                      </button>
+                      <span aria-live="polite">
+                        Página {currentVacancyPage} de {vacancyPageCount} ·{" "}
+                        {searchedVacancies.length} vacantes
+                      </span>
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={currentVacancyPage === vacancyPageCount}
+                        onClick={() => setVacancyPage(currentVacancyPage + 1)}
+                      >
+                        Siguiente
+                      </button>
+                    </nav>
+                  )}
                 </div>
               )}
 
@@ -1964,7 +2186,10 @@ function WorkspaceContent({
                         className={
                           interviewSection === state ? "" : "secondary"
                         }
-                        onClick={() => setInterviewSection(state)}
+                        onClick={() => {
+                          setInterviewSection(state);
+                          setInterviewPage(1);
+                        }}
                       >
                         {label} (
                         {
@@ -1975,81 +2200,115 @@ function WorkspaceContent({
                       </button>
                     ))}
                   </div>
+                  <div className="interview-list-toolbar">
+                    <label>
+                      Buscar entrevista
+                      <input
+                        type="search"
+                        value={interviewSearch}
+                        onChange={(event) => {
+                          setInterviewSearch(event.target.value);
+                          setInterviewPage(1);
+                        }}
+                        placeholder="Nombre, vacante o notas…"
+                      />
+                    </label>
+                    <span className="muted" role="status">
+                      {interviewRows.length} entrevistas encontradas
+                    </span>
+                  </div>
                   <div className="record-grid">
-                    {rows("interviews")
-                      .filter(
-                        (i) =>
-                          (!detail || i.id === detail) &&
-                          (detail || i.status === interviewSection),
-                      )
-                      .sort((a, b) =>
-                        value(a, "scheduled_at").localeCompare(
-                          value(b, "scheduled_at"),
-                        ),
-                      )
-                      .map((i) => (
-                        <article key={i.id} className="record">
-                          <Badge status={value(i, "status")} />
-                          <h3>
-                            {new Date(value(i, "scheduled_at")).toLocaleString(
-                              "es-MX",
-                            )}
-                          </h3>
-                          <p>
-                            {value(
-                              find(
-                                "vacancies",
-                                find("applications", i.application_id)
-                                  .vacancy_id,
-                              ),
-                              "title",
-                            )}
-                          </p>
-                          <p>
-                            <strong>
-                              {name(
-                                find(
-                                  "candidates",
-                                  find("applications", i.application_id)
-                                    .candidate_id,
-                                ).profile_id,
-                              )}
-                            </strong>
-                          </p>
-                          <p>{value(i, "notes")}</p>
-                          {hr && (
-                            <div className="actions">
-                              <button
-                                className="secondary"
-                                onClick={() => edit("interviews", i)}
-                              >
-                                Editar
-                              </button>
-                              {i.status === "SCHEDULED" && (
-                                <button
-                                  className="quiet"
-                                  disabled={busy}
-                                  onClick={() =>
-                                    act("interview.cancel", { id: i.id })
-                                  }
-                                >
-                                  Cancelar entrevista
-                                </button>
-                              )}
-                            </div>
+                    {visibleInterviews.map((i) => (
+                      <article key={i.id} className="record">
+                        <Badge status={value(i, "status")} />
+                        <h3>
+                          {new Date(value(i, "scheduled_at")).toLocaleString(
+                            "es-MX",
                           )}
-                        </article>
-                      ))}
-                    {!rows("interviews").some(
-                      (i) =>
-                        (!detail || i.id === detail) &&
-                        (detail || i.status === interviewSection),
-                    ) && (
+                        </h3>
+                        <p>
+                          {value(
+                            find(
+                              "vacancies",
+                              find("applications", i.application_id).vacancy_id,
+                            ),
+                            "title",
+                          )}
+                        </p>
+                        <p>
+                          <strong>
+                            {name(
+                              find(
+                                "candidates",
+                                find("applications", i.application_id)
+                                  .candidate_id,
+                              ).profile_id,
+                            )}
+                          </strong>
+                        </p>
+                        <p>{value(i, "notes")}</p>
+                        {hr && (
+                          <div className="actions">
+                            <button
+                              className="secondary"
+                              onClick={() => edit("interviews", i)}
+                            >
+                              Editar
+                            </button>
+                            {i.status === "SCHEDULED" && (
+                              <button
+                                className="quiet"
+                                disabled={busy}
+                                onClick={() =>
+                                  act("interview.cancel", { id: i.id })
+                                }
+                              >
+                                Cancelar entrevista
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </article>
+                    ))}
+                    {!interviewRows.length && (
                       <p className="empty">
-                        No hay entrevistas en esta sección.
+                        {interviewSearch
+                          ? "No hay entrevistas que coincidan con la búsqueda."
+                          : "No hay entrevistas en esta sección."}
                       </p>
                     )}
                   </div>
+                  {interviewRows.length > interviewPageSize && (
+                    <nav
+                      className="list-pagination"
+                      aria-label="Páginas de entrevistas"
+                    >
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={currentInterviewPage === 1}
+                        onClick={() =>
+                          setInterviewPage(currentInterviewPage - 1)
+                        }
+                      >
+                        Anterior
+                      </button>
+                      <span aria-live="polite">
+                        Página {currentInterviewPage} de {interviewPageCount} ·{" "}
+                        {interviewRows.length} entrevistas
+                      </span>
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={currentInterviewPage === interviewPageCount}
+                        onClick={() =>
+                          setInterviewPage(currentInterviewPage + 1)
+                        }
+                      >
+                        Siguiente
+                      </button>
+                    </nav>
+                  )}
                 </section>
               )}
               {view === "tasks" && (

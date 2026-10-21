@@ -28,7 +28,7 @@ Las API privadas utilizan **las cookies de sesión de Supabase Auth** mediante e
 
 [authenticate](../src/lib/auth/index.ts) comprueba identidad y perfil activo. Los roles son `SUPERUSER`, `RH_ADMIN`, `JEFE`, `EMPLEADO` y `CANDIDATO`. En esta referencia:
 
-- **RH** significa `RH_ADMIN` y `SUPERUSER`: `requireRole` permite al superusuario heredar operaciones de RH.
+- **RH** suele significar `RH_ADMIN` y `SUPERUSER` para las rutas de administración. La regla de jerarquía de RH es más estricta: ni el superusuario puede modificar desde la aplicación los datos laborales de otro integrante RH; esa edición requiere al RH de mayor jerarquía.
 - **Internos** significa RH, `JEFE` y `EMPLEADO`.
 - **Sesión activa** exige autenticación, pero el acceso concreto sigue sujeto a RLS y funciones SQL.
 
@@ -149,6 +149,8 @@ El registro público crea candidatos según el flujo de Auth y sus triggers. Una
 }
 ```
 
+Para asignar el encargado de Recursos Humanos, el superadministrador envía `POST /api/commands` con `{"op":"department.manager.save","payload":{"department_id":"UUID_DEL_AREA_RH","employee_id":"UUID_DEL_EMPLEADO"}}`. Para retirarlo, usa `"employee_id":""`. La respuesta exitosa de la RPC es `200` con `{ "ok": true, "employee_id": "..." }`; un destino no elegible produce `422`, un rol insuficiente `403` y una migración pendiente `503`.
+
 Fuente: [commands/route.ts](../src/app/api/commands/route.ts) y [schemas.ts](../src/modules/commands/schemas.ts). Las respuestas de éxito son `200` con el JSON devuelto por la RPC; no se envuelven automáticamente en `data` ni en `ok`. La operación desconocida produce `404`.
 
 La API valida el cuerpo y las migraciones necesarias; SQL autoriza cada acción. Para altas administrativas de Auth usa `/api/admin/users`, no `profile.admin` por sí solo.
@@ -161,6 +163,7 @@ Convenciones de esta tabla: `corto` = texto recortado de 1–150 caracteres; `te
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `department.save`      | `id?`, `name: corto`                                                                                                                                                                |
 | `department.delete`    | `id`                                                                                                                                                                                |
+| `department.manager.save` | `department_id`, `employee_id: UUID o cadena vacía` — solo `SUPERUSER`; asigna, cambia o quita al encargado del área Recursos Humanos. El destino debe ser un empleado activo y tener perfil activo con rol `RH_ADMIN` o `JEFE`. |
 | `position.save`        | `id?`, `name: corto`, `department_id: UUID`                                                                                                                                         |
 | `position.delete`      | `id`                                                                                                                                                                                |
 | `profile.admin`        | `id`, `role: uno de los cinco roles`, `active: boolean`                                                                                                                             |
@@ -256,6 +259,10 @@ El cuerpo se envía directamente, **sin** `{ op, payload }`. El adaptador obtien
 Las tres ramas de carga, las dos ramas de IA y la rama `onboarding/items/{id}` se evalúan antes del mapa de comandos del adaptador compartido por POST, PATCH y DELETE. La tabla muestra sus usos convencionales; no son endpoints independientes con contratos adicionales. Para nuevas integraciones prefiere `/api/files`, `/api/ai/{useCase}` y `/api/onboarding-plans`.
 
 Para contratar indicando puesto, área o jefe usa `/api/commands` con `application.hire`. Para retirar una candidatura o eliminar un área/puesto usa también el comando correspondiente. No supongas que existe un alias REST para cada comando.
+
+La migración `202610220001_hr_department_manager.sql` crea el área Recursos Humanos si aún no existe y añade `departments.manager_employee_id`. El área canónica queda protegida: RH puede consultar el registro, pero solo `SUPERUSER` puede renombrarla, eliminarla o gestionar a su encargado. La operación `department.manager.save` pasa por `/api/commands` y la RPC `save_department_manager`; PostgreSQL exige `SUPERUSER` y comprueba que el encargado sea un empleado activo con perfil activo y rol `RH_ADMIN` o `JEFE`. Enviar `employee_id: ""` quita al encargado. En la interfaz de **Administración → Áreas**, RH ve el nombre del encargado sin controles de edición.
+
+La migración `202610220002_hr_area_hierarchy.sql` amplía la validación de superiores para aceptar jefes activos y responsables RH activos, y modifica `command('employee.enroll', ...)`: si el puesto elegido pertenece al área canónica Recursos Humanos, `manager_id` se establece en el encargado guardado en `departments.manager_employee_id`. El cliente no puede reemplazar ese valor; si no hay encargado activo, devuelve `HR_DEPARTMENT_MANAGER_REQUIRED` o `INVALID_MANAGER` y no crea el registro. Para otras áreas, se conserva el superior enviado en la operación. El encargado RH puede enlazar una sola vez registros RH existentes que no tengan jefe directo; después, los cambios de puesto y superior de cualquier persona del área RH requieren al RH de mayor jerarquía de su cadena. PostgreSQL valida roles, vigencia y ciclos. La API requiere `hr_hierarchy_version() >= 3`, por lo que se debe aplicar esta migración antes de usar el alta.
 
 ## 6. Administración de personas
 
@@ -507,7 +514,7 @@ La presencia de un filtro en el esquema no garantiza que todos los módulos lo u
 
 ### Gráficas perfiles y propuestas de trabajo
 
-`POST /api/ai/workforce` — internos; los modos `training`, `onboarding` o `section: "analytics"` exigen además RH. Fuente: [workforce/route.ts](../src/app/api/ai/workforce/route.ts).
+`POST /api/ai/workforce` — internos; los modos `training`, `onboarding` o `section: "analytics"` exigen además RH. Para `mode: "tasks"`, una pregunta que solicita tareas atrasadas/vencidas por área o departamento devuelve conteos verificados en servidor (`verified: true`, `source: "server-counts"`) y no llama al proveedor de IA. Solo cuenta tareas con fecha anterior al día actual que no están `SUBMITTED` ni `APPROVED`, dentro del alcance y filtros autorizados. El resto de análisis consume el límite de Nexo de tres ejecuciones por usuario por minuto incluso si usa Ollama local. Fuente: [workforce/route.ts](../src/app/api/ai/workforce/route.ts).
 
 Cuerpo JSON:
 

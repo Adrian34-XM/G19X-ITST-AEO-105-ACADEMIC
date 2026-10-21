@@ -22,6 +22,7 @@ import { home, isHR } from "@/lib/permissions";
 import { stateLabel } from "@/modules/workspace/labels";
 import { trainingDraft } from "@/modules/workspace/workforce-ai";
 import { TrainingEvidence } from "./training-evidence";
+import { PersonSelect } from "./person-select";
 import {
   type ChartOptions,
   type ChartReport,
@@ -387,7 +388,7 @@ export function WorkforceAI({
         {mode === "tasks"
           ? taskId
             ? "Consulta el estado, plazo y evidencias registradas de esta tarea. Para evaluar un archivo, utiliza su análisis específico."
-            : "Pregunta por pendientes, plazos, prioridades y evidencias registradas del equipo visible. Se respetan tus filtros y permisos."
+            : "Pregunta por pendientes, plazos, prioridades y evidencias registradas del equipo visible. Se respetan tus filtros y permisos; los atrasos por área se cuentan con los datos del sistema. Ollama también está sujeto al límite de solicitudes de Nexo."
           : mode === "chart"
             ? "Describe qué necesitas comparar y para qué decisión: volúmenes, estados, áreas o evolución por periodos. Las cifras se calculan con tus filtros y permisos."
             : "Resumen de avances y pendientes del ámbito autorizado. La interpretación requiere revisión humana."}
@@ -594,6 +595,8 @@ export function StaffEnrollment({
 }) {
   const [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState("");
+  const [selectedPosition, setSelectedPosition] = useState("");
   const candidates = (data.profiles ?? []).filter(
     (p) =>
       p.active &&
@@ -601,31 +604,67 @@ export function StaffEnrollment({
       ["RH_ADMIN", "JEFE", "EMPLEADO"].includes(value(p, "role")) &&
       !(data.employees ?? []).some((e) => e.profile_id === p.id),
   );
+  const selectedPositionRow = (data.positions ?? []).find(
+    (position) => position.id === selectedPosition,
+  );
+  const selectedDepartment = (data.departments ?? []).find(
+    (department) => department.id === selectedPositionRow?.department_id,
+  );
+  const isHrPosition =
+    value(selectedDepartment ?? { id: "" }, "name")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleLowerCase() === "recursos humanos";
+  const hrManager = isHrPosition
+    ? (data.employees ?? []).find(
+        (employee) => employee.id === selectedDepartment?.manager_employee_id,
+      )
+    : undefined;
+  const hrManagerName = hrManager
+    ? value(
+        (data.profiles ?? []).find(
+          (person) => person.id === hrManager.profile_id,
+        ) ?? { id: "" },
+        "full_name",
+      )
+    : "";
   return (
     <details className="panel">
       <summary>Incorporar personal y RH al organigrama</summary>
       <p>
-        Asigna un puesto a las cuentas existentes. Después podrás establecer su
-        superior desde el árbol. El alta inicial de responsables de RH en el
-        organigrama corresponde al superusuario.
+        Asigna un puesto a las cuentas existentes. Al elegir un puesto de
+        Recursos Humanos, la persona quedará ligada automáticamente al
+        encargado activo del área. El alta inicial de responsables de RH en el
+        organigrama corresponde al superusuario; después, los cambios de puesto
+        y superior siguen la jerarquía de RH.
       </p>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
           setMessage("");
-          const f = new FormData(e.currentTarget);
           try {
+            if (!selectedProfile || !selectedPosition)
+              throw new Error("Busca y selecciona una cuenta y un puesto.");
+            if (isHrPosition && !hrManager)
+              throw new Error(
+                "Asigna primero un encargado activo al área Recursos Humanos desde Administración → Áreas.",
+              );
             await request("/api/commands", {
               op: "employee.enroll",
               payload: {
-                profile_id: f.get("profile_id"),
-                position_id: f.get("position_id"),
+                profile_id: selectedProfile,
+                position_id: selectedPosition,
                 manager_id: "",
               },
             });
+            setSelectedProfile("");
+            setSelectedPosition("");
             setMessage(
-              "Integrante incorporado. Ya puedes asignar su superior.",
+              isHrPosition && hrManagerName
+                ? `Integrante incorporado y ligado a ${hrManagerName}, encargado del área Recursos Humanos.`
+                : "Integrante incorporado. Ya puedes asignar su superior.",
             );
             onSaved();
           } catch (e) {
@@ -635,29 +674,42 @@ export function StaffEnrollment({
           }
         }}
       >
-        <label>
-          Cuenta
-          <select name="profile_id" required>
-            <option value="">Selecciona una cuenta</option>
-            {candidates.map((p) => (
-              <option key={p.id} value={p.id}>
-                {value(p, "full_name")} · {stateLabel(value(p, "role"))}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Puesto
-          <select name="position_id" required>
-            <option value="">Selecciona un puesto</option>
-            {(data.positions ?? []).map((p) => (
-              <option key={p.id} value={p.id}>
-                {value(p, "name")}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button disabled={busy || !candidates.length}>
+        <PersonSelect
+          label="Cuenta (escribe para buscar)"
+          value={selectedProfile}
+          options={candidates.map((person) => ({
+            id: person.id,
+            name: `${value(person, "full_name")} · ${stateLabel(value(person, "role"))}`,
+          }))}
+          emptyLabel="Quitar selección"
+          onChange={setSelectedProfile}
+        />
+        <PersonSelect
+          label="Puesto (escribe para buscar)"
+          value={selectedPosition}
+          options={(data.positions ?? []).map((position) => ({
+            id: position.id,
+            name: value(position, "name"),
+          }))}
+          emptyLabel="Quitar selección"
+          onChange={setSelectedPosition}
+        />
+        {isHrPosition && (
+          <p role="status">
+            {hrManagerName
+              ? `Al incorporarse, su jefe directo será ${hrManagerName}, encargado del área.`
+              : "El área Recursos Humanos aún no tiene un encargado visible. Asígnalo desde Administración → Áreas antes de incorporar personal."}
+          </p>
+        )}
+        <button
+          disabled={
+            busy ||
+            !candidates.length ||
+            !selectedProfile ||
+            !selectedPosition ||
+            (isHrPosition && !hrManager)
+          }
+        >
           Añadir al organigrama
         </button>
       </form>

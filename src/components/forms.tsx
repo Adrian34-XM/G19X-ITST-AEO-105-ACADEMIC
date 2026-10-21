@@ -31,6 +31,7 @@ export type FormSpec = {
   title: string;
   op: string;
   fields: Field[];
+  positionDepartments?: { value: string; label: string }[];
   values?: Record<string, unknown>;
 };
 export class RequestError extends Error {
@@ -69,6 +70,18 @@ export function EditForm({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [invitationSent, setInvitationSent] = useState(false);
+  const [positionOptions, setPositionOptions] = useState(
+    () =>
+      spec.fields.find((field) => field.key === "position_id")?.options ?? [],
+  );
+  const [quickPositionOpen, setQuickPositionOpen] = useState(false);
+  const [quickPositionName, setQuickPositionName] = useState("");
+  const [quickPositionDepartment, setQuickPositionDepartment] = useState("");
+  const [quickPositionBusy, setQuickPositionBusy] = useState(false);
+  const [quickPositionMessage, setQuickPositionMessage] = useState("");
+  const [positionValue, setPositionValue] = useState(() =>
+    String(spec.values?.position_id ?? ""),
+  );
   const [minimumInterviewTime] = useState(() => {
     const now = new Date();
     return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
@@ -110,6 +123,45 @@ export function EditForm({
       setError(e instanceof Error ? e.message : "No se pudo guardar.");
     } finally {
       setBusy(false);
+    }
+  }
+  async function createPosition() {
+    setQuickPositionBusy(true);
+    setQuickPositionMessage("");
+    try {
+      const result = await request("/api/commands", {
+        op: "position.save",
+        payload: {
+          name: quickPositionName.trim(),
+          department_id: quickPositionDepartment,
+        },
+      });
+      const id = String(
+        typeof result === "string"
+          ? result
+          : (result?.id ?? result?.result?.id ?? ""),
+      );
+      if (!id)
+        throw new Error(
+          "El puesto se creó, pero no se recibió su identificador.",
+        );
+      setPositionOptions((options) => [
+        ...options,
+        { value: id, label: quickPositionName.trim() },
+      ]);
+      setPositionValue(id);
+      setQuickPositionName("");
+      setQuickPositionMessage(
+        "Puesto creado y seleccionado. Guarda la vacante para terminar.",
+      );
+      setQuickPositionOpen(false);
+      onSaved();
+    } catch (e) {
+      setQuickPositionMessage(
+        e instanceof Error ? e.message : "No se pudo crear el puesto.",
+      );
+    } finally {
+      setQuickPositionBusy(false);
     }
   }
   return (
@@ -158,18 +210,37 @@ export function EditForm({
                       defaultChecked={raw === true}
                     />
                   ) : f.type === "select" ? (
-                    <select
-                      name={f.key}
-                      required={!f.optional}
-                      defaultValue={initial}
-                    >
-                      <option value="">Seleccionar…</option>
-                      {f.options?.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                    <>
+                      <select
+                        name={f.key}
+                        required={!f.optional}
+                        value={
+                          f.key === "position_id" && spec.op === "vacancy.save"
+                            ? positionValue
+                            : undefined
+                        }
+                        defaultValue={
+                          f.key === "position_id" && spec.op === "vacancy.save"
+                            ? undefined
+                            : initial
+                        }
+                        onChange={
+                          f.key === "position_id" && spec.op === "vacancy.save"
+                            ? (event) => setPositionValue(event.target.value)
+                            : undefined
+                        }
+                      >
+                        <option value="">Seleccionar…</option>
+                        {(f.key === "position_id" && spec.op === "vacancy.save"
+                          ? positionOptions
+                          : f.options
+                        )?.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </>
                   ) : f.type === "textarea" ? (
                     <textarea
                       name={f.key}
@@ -199,6 +270,74 @@ export function EditForm({
                 </label>
               );
             })}
+            {spec.op === "vacancy.save" && (
+              <details
+                className="quick-position"
+                open={quickPositionOpen}
+                onToggle={(event) =>
+                  setQuickPositionOpen(event.currentTarget.open)
+                }
+              >
+                <summary>¿No encuentras el puesto? Crear puesto</summary>
+                {quickPositionOpen && (
+                  <div className="quick-position-fields">
+                    <label>
+                      Nombre del puesto
+                      <input
+                        maxLength={100}
+                        value={quickPositionName}
+                        onChange={(event) =>
+                          setQuickPositionName(event.target.value)
+                        }
+                      />
+                    </label>
+                    <label>
+                      Área
+                      <select
+                        value={quickPositionDepartment}
+                        onChange={(event) =>
+                          setQuickPositionDepartment(event.target.value)
+                        }
+                      >
+                        <option value="">Seleccionar área…</option>
+                        {spec.positionDepartments?.map((department) => (
+                          <option
+                            key={department.value}
+                            value={department.value}
+                          >
+                            {department.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={
+                        quickPositionBusy ||
+                        !quickPositionName.trim() ||
+                        !quickPositionDepartment
+                      }
+                      onClick={() => void createPosition()}
+                    >
+                      {quickPositionBusy ? "Creando…" : "Crear puesto"}
+                    </button>
+                  </div>
+                )}
+                {quickPositionMessage && (
+                  <p
+                    className={
+                      quickPositionMessage.startsWith("Puesto creado")
+                        ? "success"
+                        : "error"
+                    }
+                    role="status"
+                  >
+                    {quickPositionMessage}
+                  </p>
+                )}
+              </details>
+            )}
             {error && (
               <p role="alert" className="error">
                 {error}

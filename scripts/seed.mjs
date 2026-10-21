@@ -87,6 +87,19 @@ for (const [name, role, full_name] of accounts) {
 const positions = check(await db.from("positions").select("*"));
 if (!positions.length)
   throw new Error("Ejecuta supabase db reset antes del seed.");
+const hrPosition = positions.find(
+  (position) => position.name === "Responsable de Recursos Humanos",
+);
+if (!hrPosition)
+  throw new Error(
+    "Falta el puesto de Recursos Humanos. Ejecuta las migraciones y supabase/seed.sql antes del seed de cuentas.",
+  );
+check(
+  await db.from("employees").upsert(
+    { profile_id: users.rh, position_id: hrPosition.id },
+    { onConflict: "profile_id" },
+  ),
+);
 const manager = check(
   await db
     .from("employees")

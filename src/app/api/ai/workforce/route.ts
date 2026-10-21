@@ -16,6 +16,10 @@ import { scopeData } from "@/modules/workspace/insights";
 import { filterWorkspace } from "@/modules/workspace/filters";
 import { isHR } from "@/lib/permissions";
 import { activityContext } from "@/modules/workspace/activity-context";
+import {
+  overdueTasksAnswer,
+  overdueTasksByDepartment,
+} from "@/modules/workspace/task-deadlines";
 import { stateLabel } from "@/modules/workspace/labels";
 import {
   readableChartNarrative,
@@ -233,6 +237,28 @@ export async function POST(req: Request) {
     );
     if (body.mode === "training" && !position)
       throw new ApiError(422, "Selecciona un puesto válido.");
+    if (
+      body.mode === "tasks" &&
+      !body.task_id &&
+      /(?:atrasad|vencid|fuera\s+de\s+plazo)/.test(normalizedPrompt) &&
+      /\b(?:areas?|departamentos?)\b/.test(normalizedPrompt)
+    ) {
+      const checked = overdueTasksByDepartment(
+        data,
+        new Date().toISOString().slice(0, 10),
+      );
+      return NextResponse.json(
+        {
+          result: summaryAdvice.parse({
+            summary: overdueTasksAnswer(checked),
+            recommendations: [],
+          }),
+          verified: true,
+          source: "server-counts",
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const { data: run, error } = await client.rpc("begin_orchestration", {
       section:
         body.mode === "tasks"

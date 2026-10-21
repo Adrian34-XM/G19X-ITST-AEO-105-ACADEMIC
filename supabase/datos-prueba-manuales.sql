@@ -33,6 +33,14 @@ select id,'20000000-0000-4000-8000-000000000002'::uuid
 from public.profiles where email='jefe@nexo.test'
 on conflict(profile_id) do nothing;
 
+insert into public.employees(profile_id,position_id)
+select p.id,pos.id
+from public.profiles p
+join public.positions pos on pos.name='Responsable de Recursos Humanos'
+join public.departments d on d.id=pos.department_id
+where p.email='rh@nexo.test' and lower(btrim(d.name))='recursos humanos'
+on conflict(profile_id) do nothing;
+
 insert into public.employees(profile_id,position_id,manager_id)
 select p.id,'20000000-0000-4000-8000-000000000001'::uuid,e.id
 from public.profiles p cross join public.employees e

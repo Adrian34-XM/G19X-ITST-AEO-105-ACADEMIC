@@ -21,7 +21,12 @@ import { requestAnalysis } from "./ai-requests";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { request } from "./forms";
-import { type Profile, type Snapshot, value } from "@/modules/workspace/types";
+import {
+  type Profile,
+  type Row,
+  type Snapshot,
+  value,
+} from "@/modules/workspace/types";
 import {
   notifications,
   overdue,
@@ -617,13 +622,47 @@ export function TeamTree({
     [saving, setSaving] = useState(false),
     [message, setMessage] = useState("");
   const router = useRouter();
+  const hrArea = "__nexo_hr_admins__";
   const area = department ?? localArea;
   const authorized = scopeData(data, profile);
   const employees = authorized.employees ?? [];
+  const hrDepartments = new Set(
+    (data.departments ?? [])
+      .filter((department) =>
+        value(department, "name")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLocaleLowerCase()
+          .includes("recursos humanos"),
+      )
+      .map((department) => department.id),
+  );
+  const isHrMember = (employee: Row) => {
+    const position = (data.positions ?? []).find(
+      (item) => item.id === employee.position_id,
+    );
+    return (
+      hrDepartments.has(String(position?.department_id ?? "")) ||
+      (data.profiles ?? []).some(
+        (person) =>
+          person.id === employee.profile_id && person.role === "RH_ADMIN",
+      )
+    );
+  };
+  const hrEmployees = employees.filter(isHrMember);
+  const unassignedHrAccounts = (data.profiles ?? []).filter(
+    (person) =>
+      person.active &&
+      person.role === "RH_ADMIN" &&
+      !(employees ?? []).some((e) => e.profile_id === person.id),
+  );
+  const inHrArea = area === hrArea;
   const tree = organization(
-    authorized,
-    isHR(profile.role) ? area : "",
-    selectedIds,
+    inHrArea ? { ...authorized, employees: hrEmployees } : authorized,
+    isHR(profile.role) && !inHrArea ? area : "",
+    inHrArea
+      ? selectedIds?.filter((id) => hrEmployees.some((e) => e.id === id))
+      : selectedIds,
   );
   const name = (id: unknown) =>
     value(
@@ -779,6 +818,7 @@ export function TeamTree({
               }}
             >
               <option value="">Todas las áreas autorizadas</option>
+              <option value={hrArea}>Recursos Humanos</option>
               {(data.departments ?? []).map((d) => (
                 <option key={d.id} value={d.id}>
                   {value(d, "name")}
@@ -835,11 +875,13 @@ export function TeamTree({
       {visible && (
         <div className="org-canvas-tools">
           <p>
-            {area
-              ? "Los superiores de otras áreas aparecen con borde discontinuo."
-              : layout === "areas"
-                ? "Cada recuadro agrupa un área. Consulta la jerarquía completa para ver conexiones entre áreas."
-                : "Las líneas conectan a cada responsable con sus reportes directos."}{" "}
+            {inHrArea
+              ? "Esta vista muestra únicamente a integrantes con rol de Recursos Humanos. La edición depende de la jerarquía RH."
+              : area
+                ? "Los superiores de otras áreas aparecen con borde discontinuo."
+                : layout === "areas"
+                  ? "Cada recuadro agrupa un área. Consulta la jerarquía completa para ver conexiones entre áreas."
+                  : "Las líneas conectan a cada responsable con sus reportes directos."}{" "}
             Desplázate dentro del árbol para explorar.
           </p>
           <div
@@ -885,17 +927,20 @@ export function TeamTree({
               <div className="org-areas">
                 {Array.from(
                   new Set(
-                    tree.employees.map((e) =>
-                      String(
-                        (data.positions ?? []).find(
-                          (p) => p.id === e.position_id,
-                        )?.department_id ?? "",
+                    tree.employees
+                      .filter((e) => !isHrMember(e))
+                      .map((e) =>
+                        String(
+                          (data.positions ?? []).find(
+                            (p) => p.id === e.position_id,
+                          )?.department_id ?? "",
+                        ),
                       ),
-                    ),
                   ),
                 ).map((department) => {
                   const members = tree.employees.filter(
                     (e) =>
+                      !isHrMember(e) &&
                       String(
                         (data.positions ?? []).find(
                           (p) => p.id === e.position_id,
@@ -928,6 +973,35 @@ export function TeamTree({
                     </section>
                   );
                 })}
+                {isHR(profile.role) &&
+                  (() => {
+                    const rhTree = organization(
+                      { ...authorized, employees: hrEmployees },
+                      "",
+                      selectedIds?.filter((id) =>
+                        hrEmployees.some((e) => e.id === id),
+                      ),
+                    );
+                    return (
+                      <section className="org-area" key={hrArea}>
+                        <h3>
+                          Recursos Humanos{" "}
+                          <small>{rhTree.matches.size} integrantes</small>
+                        </h3>
+                        {rhTree.roots.length ? (
+                          <ul>
+                            {rhTree.roots.map((r) =>
+                              node(r.id, new Set(), rhTree.employees),
+                            )}
+                          </ul>
+                        ) : (
+                          <p>
+                            No hay integrantes de RH en esta vista filtrada.
+                          </p>
+                        )}
+                      </section>
+                    );
+                  })()}
               </div>
             ) : (
               <ul className="org-roots">
@@ -935,7 +1009,11 @@ export function TeamTree({
               </ul>
             )}
             {!tree.roots.length && (
-              <p>No hay personas que coincidan con los filtros.</p>
+              <p>
+                {inHrArea && unassignedHrAccounts.length > 0
+                  ? `${unassignedHrAccounts.length} cuenta${unassignedHrAccounts.length === 1 ? " RH activa todavía no se ha incorporado" : "s RH activas todavía no se han incorporado"} al organigrama. Un superadministrador debe agregarlas desde Administración → Equipo → Incorporar personal y RH al organigrama.`
+                  : "No hay personas que coincidan con los filtros."}
+              </p>
             )}
           </div>
         </div>
@@ -979,9 +1057,9 @@ export function TeamTree({
         <p role="status">{message}</p>
         <p>
           Un jefe solo puede reorganizar personas y jefes de su jerarquía. RH
-          puede asignar jefes entre áreas. Solo el superior de RH más alto de la
-          cadena y el superusuario pueden modificar a otro RH. No se permiten
-          ciclos.
+          puede asignar jefes entre áreas. Solo el RH más alto de la cadena
+          puede modificar los datos laborales de otro integrante RH. No se
+          permiten ciclos.
         </p>
       </details>
       <p>

@@ -91,6 +91,30 @@ export async function POST(req: Request) {
       }
       return NextResponse.json(data);
     }
+    if (input.op === "department.manager.save") {
+      const assignment = schemas["department.manager.save"].parse(payload);
+      if (profile.role !== "SUPERUSER")
+        throw new ApiError(
+          403,
+          "Solo el superadministrador puede asignar o quitar al encargado de Recursos Humanos.",
+        );
+      const { data, error } = await client.rpc("save_department_manager", {
+        target_department: assignment.department_id,
+        target_employee: assignment.employee_id || null,
+      });
+      if (error?.code === "PGRST202")
+        throw new ApiError(
+          503,
+          "Aplica la migración 202610220001_hr_department_manager.sql en Supabase.",
+        );
+      if (error?.message === "INVALID_DEPARTMENT_MANAGER")
+        throw new ApiError(
+          422,
+          "El encargado debe tener una cuenta activa de RH o jefe.",
+        );
+      if (error) databaseError(error);
+      return NextResponse.json(data);
+    }
     if (input.op === "position.delete" && "id" in payload) {
       const { data, error } = await client.rpc("delete_unused_position", {
         target: payload.id,
@@ -139,7 +163,10 @@ export async function POST(req: Request) {
       payload,
     });
     if (input.op === "application.create" && error?.code === "23505")
-      throw new ApiError(409, "Ya tienes una postulación para esta vacante. Si está retirada, verifica que se haya aplicado la migración 202610010002_candidate_reapply.sql.");
+      throw new ApiError(
+        409,
+        "Ya tienes una postulación para esta vacante. Si está retirada, verifica que se haya aplicado la migración 202610010002_candidate_reapply.sql.",
+      );
     if (error) databaseError(error);
     return NextResponse.json(data);
   } catch (e) {

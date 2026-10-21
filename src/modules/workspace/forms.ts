@@ -108,6 +108,7 @@ export function formFor(kind: string, data: Snapshot, row?: Row): FormSpec {
     vacancies: {
       title: row ? "Editar vacante" : "Nueva vacante",
       op: "vacancy.save",
+      positionDepartments: options("departments"),
       fields: [
         field("title", "Título"),
         select("position_id", "Puesto", options("positions")),

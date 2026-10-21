@@ -65,6 +65,199 @@ afterAll(async () => {
   await db.close();
 });
 describe("PostgreSQL real: transacciones, RLS y aislamiento", () => {
+  it("crea el área de RH y reserva la asignación o retiro de su encargado al superadministrador", async () => {
+    await db.exec("begin");
+    try {
+      const department = await db.query<{ id: string }>(
+        "select id from public.departments where lower(btrim(name))='recursos humanos'",
+      );
+      expect(department.rows).toHaveLength(1);
+
+      const managerProfile = "30000000-0000-4000-8000-000000000006";
+      await db.query(
+        "insert into auth.users(id,email,raw_user_meta_data) values($1,$2,$3)",
+        [
+          managerProfile,
+          "department-manager@test.local",
+          JSON.stringify({ full_name: "Encargado RH" }),
+        ],
+      );
+      await db.query("update public.profiles set role='JEFE' where id=$1", [
+        managerProfile,
+      ]);
+      const member = await db.query<{ id: string }>(
+        "insert into public.employees(profile_id,position_id) values($1,$2) returning id",
+        [managerProfile, pos],
+      );
+      const departmentId = department.rows[0].id;
+      const employeeId = member.rows[0].id;
+
+      await db.exec("savepoint unauthorized_assignment");
+      await expect(
+        as(ids.hr, "select public.save_department_manager($1,$2)", [
+          departmentId,
+          employeeId,
+        ]),
+      ).rejects.toThrow();
+      await db.exec("rollback to savepoint unauthorized_assignment");
+      await as(ids.admin, "select public.save_department_manager($1,$2)", [
+        departmentId,
+        employeeId,
+      ]);
+      expect(
+        (
+          await db.query(
+            "select manager_employee_id from public.departments where id=$1",
+            [departmentId],
+          )
+        ).rows[0],
+      ).toEqual({ manager_employee_id: employeeId });
+      await as(ids.admin, "select public.save_department_manager($1,null)", [
+        departmentId,
+      ]);
+      expect(
+        (
+          await db.query(
+            "select manager_employee_id from public.departments where id=$1",
+            [departmentId],
+          )
+        ).rows[0],
+      ).toEqual({ manager_employee_id: null });
+    } finally {
+      await db.exec("rollback; reset role");
+    }
+  });
+
+  it("liga automáticamente cada alta del área RH con su encargado vigente", async () => {
+    await db.exec("begin");
+    try {
+      const department = (
+        await db.query<{ id: string }>(
+          "select id from public.departments where lower(btrim(name))='recursos humanos'",
+        )
+      ).rows[0].id;
+      const position = (
+        await db.query<{ id: string }>(
+          "insert into public.positions(name,department_id) values('Puesto RH automático',$1) returning id",
+          [department],
+        )
+      ).rows[0].id;
+      const alternatePosition = (
+        await db.query<{ id: string }>(
+          "insert into public.positions(name,department_id) values('Puesto RH alterno',$1) returning id",
+          [department],
+        )
+      ).rows[0].id;
+      const managerProfile = "30000000-0000-4000-8000-000000000007";
+      const memberProfile = "30000000-0000-4000-8000-000000000008";
+      const legacyMemberProfile = "30000000-0000-4000-8000-000000000009";
+      await db.query(
+        "insert into auth.users(id,email,raw_user_meta_data) values($1,$2,$3),($4,$5,$6),($7,$8,$9)",
+        [
+          managerProfile,
+          "rh-leader@test.local",
+          JSON.stringify({ full_name: "Líder RH" }),
+          memberProfile,
+          "rh-member@test.local",
+          JSON.stringify({ full_name: "Integrante RH" }),
+          legacyMemberProfile,
+          "rh-legacy-member@test.local",
+          JSON.stringify({ full_name: "Integrante RH sin superior" }),
+        ],
+      );
+      await db.query("update public.profiles set role='RH_ADMIN' where id=$1", [
+        managerProfile,
+      ]);
+      await db.query("update public.profiles set role='EMPLEADO' where id=$1", [
+        memberProfile,
+      ]);
+      await db.query("update public.profiles set role='EMPLEADO' where id=$1", [
+        legacyMemberProfile,
+      ]);
+      await db.exec("reset role");
+      await db.query("select set_config('request.jwt.claim.sub',$1,false)", [
+        ids.admin,
+      ]);
+      const manager = (
+        await db.query<{ id: string }>(
+          "insert into public.employees(profile_id,position_id) values($1,$2) returning id",
+          [managerProfile, position],
+        )
+      ).rows[0];
+      await as(ids.admin, "select public.save_department_manager($1,$2)", [
+        department,
+        manager.id,
+      ]);
+      await db.exec("savepoint reject_rh_enrollment_without_area_manager");
+      await as(ids.admin, "select public.save_department_manager($1,null)", [
+        department,
+      ]);
+      await expect(
+        command(ids.admin, "employee.enroll", {
+          profile_id: memberProfile,
+          position_id: position,
+          manager_id: "",
+        }),
+      ).rejects.toThrow("HR_DEPARTMENT_MANAGER_REQUIRED");
+      await db.exec("rollback to savepoint reject_rh_enrollment_without_area_manager");
+
+      const enrolled = await command(ids.admin, "employee.enroll", {
+        profile_id: memberProfile,
+        position_id: position,
+        manager_id: "",
+      });
+      expect(
+        (
+          await db.query("select manager_id from public.employees where id=$1", [
+            enrolled,
+          ])
+        ).rows[0],
+      ).toEqual({ manager_id: manager.id });
+      await db.exec("savepoint superuser_cannot_edit_rh_member");
+      await expect(
+        command(ids.admin, "employee.save", {
+          id: enrolled,
+          position_id: alternatePosition,
+          manager_id: manager.id,
+          status: "ACTIVE",
+        }),
+      ).rejects.toThrow("HR_HIERARCHY_FORBIDDEN");
+      await db.exec("rollback to savepoint superuser_cannot_edit_rh_member");
+      await expect(
+        command(managerProfile, "employee.save", {
+          id: enrolled,
+          position_id: alternatePosition,
+          manager_id: manager.id,
+          status: "ACTIVE",
+        }),
+      ).resolves.toBe(enrolled);
+      await db.exec("reset role");
+      await db.query("select set_config('request.jwt.claim.sub',$1,false)", [
+        ids.admin,
+      ]);
+      const legacyMember = (
+        await db.query<{ id: string }>(
+          "insert into public.employees(profile_id,position_id) values($1,$2) returning id",
+          [legacyMemberProfile, position],
+        )
+      ).rows[0].id;
+      await expect(
+        command(managerProfile, "employee.save", {
+          id: legacyMember,
+          position_id: position,
+          manager_id: manager.id,
+          status: "ACTIVE",
+        }),
+      ).resolves.toBe(legacyMember);
+      expect(
+        (await as(ids.admin, "select public.hr_hierarchy_version() as version"))
+          .rows[0],
+      ).toEqual({ version: 3 });
+    } finally {
+      await db.exec("rollback; reset role");
+    }
+  });
+
   it("la foto es propia, privada y no concede permiso para editar el perfil laboral", async () => {
     const path = ids.candidate + "/40000000-0000-4000-8000-000000000001.png",
       foreign = ids.other + "/40000000-0000-4000-8000-000000000002.png";
@@ -1415,21 +1608,12 @@ it("planes de onboarding: plantillas automáticas, responsabilidades, documentos
   ).toEqual([{ status: "COMPLETED" }]);
 });
 
-it("RH aparece en jerarquía, admite superior y no cambia su propio puesto ni usa funciones antiguas", async () => {
+it("RH aparece en jerarquía, solo admite cambios desde la máxima jefatura RH", async () => {
   const hrEmployee = await command(ids.admin, "employee.enroll", {
     profile_id: ids.hr,
     position_id: pos,
     manager_id: "",
   });
-  const boss = (
-    await as(ids.admin, "select id from employees where profile_id=$1", [
-      ids.manager,
-    ])
-  ).rows[0] as { id: string };
-  await as(ids.admin, "select assign_team_manager($1,$2)", [
-    hrEmployee,
-    boss.id,
-  ]);
   // Un responsable de RH también puede ser superior de otro equipo.
   await as(ids.admin, "select assign_team_manager($1,$2)", [
     employee,
@@ -1442,16 +1626,18 @@ it("RH aparece en jerarquía, admite superior y no cambia su propio puesto ni us
     command(ids.hr, "employee.save", {
       id: hrEmployee,
       position_id: position.id,
-      manager_id: boss.id,
+      manager_id: "",
       status: "ACTIVE",
     }),
-  ).rejects.toThrow();
-  await command(ids.admin, "employee.save", {
-    id: hrEmployee,
-    position_id: position.id,
-    manager_id: boss.id,
-    status: "ACTIVE",
-  });
+  ).rejects.toThrow("HR_HIERARCHY_FORBIDDEN");
+  await expect(
+    command(ids.admin, "employee.save", {
+      id: hrEmployee,
+      position_id: position.id,
+      manager_id: "",
+      status: "ACTIVE",
+    }),
+  ).rejects.toThrow("HR_HIERARCHY_FORBIDDEN");
   for (const fn of ["workforce_legacy_command", "onboarding_legacy_command"])
     await expect(
       as(ids.hr, `select ${fn}($1,$2)`, [
@@ -1459,9 +1645,6 @@ it("RH aparece en jerarquía, admite superior y no cambia su propio puesto ni us
         JSON.stringify({ id: hrEmployee }),
       ]),
     ).rejects.toThrow();
-  await expect(
-    as(ids.admin, "select assign_team_manager($1,$2)", [boss.id, hrEmployee]),
-  ).rejects.toThrow("HIERARCHY_CYCLE");
 });
 
 it("onboarding nuevo: varios adjuntos, revisión obligatoria y bloqueo de entregas ajenas", async () => {
@@ -1731,7 +1914,7 @@ it("agenda rechaza el pasado y contratación asigna área, jefe y plantilla en u
   ).toEqual([{ title: "Bienvenida al área final" }]);
 });
 
-it("solo el superior de RH más alto o superusuario modifica la jerarquía de RH", async () => {
+it("solo el superior de RH más alto modifica la jerarquía de RH", async () => {
   await db.exec("reset role");
   const users = [
     "60000000-0000-4000-8000-000000000001",
@@ -1824,7 +2007,7 @@ it("solo el superior de RH más alto o superusuario modifica la jerarquía de RH
   ).resolves.toBe(staff[1]);
   await expect(
     as(ids.admin, "select assign_team_manager($1,$2)", [staff[0], staff[3]]),
-  ).resolves.toBeDefined();
+  ).rejects.toThrow("HR_HIERARCHY_FORBIDDEN");
 });
 
 it("auditoría detalla cambios operativos solo para superusuario", async () => {
@@ -2096,8 +2279,15 @@ it("revisión parcial de capacitación: avisos, permisos, corrección y aprobaci
     approved_progress: 100,
   });
   await db.exec("reset role");
-  await db.query("update course_assignments set progress_review_pending=true, approved_progress=0 where id=$1", [a.id]);
-  expect(await state()).toMatchObject({status:"COMPLETED", approved_progress:100, progress_review_pending:false});
+  await db.query(
+    "update course_assignments set progress_review_pending=true, approved_progress=0 where id=$1",
+    [a.id],
+  );
+  expect(await state()).toMatchObject({
+    status: "COMPLETED",
+    approved_progress: 100,
+    progress_review_pending: false,
+  });
 });
 it("desplaza la tarea automática de bienvenida sin perder la contratación", async () => {
   await db.exec("reset role");

@@ -7,6 +7,10 @@ insert into public.positions(id,name,department_id) values
 ('20000000-0000-4000-8000-000000000003','Analista de talento','10000000-0000-4000-8000-000000000002'),
 ('20000000-0000-4000-8000-000000000004','Analista de operaciones','10000000-0000-4000-8000-000000000003'),
 ('20000000-0000-4000-8000-000000000005','Diseñador de producto','10000000-0000-4000-8000-000000000001');
+insert into public.positions(name,department_id)
+select 'Responsable de Recursos Humanos',id
+from public.departments
+where lower(btrim(name))='recursos humanos';
 insert into public.courses(title,description,content,duration_minutes,required) values
 ('Bienvenida al equipo','Conoce nuestra forma de trabajar.','Trabajamos con objetivos semanales, documentación compartida y revisión entre pares. Agenda una presentación con tu equipo y revisa los objetivos de tu puesto.',20,true),
 ('Seguridad de la información','Protege los datos de las personas.','Usa contraseñas únicas y MFA. Comparte documentos únicamente por canales autorizados. Reporta mensajes sospechosos. Nunca incluyas secretos en documentos, tickets o herramientas de IA.',30,true),

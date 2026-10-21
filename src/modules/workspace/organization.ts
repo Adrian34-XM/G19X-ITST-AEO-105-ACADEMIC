@@ -7,26 +7,56 @@
 import type { Snapshot, Row, Profile } from "./types";
 /** RH solo puede modificar a otro RH si es su superior de RH más alto. */
 export function canEditStaff(data: Snapshot, actor: Profile, employee: Row) {
-  if (actor.role === "SUPERUSER") return true;
   const target = (data.profiles ?? []).find(
     (p) => p.id === employee.profile_id,
   );
-  if (target?.role !== "RH_ADMIN") return actor.role === "RH_ADMIN";
+  const position = (data.positions ?? []).find(
+    (p) => p.id === employee.position_id,
+  );
+  const department = (data.departments ?? []).find(
+    (d) => d.id === position?.department_id,
+  );
+  const isHrTarget =
+    target?.role === "RH_ADMIN" ||
+    String(department?.name ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleLowerCase() === "recursos humanos";
+  if (!isHrTarget)
+    return actor.role === "RH_ADMIN" || actor.role === "SUPERUSER";
   if (actor.role !== "RH_ADMIN" || employee.profile_id === actor.id)
     return false;
   const seen = new Set([employee.id]);
   let parent = employee.manager_id;
-  let highest: unknown;
+  let highest: string | undefined;
+  let highestActive = false;
   while (typeof parent === "string" && !seen.has(parent)) {
     seen.add(parent);
     const e = (data.employees ?? []).find((e) => e.id === parent);
     if (!e) return false;
     const p = (data.profiles ?? []).find((p) => p.id === e.profile_id);
-    if (p?.role === "RH_ADMIN")
-      highest = e.status === "ACTIVE" && p.active ? p.id : null;
+    if (p?.role === "RH_ADMIN") {
+      highest = p.id;
+      highestActive = e.status === "ACTIVE" && p.active === true;
+    }
     parent = e.manager_id;
   }
-  return highest === actor.id;
+  if (highest) return highest === actor.id && highestActive;
+
+  // El encargado RH del área puede conectar cuentas históricas sin cadena RH.
+  const area = (data.departments ?? []).find(
+    (d) =>
+      String(d.name ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLocaleLowerCase() === "recursos humanos",
+  );
+  const areaManager = (data.employees ?? []).find(
+    (e) => e.id === area?.manager_employee_id,
+  );
+  return employee.manager_id == null && areaManager?.profile_id === actor.id;
 }
 /** Conserva ancestros autorizados como contexto al reducir el organigrama por área. */
 export function organization(

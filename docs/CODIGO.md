@@ -6,7 +6,7 @@ Para localizar la responsabilidad y las exportaciones de cada archivo consulta e
 
 `src/modules/workspace/insights.ts` calcula alertas sin usar IA y recorta los datos por empleado o jerarquía subordinada. Las tareas ya entregadas para revisión no cuentan como atrasos del empleado; se muestran como revisiones pendientes. Las fechas límite se comparan con la fecha UTC del día. Las novedades generales se actualizan al navegar o recargar; el chat tiene su propio sondeo periódico. No son notificaciones por correo.
 
-`src/components/operations-panels.tsx` muestra novedades, recomendaciones, jerarquías, gráficas y auditoría. RH ve todas sus áreas; un jefe ve su jerarquía subordinada y sus propios registros. El árbol también controla ciclos para no bloquear la pantalla si existen relaciones incorrectas. Las gráficas permiten cambiar proceso, área, periodo y representación en barras o circular.
+`src/components/operations-panels.tsx` muestra novedades, recomendaciones, jerarquías, gráficas y auditoría. RH ve todas sus áreas; un jefe ve su jerarquía subordinada y sus propios registros. El árbol agrupa por departamento y ofrece una vista de Recursos Humanos solo a RH; sus integrantes incluyen al personal del departamento y a las cuentas RH. `canEditStaff` refleja la regla de que únicamente el RH situado más arriba en la cadena edita los datos laborales de otro integrante RH; PostgreSQL vuelve a comprobarla. El árbol también controla ciclos para no bloquear la pantalla si existen relaciones incorrectas. Las gráficas permiten cambiar proceso, área, periodo y representación en barras o circular.
 
 `/api/ai/orchestrate` coordina las recomendaciones de vista general, capacitación, tareas, desempeño y analíticas. Obtiene datos con la sesión, minimiza los campos enviados y reserva una ejecución en PostgreSQL. Las recomendaciones de cursos relacionan el puesto y área con el catálogo y las asignaciones. El resultado se valida, se eliminan identificadores no autorizados y se guarda en `orchestration_runs`. Solo la cuenta que inició la solicitud puede leerla; no se asignan cursos ni se modifican estados automáticamente. La pantalla muestra la respuesta de la ejecución actual; el histórico permanece en la base.
 
@@ -14,7 +14,7 @@ Las instrucciones se mantienen por módulo en `src/lib/ai/orchestration/`: `over
 
 `tests/orchestration-prompts.test.ts` comprueba las entradas y contratos por módulo sin base de datos ni proveedor: alcance personal, minimización, filtros, modalidades, rechazo de diagnósticos de desempeño y separación entre selección y narrativa de analíticas. `tests/orchestration.test.ts` comprueba la integración de esos contratos con los permisos, la caché y la persistencia de la ruta.
 
-La migración `202609170001_orchestration_audit.sql` es necesaria para activar este flujo. Limita a tres ejecuciones por minuto y una pendiente reciente por usuario. Abre la lectura del catálogo formativo a cuentas internas activas, conservando los permisos de asignación y progreso. Restringe `audit_logs` a SUPERUSER y añade metadatos de campos modificados, estados anterior/nuevo y rol del actor sin copiar documentos ni claves. Las rutas y la navegación también rechazan la auditoría para RH.
+La migración `202609170001_orchestration_audit.sql` es necesaria para activar este flujo. Limita a tres ejecuciones por minuto y una pendiente reciente por usuario. Ese límite es propio de Nexo y se aplica también al proveedor Ollama local; un error de proveedor cuenta como intento si la reserva ya se creó. Las preguntas sobre tareas vencidas por área se contestan con conteos calculados en servidor y no consumen una ejecución de IA. Abre la lectura del catálogo formativo a cuentas internas activas, conservando los permisos de asignación y progreso. Restringe `audit_logs` a SUPERUSER y añade metadatos de campos modificados, estados anterior/nuevo y rol del actor sin copiar documentos ni claves. Las rutas y la navegación también rechazan la auditoría para RH.
 
 Las recomendaciones de IA requieren un proveedor disponible. Si falla, se conserva el funcionamiento de alertas y gráficas, se registra el fracaso y se informa al usuario. Los análisis se limitan a 200 registros por tabla y los paneles a 1000; no representan una auditoría exhaustiva de volúmenes superiores.
 
@@ -38,11 +38,15 @@ En el acceso, `src/components/auth-form.tsx` conserva el formulario y sus petici
 - `EMPLEADO`: tareas, cursos y onboarding propios.
 - `CANDIDATO`: perfil, oportunidades y postulaciones propias.
 
+El área **Recursos Humanos** se crea de forma idempotente en la migración `202610220001_hr_department_manager.sql` si todavía no existe. En **Administración → Áreas**, el superadministrador puede asignar, sustituir o retirar su encargado; RH solo ve el valor. El encargado debe ser un empleado activo con perfil activo y rol RH o jefe. La migración `202610220002_hr_area_hierarchy.sql` hace que cada nueva incorporación con un puesto de esa área reciba al encargado vigente como `manager_id`, sin confiar en el dato enviado por el navegador. Si el área no tiene encargado activo, el alta se detiene y pide asignarlo. El encargado RH puede enlazar una vez las cuentas previas que aún no tienen jefe directo; tras ese enlace, solo el RH situado más arriba en la jerarquía puede modificar sus puestos o superiores. La misma regla se aplica al personal con puesto en el área RH y la base de datos valida roles, estado activo y ausencia de ciclos. El superadministrador no modifica directamente esos datos laborales. La protección también impide que RH renombre o elimine el área canónica; para las demás áreas se mantienen los permisos generales de RH.
+
 `db()` conserva la sesión del usuario y sus políticas RLS. `adminDb()` utiliza la clave privada y puede superar esas políticas: por eso se reserva para operaciones administrativas previamente autorizadas. Las claves van en `.env.local`, excluido de Git; quien tenga acceso a ese archivo puede leerlas.
 
 ## Formularios y operaciones
 
 `src/modules/workspace/forms.ts` describe campos y opciones. `src/components/forms.tsx` dibuja los formularios y transforma números, listas, fechas y casillas antes de enviar datos. `src/modules/commands/schemas.ts` los valida de nuevo con Zod en el servidor.
+
+La asignación del encargado de RH usa el comando independiente `department.manager.save`, con `department_id` y `employee_id` (UUID o cadena vacía para quitarlo). La ruta comprueba que el actor sea `SUPERUSER` y ejecuta `save_department_manager`; PostgreSQL vuelve a validar el rol, la actividad del destino y que el área sea la de Recursos Humanos. Ocultar los controles a RH es solo una medida de interfaz: la autorización también se aplica en la API y en la RPC.
 
 Una escritura habitual sigue este recorrido:
 
@@ -102,7 +106,7 @@ La carga de pantalla limita cada tabla a 1000 filas. Listados, contadores y reco
 ## Scripts y comprobaciones
 
 - `scripts/setup-local.mjs`: crea configuración desde Supabase local sin sobrescribir `.env.local`.
-- `scripts/seed.mjs`: crea datos de demostración con permisos administrativos; requiere habilitar explícitamente el uso remoto.
+- `scripts/seed.mjs`: crea datos de demostración con permisos administrativos e incorpora a la cuenta demo de RH al organigrama; requiere habilitar explícitamente el uso remoto.
 - `scripts/check-supabase.mjs`: verifica conectividad y restricciones anónimas, sin escribir datos.
 - `scripts/test-uploads.mjs`: crea documentos y una tarea de prueba; conserva esos registros para inspección.
 - `tests/`: reglas, API simulada, proveedores simulados, recomendaciones renderizadas y PostgreSQL embebido con PGlite.
@@ -140,7 +144,7 @@ Los pasos para aplicar las migraciones están en el README: [Supabase local](../
 
 EmployeePicker conserva la selección entre filtros de búsqueda y área; BulkAssignment sirve tanto para cursos como para nuevas tareas. /api/assignments valida un contrato estricto y llama a assign_many, que comprueba todos los destinatarios antes de escribir en una sola transacción. Los cursos existentes se omiten y las tareas se crean individualmente mediante command.
 
-organization construye raíces y conserva ancestros autorizados al filtrar por área. TeamTree representa tarjetas conectadas y ramas plegables; EmployeeProfile utiliza el conjunto ya restringido por scopeData/RLS. El filtro employees se valida también en /api/ai/orchestrate antes de generar recomendaciones.
+organization construye raíces y conserva ancestros autorizados al filtrar por área. TeamTree representa tarjetas conectadas, ramas plegables y una categoría de RH visible solo a RH/superusuario; su alta de integrantes permite buscar cuentas y puestos. EmployeeProfile utiliza el conjunto ya restringido por scopeData/RLS. El filtro employees se valida también en /api/ai/orchestrate antes de generar recomendaciones.
 
 El organigrama permite alternar entre recuadros por área y una jerarquía completa que conserva conexiones entre áreas. Ofrece zoom de 60 % a 130 %, restablecimiento a 100 %, plegado global o por responsable y ocultación del lienzo. El desplazamiento queda dentro del panel para que los equipos amplios no ensanchen la página. Los superiores incluidos como contexto se distinguen por un borde discontinuo; los controles visuales no modifican asignaciones ni permisos.
 
@@ -206,7 +210,7 @@ La representación utiliza [DataChart](../src/components/data-chart.tsx), que ca
 
 ## Archivos y visión
 
-En tareas, `WorkforceAI` permite preguntar desde el listado o el detalle. El modo `tasks` de `/api/ai/workforce` vuelve a aplicar permisos y filtros; un `task_id` fuera del alcance se rechaza antes de llamar al proveedor. La IA redacta la respuesta con datos estructurados de tareas y conteos de evidencias, sin recibir rutas ni contenido de archivos. Esta consulta no verifica entregables: esa función corresponde al análisis específico de cada evidencia. Las preguntas de otros módulos se rechazan y las respuestas no cambian estados. Los análisis de evidencia ya guardados conservan su resultado; las instrucciones de redacción natural se aplican a nuevos análisis.
+En tareas, `WorkforceAI` permite preguntar desde el listado o el detalle. El modo `tasks` de `/api/ai/workforce` vuelve a aplicar permisos y filtros; un `task_id` fuera del alcance se rechaza antes de llamar al proveedor. La IA redacta la respuesta con datos estructurados de tareas y conteos de evidencias, sin recibir rutas ni contenido de archivos. La pregunta sobre atrasos por área se responde desde `src/modules/workspace/task-deadlines.ts`, con filas autorizadas, fecha límite y estado; las entregadas para revisión o aprobadas no cuentan como atrasos. Esta consulta no verifica entregables: esa función corresponde al análisis específico de cada evidencia. Las preguntas de otros módulos se rechazan y las respuestas no cambian estados. Los análisis de evidencia ya guardados conservan su resultado; las instrucciones de redacción natural se aplican a nuevos análisis.
 
 `readLimitedBody` consume el cuerpo de la solicitud contando bytes reales. No confía únicamente en Content-Length. JSON admite hasta 100000 bytes; el multipart tiene un límite global de 5 MB más 100000 bytes para sus campos y envoltura. La inspección posterior aplica el límite de cada archivo. No volver a leer `req.body` después de utilizar estos lectores.
 
