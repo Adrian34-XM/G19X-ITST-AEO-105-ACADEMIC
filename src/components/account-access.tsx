@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { request } from "@/components/forms";
+import { PasswordInput } from "@/components/password-input";
 
 /** Los enlaces requieren una acción explícita: abrirlos no consume el código de un solo uso. */
 export function AccountAccess({
@@ -131,9 +132,9 @@ export function AccountAccess({
                 <>
                   <label>
                     Nueva contraseña
-                    <input
+                    <PasswordInput
+                      id="new-password"
                       name="password"
-                      type="password"
                       minLength={12}
                       maxLength={128}
                       autoComplete="new-password"
@@ -142,9 +143,9 @@ export function AccountAccess({
                   </label>
                   <label>
                     Repite la contraseña
-                    <input
+                    <PasswordInput
+                      id="confirm-password"
                       name="confirm_password"
-                      type="password"
                       minLength={12}
                       maxLength={128}
                       autoComplete="new-password"

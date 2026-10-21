@@ -10,6 +10,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { LoginBackdrop } from "./login-backdrop";
+import { PasswordInput } from "./password-input";
 export function AuthForm({
   register,
   configured,
@@ -44,9 +45,9 @@ export function AuthForm({
     }
   }
   return (
-    <main className={`auth-layout${register ? "" : " auth-layout-slats"}`}>
+    <main className="auth-layout auth-layout-slats">
       <section className="auth-story">
-        {!register && <LoginBackdrop />}
+        <LoginBackdrop />
         <Link className="brand" href="/jobs">
           <span className="brand-mark">n</span> nexo
           <span className="brand-dot">.</span>
@@ -96,13 +97,13 @@ export function AuthForm({
             </label>
             <label>
               Contraseña
-              <input
+              <PasswordInput
+                id="auth-password"
                 name="password"
-                type="password"
-                required
                 minLength={12}
                 maxLength={128}
                 autoComplete={register ? "new-password" : "current-password"}
+                required
               />
               <small>Mínimo 12 caracteres.</small>
             </label>

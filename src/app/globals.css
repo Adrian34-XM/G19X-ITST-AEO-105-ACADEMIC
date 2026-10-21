@@ -829,6 +829,32 @@ code {
   width: 100%;
   justify-content: space-between;
 }
+.password-input {
+  display: block;
+  position: relative;
+  width: 100%;
+}
+.password-input > input {
+  padding-right: 48px;
+}
+button.password-visibility-toggle {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+}
+button.password-visibility-toggle:hover {
+  background: var(--mint);
+  color: var(--green);
+  filter: none;
+}
 .auth-form p,
 .auth-form a {
   font-size: 12px;
