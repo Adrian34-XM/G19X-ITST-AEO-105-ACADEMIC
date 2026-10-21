@@ -193,6 +193,233 @@ it("preguntas de tareas usan contexto propio y redacción libre sin contenidos p
     /archivo privado|privado.pdf|Texto confidencial|secreto@test/,
   );
 });
+it("compara tareas completadas y pendientes por área sin depender de la revisión de IA", async () => {
+  state.role = "RH_ADMIN";
+  state.generate.mockResolvedValue({
+    model: "mock",
+    result: {
+      summary: "En Operaciones hay una tarea aprobada y dos aún no concluidas.",
+      recommendations: [],
+    },
+  });
+  state.snapshot = {
+    departments: [{ id: "dept", name: "Operaciones" }],
+    positions: [{ id: ids.position, name: "Analista", department_id: "dept" }],
+    employees: [{ id: ids.own, profile_id: "me", position_id: ids.position }],
+    tasks: [
+      { id: "done", employee_id: ids.own, status: "APPROVED" },
+      { id: "open", employee_id: ids.own, status: "PENDING" },
+      { id: "review", employee_id: ids.own, status: "SUBMITTED" },
+    ],
+  };
+  const response = await POST(
+    req({
+      mode: "tasks",
+      prompt: "Compara las tareas completadas y pendientes por área.",
+    }),
+  );
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.result.summary).toBe(
+    "En Operaciones hay una tarea aprobada y dos aún no concluidas.",
+  );
+  const context = state.generate.mock.calls[0][0];
+  expect(context.verified_context.areas[0].states).toMatchObject({
+    Aprobado: 1,
+    Pendiente: 1,
+    "En revisión": 1,
+  });
+  expect(context.request_scope).toBeUndefined();
+});
+it("la IA redacta atrasos de tareas solo con hechos del área y sin respuesta fija", async () => {
+  state.role = "RH_ADMIN";
+  state.generate.mockResolvedValue({
+    model: "mock",
+    result: {
+      summary: "Tecnología tiene una tarea atrasada que requiere seguimiento.",
+      recommendations: [],
+    },
+  });
+  state.snapshot = {
+    departments: [
+      { id: "tech", name: "Tecnología" },
+      { id: "other-dept", name: "Personas" },
+    ],
+    positions: [
+      { id: ids.position, name: "Analista", department_id: "tech" },
+      {
+        id: "other-position",
+        name: "Generalista",
+        department_id: "other-dept",
+      },
+    ],
+    employees: [
+      { id: ids.own, profile_id: "me", position_id: ids.position },
+      { id: ids.other, profile_id: "outside", position_id: "other-position" },
+    ],
+    tasks: [
+      {
+        id: "late",
+        employee_id: ids.own,
+        status: "PENDING",
+        due_date: "2020-01-01",
+      },
+      {
+        id: "review",
+        employee_id: ids.own,
+        status: "SUBMITTED",
+        due_date: "2020-01-01",
+      },
+      {
+        id: "other-late",
+        employee_id: ids.other,
+        status: "PENDING",
+        due_date: "2020-01-01",
+      },
+    ],
+  };
+  const response = await POST(
+    req({
+      mode: "tasks",
+      prompt: "¿Qué tareas están atrasadas en el área Tecnología?",
+    }),
+  );
+  expect(response.status).toBe(200);
+  expect((await response.json()).result.summary).toContain("Tecnología");
+  const context = state.generate.mock.calls[0][0];
+  expect(context.verified_context.areas).toHaveLength(1);
+  expect(context.verified_context.areas[0]).toMatchObject({
+    area: "Tecnología",
+    overdueActivities: 1,
+  });
+  expect(context.request_scope).toBeUndefined();
+});
+it("la IA redacta preguntas de onboarding con métricas limitadas al área solicitada", async () => {
+  state.role = "RH_ADMIN";
+  const plan = "40000000-0000-4000-8000-000000000001";
+  const otherPlan = "40000000-0000-4000-8000-000000000002";
+  const otherPosition = "20000000-0000-4000-8000-000000000002";
+  state.onboarding = [
+    { id: plan, employee_id: ids.own, status: "ACTIVE" },
+    { id: otherPlan, employee_id: ids.other, status: "ACTIVE" },
+  ];
+  state.generate.mockResolvedValue({
+    model: "mock",
+    result: {
+      summary: "Tecnología tiene una actividad pendiente y otra completada.",
+      recommendations: [],
+    },
+  });
+  state.snapshot = {
+    departments: [
+      { id: "dept", name: "Tecnología" },
+      { id: "other-dept", name: "Personas" },
+    ],
+    positions: [
+      { id: ids.position, name: "Analista", department_id: "dept" },
+      { id: otherPosition, name: "Coordinador", department_id: "other-dept" },
+    ],
+    employees: [
+      { id: ids.own, profile_id: "me", position_id: ids.position },
+      { id: ids.other, profile_id: "outside", position_id: otherPosition },
+    ],
+    onboarding_items: [
+      { id: "pending-1", onboarding_id: plan, status: "PENDING" },
+      { id: "done-1", onboarding_id: plan, status: "COMPLETED" },
+      { id: "other-1", onboarding_id: otherPlan, status: "PENDING" },
+    ],
+  };
+  const response = await POST(
+    req({
+      mode: "onboarding",
+      prompt: "Compara el avance de onboarding en el área Tecnología.",
+    }),
+  );
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.result.summary).toContain("Tecnología");
+  expect(state.generate).toHaveBeenCalledTimes(1);
+  const context = state.generate.mock.calls[0][0];
+  expect(context.verified_question_context.areas).toHaveLength(1);
+  expect(context.verified_question_context.areas[0].area).toBe("Tecnología");
+  expect(context.request_scope).toBeUndefined();
+});
+it("cuenta vencimientos y fechas próximas de onboarding directamente desde las actividades", async () => {
+  state.role = "RH_ADMIN";
+  const plan = "40000000-0000-4000-8000-000000000001";
+  state.onboarding = [{ id: plan, employee_id: ids.own, status: "ACTIVE" }];
+  state.generate.mockResolvedValue({
+    model: "mock",
+    result: {
+      summary: "Hay una actividad vencida y otra con vencimiento próximo.",
+      recommendations: [],
+    },
+  });
+  const today = new Date();
+  const iso = (offset: number) => {
+    const date = new Date(today);
+    date.setDate(date.getDate() + offset);
+    return date.toISOString().slice(0, 10);
+  };
+  state.snapshot = {
+    departments: [{ id: "dept", name: "Operaciones" }],
+    positions: [{ id: ids.position, name: "Analista", department_id: "dept" }],
+    employees: [{ id: ids.own, profile_id: "me", position_id: ids.position }],
+    onboarding_items: [
+      { id: "late", onboarding_id: plan, status: "PENDING", due_date: iso(-1) },
+      { id: "soon", onboarding_id: plan, status: "PENDING", due_date: iso(2) },
+      {
+        id: "submitted",
+        onboarding_id: plan,
+        status: "SUBMITTED",
+        due_date: iso(-1),
+      },
+    ],
+  };
+  const response = await POST(
+    req({
+      mode: "onboarding",
+      prompt:
+        "¿Qué actividades de onboarding están vencidas o próximas a vencer?",
+    }),
+  );
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.result.summary).toBe(
+    "Hay una actividad vencida y otra con vencimiento próximo.",
+  );
+  expect(
+    state.generate.mock.calls[0][0].verified_question_context.areas[0],
+  ).toMatchObject({
+    overdueActivities: 1,
+    dueSoonActivities: 1,
+  });
+});
+it("explica cuándo onboarding no tiene detalle individual en vez de rechazar la pregunta", async () => {
+  state.role = "RH_ADMIN";
+  state.generate.mockResolvedValue({
+    model: "mock",
+    result: {
+      summary:
+        "No puedo determinar qué persona lleva más tiempo, porque el resumen no incluye nombres ni la antigüedad de las actividades.",
+      recommendations: [],
+    },
+  });
+  const response = await POST(
+    req({
+      mode: "onboarding",
+      prompt:
+        "¿Qué personas llevan más tiempo con actividades de onboarding pendientes?",
+    }),
+  );
+  expect(response.status).toBe(200);
+  expect((await response.json()).result.summary).toContain(
+    "no incluye nombres ni la antigüedad",
+  );
+  expect(
+    state.generate.mock.calls[0][0].verified_question_context.limitations,
+  ).toContain("no contiene nombres");
+});
 it("impide consultar una tarea ajena por identificador", async () => {
   const response = await POST(
     req({ mode: "tasks", task_id: ids.otherTask, prompt: "Resume esta tarea" }),
