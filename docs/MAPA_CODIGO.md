@@ -696,6 +696,12 @@ Filtra el conjunto de trabajo por área, persona, proceso y periodo relacionando
 
 Entradas exportadas: `WorkspaceFilters`, `filterWorkspace`.
 
+### [src/modules/workspace/follow-up-facts.ts](../src/modules/workspace/follow-up-facts.ts)
+
+Calcula en servidor los hechos de seguimiento de tareas e incorporación: si un registro está cerrado, sus días de atraso, el motivo literal de seguimiento y la antigüedad de evidencias y documentos del periodo. Incluye la respuesta fija cuando no hay entregas en el periodo y la detección de títulos entrecomillados que no existen en los datos autorizados.
+
+Entradas exportadas: `followUpRules`, `taskFollowUpFacts`, `onboardingFollowUpFacts`, `asksAboutEvidence`, `asksAboutDocuments`, `periodDaysFrom`, `emptyEvidenceAnswer`, `inventedTitles`.
+
 ### [src/modules/workspace/forms.ts](../src/modules/workspace/forms.ts)
 
 Describe formularios por operación, opciones y valores iniciales. La interfaz consume estas definiciones; los contratos Zod y SQL siguen siendo la autoridad para aceptar una escritura.

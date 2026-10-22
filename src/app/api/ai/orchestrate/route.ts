@@ -5,6 +5,12 @@
  * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
  */
 /** Orquestación por rol: contexto mínimo con RLS, reserva persistente y recomendaciones sin acciones automáticas. */
+import {
+  inventedTitles,
+  onboardingFollowUpFacts,
+  periodDaysFrom,
+  taskFollowUpFacts,
+} from "@/modules/workspace/follow-up-facts";
 import { buildOrchestrationRequest } from "@/lib/ai/orchestration/request";
 import { areaSchema, outputSchema } from "@/lib/ai/orchestration/contracts";
 import {
@@ -242,6 +248,19 @@ export async function POST(req: Request) {
     if (area === "tasks" || area === "onboarding")
       Object.assign(context, {
         role_permissions: rolePermissionsInstruction(area, profile.role),
+        // Días de atraso, antigüedad de entregas y motivo de seguimiento calculados en servidor.
+        verified_follow_up:
+          area === "tasks"
+            ? taskFollowUpFacts(
+                selected,
+                undefined,
+                periodDaysFrom(filters.days),
+              )
+            : onboardingFollowUpFacts(
+                selected,
+                undefined,
+                periodDaysFrom(filters.days),
+              ),
         ...(history.length && prompt
           ? {
               conversation_history: history.map((turn) => ({
@@ -464,6 +483,26 @@ export async function POST(req: Request) {
             : [];
         });
         const readableData = { ...context.data, people };
+        // Un título entrecomillado que no existe en los datos autorizados es una invención: no se entrega.
+        const invented = inventedTitles(
+          [
+            parsed.summary,
+            ...parsed.recommendations.flatMap((r) => [r.title, r.reason]),
+          ].join("\n"),
+          [
+            ...(selected.tasks ?? []),
+            ...(selected.onboarding_items ?? []),
+            ...(selected.courses ?? []),
+          ].map((row) => String(row.title ?? "")),
+        );
+        if (invented.length)
+          throw new ApiError(
+            422,
+            `La IA mencionó registros que no existen en tus datos (${invented
+              .slice(0, 3)
+              .map((t) => `«${t}»`)
+              .join(", ")}). No se guardó esa respuesta; vuelve a intentarlo.`,
+          );
         parsed.summary = readableOverview(parsed.summary, readableData);
         parsed.recommendations = parsed.recommendations.map((r) => ({
           ...r,

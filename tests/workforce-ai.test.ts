@@ -180,7 +180,7 @@ it("preguntas de tareas usan contexto propio y redacción libre sin contenidos p
     "Tu entrega ya está lista para que el responsable la revise.",
   );
   const context = state.generate.mock.calls[0][0];
-  expect(context.tasks).toHaveLength(1);
+  expect(context.verified_follow_up.tasks).toHaveLength(1);
   expect(context.evidence).toMatchObject({
     files: 1,
     tasksWithEvidence: 1,
