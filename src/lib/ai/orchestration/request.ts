@@ -15,6 +15,7 @@ import { performanceInput, performanceAdvice } from "./performance";
 import { overviewInput, personalSummarySchema } from "./overview";
 import { analyticsSelectionInput } from "./analytics";
 import { tasksInput } from "./tasks";
+import { onboardingInput } from "./onboarding";
 import { coursesInput } from "./courses";
 import type { OrchestrationRequest } from "./types";
 
@@ -83,6 +84,20 @@ export function buildOrchestrationRequest(options: OrchestrationRequest) {
           true,
         );
       return plan(tasksInput(options, null), outputSchema, "analysis", true);
+    case "onboarding":
+      if (operationalMetrics !== null)
+        return plan(
+          onboardingInput(options, operationalMetrics),
+          analyticsNarrativeSchema,
+          "analytics",
+          true,
+        );
+      return plan(
+        onboardingInput(options, null),
+        outputSchema,
+        "analysis",
+        true,
+      );
     case "courses":
       if (operationalMetrics !== null)
         return plan(

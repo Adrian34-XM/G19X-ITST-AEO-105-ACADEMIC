@@ -125,6 +125,8 @@ export function OperationsPanel({
   >([]);
   const personalPerformance =
     area === "performance" && !canReviewTeamPerformance(data, profile);
+  // Tareas e incorporación admiten preguntas libres del módulo; el servidor recorta los datos por rol.
+  const moduleQuestion = area === "tasks" || area === "onboarding";
   const [notificationKind, setNotificationKind] = useState("");
   const scoped = data,
     today = new Date().toISOString().slice(0, 10);
@@ -310,7 +312,9 @@ export function OperationsPanel({
                 : "Resumen de novedades con IA"
               : area === "courses"
                 ? "Capacitación recomendada según el puesto"
-                : "Alertas y recomendaciones"}
+                : area === "onboarding"
+                  ? "Consultas y alertas de incorporación"
+                  : "Alertas y recomendaciones"}
           </h2>
         </div>
         <button
@@ -353,48 +357,85 @@ export function OperationsPanel({
           ? "Se genera al abrir esta vista. Puedes actualizarlo cuando lo necesites."
           : "El resumen se genera al abrir este módulo y al cambiar sus filtros. Usa «Actualizar resumen» para volver a analizar con las instrucciones actuales."}
       </p>
-      {["performance", "analytics"].includes(area) && (
+      {["performance", "analytics", "tasks", "onboarding"].includes(area) && (
         <div className="analysis-prompt">
           <label>
-            Instrucciones del análisis (revisables)
+            {moduleQuestion
+              ? "Pregunta sobre este módulo (según tus permisos)"
+              : "Instrucciones del análisis (revisables)"}
             <textarea
               value={prompt}
               maxLength={8000}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={
-                area === "performance"
-                  ? personalPerformance
-                    ? "Analiza mi avance y sugiere cómo organizar mis pendientes y capacitación."
-                    : "Analiza avances y necesidades de capacitación de las personas seleccionadas."
-                  : "Resume cantidades, distribución y oportunidades de mejora del proceso seleccionado."
+                area === "tasks"
+                  ? profile.role === "EMPLEADO"
+                    ? "¿Qué tareas tengo atrasadas y cuáles están pendientes de revisión?"
+                    : "¿Qué entregas requieren revisión y quién tiene tareas atrasadas con los filtros actuales?"
+                  : area === "onboarding"
+                    ? profile.role === "EMPLEADO"
+                      ? "¿Qué actividades de mi incorporación siguen pendientes y qué documentos me piden?"
+                      : "¿Qué incorporaciones tienen actividades atrasadas y quién es responsable de cada una?"
+                    : area === "performance"
+                      ? personalPerformance
+                        ? "Analiza mi avance y sugiere cómo organizar mis pendientes y capacitación."
+                        : "Analiza avances y necesidades de capacitación de las personas seleccionadas."
+                      : "Resume cantidades, distribución y oportunidades de mejora del proceso seleccionado."
               }
             />
           </label>
           <p className="muted">
-            {prompt.length}/8000 caracteres. Indica objetivo, periodo mediante
-            los filtros, procesos, desglose y formato esperado. Las fechas de
-            creación no acreditan cuándo se completó una actividad.
+            {prompt.length}/8000 caracteres.{" "}
+            {moduleQuestion
+              ? "Puedes preguntar cualquier cosa de este módulo: pendientes, atrasos, plazos, responsables, entregas o avances. La respuesta usa solo los registros que tu rol puede ver y los filtros actuales; deja el campo vacío para un resumen automático."
+              : "Indica objetivo, periodo mediante los filtros, procesos, desglose y formato esperado. Las fechas de creación no acreditan cuándo se completó una actividad."}
           </p>
           <details>
             <summary>Qué puedes analizar y cómo pedirlo</summary>
             <p>
               {area === "analytics"
                 ? "Analiza volumen y distribución de vacantes, postulaciones, entrevistas, tareas, capacitaciones e incorporaciones. Puedes pedir porcentajes por estado, comparaciones por área o altas por mes. No se dispone de nómina, horas trabajadas, ausencias ni bajas para calcular costes, productividad o rotación."
-                : "Revisa tareas entregadas y aprobadas, pendientes, capacitación e incorporación de las personas autorizadas. Solicita hallazgos, necesidades de apoyo y próximos pasos; los conteos no sustituyen una evaluación formal."}
+                : area === "tasks"
+                  ? isHR(profile.role)
+                    ? "Consulta tareas de cualquier área: pendientes, atrasadas, entregas por revisar, aprobadas o canceladas, prioridades, plazos y responsables. Puedes pedir comparaciones por área o persona. La IA no asigna, aprueba ni cancela tareas."
+                    : profile.role === "JEFE"
+                      ? "Consulta las tareas de tu equipo y las tuyas: pendientes, atrasadas, entregas por revisar, prioridades y plazos. No se incluyen tareas de otras áreas. La IA no asigna ni aprueba tareas."
+                      : "Consulta tus tareas: cuáles están pendientes, atrasadas, entregadas o aprobadas, sus prioridades y plazos. No se incluyen tareas de otras personas."
+                  : area === "onboarding"
+                    ? isHR(profile.role)
+                      ? "Consulta planes e incorporaciones de cualquier área: actividades pendientes, atrasadas o completadas, responsables (persona, jefatura o RH), plazos y documentos entregados. La IA no completa actividades ni modifica planes."
+                      : profile.role === "JEFE"
+                        ? "Consulta las incorporaciones de tu equipo: actividades pendientes o atrasadas, responsables y plazos, incluidas las que te corresponden como jefatura. Los documentos los revisa RH."
+                        : "Consulta tu propia incorporación: actividades pendientes, atrasadas o completadas, quién es responsable de cada una, plazos y documentos solicitados."
+                    : "Revisa tareas entregadas y aprobadas, pendientes, capacitación e incorporación de las personas autorizadas. Solicita hallazgos, necesidades de apoyo y próximos pasos; los conteos no sustituyen una evaluación formal."}
             </p>
             <p>
               {area === "analytics"
                 ? "Ejemplo: Analiza tareas, capacitaciones e incorporaciones del periodo filtrado por área. Indica totales y porcentajes de cada proceso, aclara qué datos faltan y propone qué revisar antes de decidir acciones. No equipares actividades con personas ni sumes procesos distintos como si fueran empleados."
-                : "Ejemplo: Revisa las tareas, capacitaciones e incorporaciones del ámbito seleccionado. Separa pendientes, entregas por revisar y avances aprobados. Explica qué evidencia respalda cada hallazgo, qué no puede concluirse y propone próximos pasos de apoyo sin emitir decisiones laborales."}
+                : area === "tasks"
+                  ? "Ejemplo: ¿Cuántas tareas de prioridad alta vencen esta semana y cuáles ya se entregaron pero siguen sin revisar?"
+                  : area === "onboarding"
+                    ? "Ejemplo: ¿Qué actividades de incorporación están atrasadas, quién debe completarlas y cuáles requieren un documento?"
+                    : "Ejemplo: Revisa las tareas, capacitaciones e incorporaciones del ámbito seleccionado. Separa pendientes, entregas por revisar y avances aprobados. Explica qué evidencia respalda cada hallazgo, qué no puede concluirse y propone próximos pasos de apoyo sin emitir decisiones laborales."}
             </p>
           </details>
-          <button
-            className="secondary"
-            disabled={preparing}
-            onClick={() => void run("prompt")}
-          >
-            ✧ Proponer instrucciones con IA
-          </button>
+          {moduleQuestion ? (
+            <button
+              className="secondary"
+              disabled={preparing}
+              onClick={() => void run()}
+            >
+              ✧ Responder con IA
+            </button>
+          ) : (
+            <button
+              className="secondary"
+              disabled={preparing}
+              onClick={() => void run("prompt")}
+            >
+              ✧ Proponer instrucciones con IA
+            </button>
+          )}
           {suggestion && (
             <article className="ai-result" aria-live="polite">
               <h3>Propuesta de instrucciones</h3>

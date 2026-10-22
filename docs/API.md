@@ -489,7 +489,7 @@ Multipart: `position_id`, `context` recortado de 10–6000 y `file?` PDF/TXT has
 
 | Campo JSON   | Contrato                                                                               |
 | ------------ | -------------------------------------------------------------------------------------- |
-| `area`       | Obligatorio: `overview`, `tasks`, `courses`, `performance`, `analytics`                |
+| `area`       | Obligatorio: `overview`, `tasks`, `onboarding`, `courses`, `performance`, `analytics`  |
 | `mode?`      | `analyze` predeterminado, o `prompt`                                                   |
 | `prompt?`    | Texto recortado hasta 8000; predeterminado `""`                                        |
 | `filters?`   | Objeto estricto; predeterminado `{}`                                                   |

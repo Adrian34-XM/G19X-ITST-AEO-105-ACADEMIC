@@ -10,7 +10,7 @@ import { filterWorkspace, type WorkspaceFilters } from "./filters";
 import { isHR } from "@/lib/permissions";
 import { type Profile, type Row, type Snapshot, value } from "./types";
 export type InsightArea =
-  "overview" | "courses" | "tasks" | "performance" | "analytics";
+  "overview" | "courses" | "tasks" | "onboarding" | "performance" | "analytics";
 /** El seguimiento colectivo requiere permiso de RH o subordinados autorizados. */
 export function canReviewTeamPerformance(data: Snapshot, profile: Profile) {
   return (
@@ -199,44 +199,56 @@ export function insightContext(
           "courses",
           "course_assignments",
         ]
-      : ["tasks", "performance", "analytics"].includes(area)
+      : area === "onboarding"
         ? [
             "employees",
             "positions",
             "departments",
-            "tasks",
-            "course_assignments",
-            "courses",
-            ...(area === "performance"
-              ? ["onboarding", "onboarding_items"]
-              : []),
-            ...(area === "analytics"
-              ? ["vacancies", "applications", "interviews"]
+            "onboarding",
+            "onboarding_items",
+            ...(isHR(profile.role) || profile.role === "EMPLEADO"
+              ? ["onboarding_documents"]
               : []),
           ]
-        : profile.role === "CANDIDATO"
-          ? ["candidates", "vacancies", "applications", "interviews"]
-          : [
+        : ["tasks", "performance", "analytics"].includes(area)
+          ? [
               "employees",
               "positions",
               "departments",
               "tasks",
-              "courses",
               "course_assignments",
-              "onboarding",
-              "onboarding_items",
-              "climate_surveys",
-              "task_evidence",
-              ...(isHR(profile.role) || profile.role === "EMPLEADO"
-                ? ["onboarding_documents"]
+              "courses",
+              ...(area === "tasks" ? ["task_evidence"] : []),
+              ...(area === "performance"
+                ? ["onboarding", "onboarding_items"]
                 : []),
-              ...(profile.role === "SUPERUSER"
-                ? ["profiles", "audit_logs"]
-                : []),
-              ...(isHR(profile.role)
+              ...(area === "analytics"
                 ? ["vacancies", "applications", "interviews"]
                 : []),
-            ];
+            ]
+          : profile.role === "CANDIDATO"
+            ? ["candidates", "vacancies", "applications", "interviews"]
+            : [
+                "employees",
+                "positions",
+                "departments",
+                "tasks",
+                "courses",
+                "course_assignments",
+                "onboarding",
+                "onboarding_items",
+                "climate_surveys",
+                "task_evidence",
+                ...(isHR(profile.role) || profile.role === "EMPLEADO"
+                  ? ["onboarding_documents"]
+                  : []),
+                ...(profile.role === "SUPERUSER"
+                  ? ["profiles", "audit_logs"]
+                  : []),
+                ...(isHR(profile.role)
+                  ? ["vacancies", "applications", "interviews"]
+                  : []),
+              ];
   // No enviar contraseñas, correos, rutas de archivos, CV ni documentos completos al análisis general.
   const fields = [
     "id",

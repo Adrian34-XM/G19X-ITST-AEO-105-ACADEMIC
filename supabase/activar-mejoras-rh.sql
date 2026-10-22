@@ -788,7 +788,7 @@ begin
  if tg_op='INSERT' then
   -- Sin jerarquía previa, el alta inicial de RH corresponde al superusuario.
   if exists(select 1 from public.profiles where id=new.profile_id and role='RH_ADMIN')
-   and public.current_role() is distinct from 'SUPERUSER' then
+   and auth.uid() is not null and public.current_role() is distinct from 'SUPERUSER' then
    raise exception 'HR_HIERARCHY_FORBIDDEN' using errcode='42501';
   end if;
   return new;

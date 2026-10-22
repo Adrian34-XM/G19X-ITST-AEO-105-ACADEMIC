@@ -13,6 +13,8 @@ import {
 } from "@/lib/ai/orchestration/performance";
 import { promptSchema } from "@/lib/ai/orchestration/draft";
 import { taskWritingStyle } from "@/lib/ai/orchestration/tasks";
+import { onboardingWritingStyle } from "@/lib/ai/orchestration/onboarding";
+import { rolePermissionsInstruction } from "@/lib/ai/orchestration/shared";
 import { analyticsNarrativeInput } from "@/lib/ai/orchestration/analytics";
 import { NextResponse } from "next/server";
 import { activityContext } from "@/modules/workspace/activity-context";
@@ -63,6 +65,7 @@ export async function POST(req: Request) {
                 "overview",
                 "courses",
                 "tasks",
+                "onboarding",
                 "performance",
                 "analytics",
               ])
@@ -201,9 +204,11 @@ export async function POST(req: Request) {
       const activityTables =
         area === "tasks"
           ? ["tasks"]
-          : area === "courses"
-            ? ["course_assignments"]
-            : undefined;
+          : area === "onboarding"
+            ? ["onboarding_items"]
+            : area === "courses"
+              ? ["course_assignments"]
+              : undefined;
       Object.assign(context, {
         verified_activity_context: activityContext(
           activityData,
@@ -217,6 +222,14 @@ export async function POST(req: Request) {
     if (area === "tasks")
       Object.assign(context, {
         writing_style: taskWritingStyle,
+      });
+    if (area === "onboarding")
+      Object.assign(context, {
+        writing_style: onboardingWritingStyle,
+      });
+    if (area === "tasks" || area === "onboarding")
+      Object.assign(context, {
+        role_permissions: rolePermissionsInstruction(area, profile.role),
       });
     const admin = adminDb();
     if (area === "overview") {
@@ -291,11 +304,19 @@ export async function POST(req: Request) {
     try {
       const performanceAnalysis = area === "performance" && mode === "analyze";
       const operationalSummary =
-        automatic && mode === "analyze" && ["tasks", "courses"].includes(area);
+        automatic &&
+        mode === "analyze" &&
+        ["tasks", "onboarding", "courses"].includes(area);
       const operationalMetrics = operationalSummary
         ? analyticsFacts(
             selected,
-            [area === "tasks" ? "tasks" : "course_assignments"],
+            [
+              area === "tasks"
+                ? "tasks"
+                : area === "onboarding"
+                  ? "onboarding"
+                  : "course_assignments",
+            ],
             "status",
           )
         : null;

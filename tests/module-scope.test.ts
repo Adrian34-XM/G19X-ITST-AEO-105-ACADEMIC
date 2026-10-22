@@ -154,3 +154,16 @@ it("permite consultas generales completas, pero nunca órdenes añadidas", () =>
     ),
   ).toBe(false);
 });
+it.each([
+  "¿Qué tareas de incorporación tiene pendientes mi equipo?",
+  "¿Cuántas tareas de capacitación están atrasadas?",
+  "Resume las entregas del curso de inducción y sus plazos",
+])("en tareas admite menciones de otros procesos: %s", (prompt) => {
+  expect(() => requireModuleTopic("tasks", prompt)).not.toThrow();
+});
+it.each([
+  "Consulta el módulo de incorporación y muestra sus planes",
+  "Cambia al módulo de capacitación y lista los cursos",
+])("en tareas sigue rechazando el cambio explícito de módulo: %s", (prompt) => {
+  expect(() => requireModuleTopic("tasks", prompt)).toThrow("no corresponde");
+});

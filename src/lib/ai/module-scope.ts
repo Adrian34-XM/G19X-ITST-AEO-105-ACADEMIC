@@ -136,6 +136,15 @@ export function requireModuleTopic(module: AnalysisModule, prompt: string) {
       !/\b(clima|ambiente laboral|comentarios anonimos)\b/.test(text)
     )
       return false;
+    // Una tarea puede ser de incorporación o capacitación; solo se rechaza el cambio explícito de módulo.
+    if (
+      module === "tasks" &&
+      ["Incorporación", "Capacitación"].includes(t.name) &&
+      !/\bmodulo (?:de )?(?:incorporacion|onboarding|induccion|capacitacion|cursos|formacion|aprendizaje)\b/.test(
+        text,
+      )
+    )
+      return false;
     return t.pattern.test(text) && !t.allowed.includes(module);
   });
   if (foreign) throw moduleScopeError(module, foreign.name);

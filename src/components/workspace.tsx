@@ -2073,20 +2073,24 @@ function WorkspaceContent({
                   )}
                 </div>
               )}
-              {profile && ["tasks"].includes(view) && !candidate && (
-                <details className="panel">
-                  <summary>Alertas y análisis del equipo con IA</summary>
-                  <OperationsPanel
-                    key={view}
-                    filters={activeFilters}
-                    data={data}
-                    profile={profile}
-                    area={
-                      view as "courses" | "tasks" | "performance" | "analytics"
-                    }
-                  />
-                </details>
-              )}
+              {profile &&
+                ["tasks", "onboarding"].includes(view) &&
+                !candidate && (
+                  <details className="panel">
+                    <summary>
+                      {view === "onboarding"
+                        ? "Consultas y análisis de incorporación con IA"
+                        : "Alertas y análisis del equipo con IA"}
+                    </summary>
+                    <OperationsPanel
+                      key={view}
+                      filters={activeFilters}
+                      data={data}
+                      profile={profile}
+                      area={view as "tasks" | "onboarding"}
+                    />
+                  </details>
+                )}
               {view === "employees" &&
                 !detail &&
                 profile &&

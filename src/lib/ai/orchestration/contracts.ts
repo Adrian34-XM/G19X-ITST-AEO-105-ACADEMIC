@@ -6,6 +6,7 @@ export const areaSchema = z.enum([
   "overview",
   "courses",
   "tasks",
+  "onboarding",
   "performance",
   "analytics",
 ]);

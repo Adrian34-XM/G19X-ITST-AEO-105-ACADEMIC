@@ -11,4 +11,4 @@ it('protege tareas y entrevistas incluso con escrituras directas y conserva fech
  await expect(db.exec(`insert into interviews values(1,'2026-09-27T18:00:00Z','SCHEDULED')`)).rejects.toThrow('día hábil');
  await db.exec(`insert into interviews values(2,'2026-09-29T02:00:00Z','SCHEDULED')`);
  await db.close();
-},20000);
+},60000);

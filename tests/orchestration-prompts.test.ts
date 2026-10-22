@@ -8,6 +8,7 @@ import {
 } from "@/lib/ai/orchestration/performance";
 import { analyticsNarrativeInput } from "@/lib/ai/orchestration/analytics";
 import { taskWritingStyle } from "@/lib/ai/orchestration/tasks";
+import { rolePermissionsInstruction } from "@/lib/ai/orchestration/shared";
 import { overviewContext } from "@/modules/workspace/overview";
 import { insightContext } from "@/modules/workspace/insights";
 import { analyticsFacts } from "@/modules/workspace/analytics-summary";
@@ -56,6 +57,7 @@ const selected: Snapshot = {
 const areas = [
   "overview",
   "tasks",
+  "onboarding",
   "courses",
   "performance",
   "analytics",
@@ -165,10 +167,15 @@ it("la vista general de RH transmite hechos verificados sin filas ni identidad p
   );
 });
 
-it.each(["tasks", "courses"] as const)(
+it.each(["tasks", "onboarding", "courses"] as const)(
   "el resumen automático de %s solo recibe los agregados filtrados",
   (area) => {
-    const table = area === "tasks" ? "tasks" : "course_assignments";
+    const table =
+      area === "tasks"
+        ? "tasks"
+        : area === "onboarding"
+          ? "onboarding"
+          : "course_assignments";
     const metrics = analyticsFacts({ [table]: [] }, [table], "status");
     const input = options({
       area,
@@ -287,3 +294,33 @@ it("el texto de tareas distingue entrega y aprobación y no promete leer archivo
   expect(taskWritingStyle).toContain("Distingue entrega de aprobación");
   expect(taskWritingStyle).toContain("este contexto solo incluye metadatos");
 });
+
+it.each(["tasks", "onboarding"] as const)(
+  "el análisis de %s describe el alcance y las acciones del rol sin ampliar datos",
+  (area) => {
+    for (const role of roles) {
+      const text = rolePermissionsInstruction(area, role);
+      expect(text).toContain(`Rol de la sesión: ${role}`);
+      if (role === "EMPLEADO") {
+        expect(text).toMatch(/únicamente sus propios registros/);
+        expect(text).not.toMatch(/Puede crear/);
+      }
+      if (role === "JEFE") expect(text).toMatch(/su equipo/);
+    }
+    const employee = {
+      id: "viewer",
+      role: "EMPLEADO" as const,
+      full_name: "NOMBRE_PRIVADO",
+      email: "privado@nexo.test",
+    };
+    const context = insightContext(selected, employee, area, "2026-10-15");
+    const tables = Object.keys(context.data);
+    if (area === "onboarding") {
+      expect(tables).toEqual(
+        expect.arrayContaining(["onboarding", "onboarding_items"]),
+      );
+      expect(tables).not.toContain("tasks");
+    } else expect(tables).toContain("tasks");
+    expect(context.data.employees.every((e) => e.id === "employee")).toBe(true);
+  },
+);

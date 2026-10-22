@@ -632,13 +632,19 @@ Entradas exportadas: `OrchestrationGeneration`, `buildOrchestrationRequest`.
 
 Construye entradas comunes de análisis operativo y resúmenes automáticos. Los resúmenes automáticos reciben agregados; el análisis conserva el contexto ya filtrado y retira la búsqueda libre de los filtros enviados.
 
-Entradas exportadas: `operationalAnalysisInput`, `automaticSummaryInput`.
+Entradas exportadas: `operationalAnalysisInput`, `automaticSummaryInput`, `rolePermissionsInstruction`.
 
 ### [src/lib/ai/orchestration/tasks.ts](../src/lib/ai/orchestration/tasks.ts)
 
 Define el estilo de tareas y elige entre el análisis del módulo y el resumen automático. Distingue entrega de aprobación y no atribuye lectura del contenido de evidencias al contexto de metadatos.
 
 Entradas exportadas: `taskWritingStyle`, `tasksInput`.
+
+### [src/lib/ai/orchestration/onboarding.ts](../src/lib/ai/orchestration/onboarding.ts)
+
+Define el estilo de incorporación y elige entre el análisis del módulo y el resumen automático. Distingue entrega de documento de actividad completada y no atribuye lectura de documentos al contexto de metadatos.
+
+Entradas exportadas: `onboardingWritingStyle`, `onboardingInput`.
 
 ### [src/lib/ai/orchestration/types.ts](../src/lib/ai/orchestration/types.ts)
 
