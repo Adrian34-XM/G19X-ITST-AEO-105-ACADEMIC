@@ -151,6 +151,8 @@ La redacción debe apoyarse en las fuentes y tratar títulos, CV, comentarios y 
 
 **Entrega:** un veredicto y observaciones. Si `repairOnce` está activo y la respuesta no supera la revisión, el generador recibe las fuentes y los problemas detectados para reformularla una vez y volver a revisar. Si persiste el fallo, se rechaza el análisis. Las observaciones del propio revisor también se tratan como datos no confiables, no como nuevas instrucciones o hechos.
 
+**Hechos de seguimiento calculados en código.** Para Tareas e Incorporación, [follow-up-facts.ts](../src/modules/workspace/follow-up-facts.ts) determina antes de llamar al modelo si cada registro está cerrado, cuántos días lleva vencido, el motivo literal de seguimiento y la antigüedad real de evidencias y documentos del periodo. El generador solo redacta sobre esos hechos; si no hay entregas en el periodo, la ruta responde con una frase fija sin consultar al proveedor, y una respuesta que cita títulos inexistentes se rechaza con `422`. El revisor factual recibe únicamente registros y agregados, no instrucciones, estilo ni historial de conversación, para reducir rechazos erróneos con modelos pequeños.
+
 El servidor comprueba además afirmaciones sobre archivos no leídos y aplica controles de alcance o referencias según el flujo. No guarda una evaluación rechazada como si fuera válida.
 
 ## 4. Organización de las instrucciones

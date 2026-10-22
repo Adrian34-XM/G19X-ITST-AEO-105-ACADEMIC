@@ -55,6 +55,7 @@ Tests notes:
 - `module-scope.ts` classifies whether a question is in scope; `grounding.ts` fact-checks generated answers against the provided data.
 - Numbers, KPIs, and alerts are computed in code/SQL (`src/modules/workspace/insights.ts`, `analytics-summary.ts`, etc.); the AI only narrates them. Some questions (e.g. overdue tasks by area) are answered with server-side counts without calling the AI.
 - Private AI analyses of candidates/surveys are separated from participant-visible records (`src/lib/private-analyses.ts`).
+- Tasks/onboarding answers rely on `src/modules/workspace/follow-up-facts.ts` (server-computed closed/overdue/follow-up reasons, evidence age); empty-period evidence questions get a fixed answer without the model, and answers quoting non-existent titles are rejected (422). Ollama timeouts scale with `OLLAMA_TIMEOUT_MS`.
 
 **Charts**: amCharts 5 loaded on demand in the browser (`src/lib/charts/module-loader.ts`, `src/components/data-chart.tsx`); data is prepared and authorized server-side. Keep the amCharts branding (license, see `THIRD_PARTY_NOTICES.md`).
 

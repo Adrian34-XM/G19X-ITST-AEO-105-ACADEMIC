@@ -485,7 +485,7 @@ Multipart: `position_id`, `context` recortado de 10–6000 y `file?` PDF/TXT has
 
 ### Orquestador por módulo
 
-`POST /api/ai/orchestrate` — internos; `area: "analytics"` solo RH. Fuente: [orchestrate/route.ts](../src/app/api/ai/orchestrate/route.ts) y [contratos de orquestación](../src/lib/ai/orchestration/contracts.ts).
+`POST /api/ai/orchestrate` — internos; `area: "analytics"` solo RH. En `tasks` y `onboarding` el contexto incluye `role_permissions`, `verified_follow_up` y, si se envía `history`, `conversation_history`; una respuesta que cite títulos inexistentes se rechaza con `422` y un tiempo agotado del proveedor devuelve `504`. Fuente: [orchestrate/route.ts](../src/app/api/ai/orchestrate/route.ts) y [contratos de orquestación](../src/lib/ai/orchestration/contracts.ts).
 
 | Campo JSON   | Contrato                                                                                     |
 | ------------ | -------------------------------------------------------------------------------------------- |
@@ -516,6 +516,8 @@ La presencia de un filtro en el esquema no garantiza que todos los módulos lo u
 ### Gráficas perfiles y propuestas de trabajo
 
 `POST /api/ai/workforce` — internos; los modos `training`, `onboarding` o `section: "analytics"` exigen además RH. Para `mode: "tasks"`, una pregunta que solicita tareas atrasadas/vencidas por área o departamento devuelve conteos verificados en servidor (`verified: true`, `source: "server-counts"`) y no llama al proveedor de IA. Solo cuenta tareas con fecha anterior al día actual que no están `SUBMITTED` ni `APPROVED`, dentro del alcance y filtros autorizados. El resto de análisis consume el límite de Nexo de tres ejecuciones por usuario por minuto incluso si usa Ollama local. Fuente: [workforce/route.ts](../src/app/api/ai/workforce/route.ts).
+
+En `mode: "tasks"` y `mode: "onboarding"` el contexto incluye `verified_follow_up`, calculado por [follow-up-facts.ts](../src/modules/workspace/follow-up-facts.ts): cada registro indica si está cerrado, sus días de atraso y el motivo literal de seguimiento; las evidencias y documentos llevan su antigüedad real y solo entran los del periodo de `filters.days` (30 días si no se indica). Si la pregunta trata de evidencias o documentos y no hay ninguno en el periodo, la ruta responde con una frase fija (`model: "server"`) sin llamar al proveedor. Si la respuesta cita un título entrecomillado que no existe en los datos autorizados, se rechaza con `422` y no se guarda. Un tiempo agotado del proveedor devuelve `504` con un aviso que menciona `OLLAMA_TIMEOUT_MS`.
 
 Cuerpo JSON:
 
