@@ -222,8 +222,15 @@ export class OllamaProvider implements AIProvider {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // OLLAMA_TIMEOUT_MS amplía proporcionalmente los tres límites en equipos lentos.
         signal: AbortSignal.timeout(
-          attachment ? 180000 : analytical ? 90000 : 45000,
+          Math.round(
+            (attachment ? 180000 : analytical ? 90000 : 45000) *
+              Math.max(
+                1,
+                (Number(process.env.OLLAMA_TIMEOUT_MS) || 45000) / 45000,
+              ),
+          ),
         ),
         body: JSON.stringify({
           model,

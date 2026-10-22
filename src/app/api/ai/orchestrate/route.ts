@@ -518,6 +518,14 @@ export async function POST(req: Request) {
           504,
           "La IA tardó demasiado en preparar el resumen. Espera a que el modelo termine de cargar y vuelve a intentarlo.",
         );
+      if (
+        e instanceof Error &&
+        (e.name === "TimeoutError" || e.name === "AbortError")
+      )
+        throw new ApiError(
+          504,
+          "La IA tardó demasiado en responder y se canceló la consulta. Espera a que termine otra consulta, usa un modelo más ligero o amplía OLLAMA_TIMEOUT_MS; no se guardaron resultados.",
+        );
       throw new ApiError(
         502,
         "No se pudo completar el análisis. Revisa la disponibilidad del proveedor; las alertas de la plataforma siguen disponibles.",

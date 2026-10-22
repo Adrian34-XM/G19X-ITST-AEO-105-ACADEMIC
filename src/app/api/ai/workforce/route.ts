@@ -663,6 +663,14 @@ export async function POST(req: Request) {
         .eq("id", run)
         .eq("user_id", profile.id);
       if (error instanceof ApiError) throw error;
+      if (
+        error instanceof Error &&
+        (error.name === "TimeoutError" || error.name === "AbortError")
+      )
+        throw new ApiError(
+          504,
+          "La IA tardó demasiado en responder y se canceló la consulta. Espera a que termine otra consulta, usa un modelo más ligero o amplía OLLAMA_TIMEOUT_MS; no se guardaron resultados.",
+        );
       throw new ApiError(
         502,
         "La IA no pudo generar una respuesta válida. Revisa el proveedor e intenta nuevamente; no se guardaron resultados inventados.",
