@@ -4,7 +4,7 @@ Aplicación web para reclutamiento, equipo y organigrama, incorporación, capaci
 
 Tecnologías: Node.js 24, Next.js 16, React 19, TypeScript, Supabase Auth, PostgreSQL, Storage privado y amCharts 5 para gráficas interactivas. La IA puede usar Ollama local o Gemini.
 
-Para el apoyo en el desarrollo de este sistema se utilizo chatGPT-Astra
+Para el apoyo en el desarrollo de este sistema se utilizo chatGPT-Astra y Fable 5.1
 
 ## Índice de documentación
 
