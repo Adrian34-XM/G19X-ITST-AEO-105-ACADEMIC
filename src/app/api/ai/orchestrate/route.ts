@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     const { client, profile } = await authenticate();
     if (profile.role === "CANDIDATO")
       throw new ApiError(403, "Los análisis de IA son de uso interno.");
-    const { area, filters, mode, prompt, force, automatic } = z
+    const { area, filters, mode, prompt, force, automatic, history } = z
       .object({
         area: areaSchema,
         filters: z
@@ -93,6 +93,18 @@ export async function POST(req: Request) {
         prompt: z.string().trim().max(8000).default(""),
         force: z.boolean().default(false),
         automatic: z.boolean().default(false),
+        // Intercambios previos de la misma vista; datos no confiables para dar continuidad conversacional.
+        history: z
+          .array(
+            z
+              .object({
+                question: z.string().trim().max(2000),
+                answer: z.string().trim().max(4000),
+              })
+              .strict(),
+          )
+          .max(4)
+          .default([]),
       })
       .strict()
       .parse(await readJson(req));
@@ -230,6 +242,14 @@ export async function POST(req: Request) {
     if (area === "tasks" || area === "onboarding")
       Object.assign(context, {
         role_permissions: rolePermissionsInstruction(area, profile.role),
+        ...(history.length && prompt
+          ? {
+              conversation_history: history.map((turn) => ({
+                user: turn.question.slice(0, 2000),
+                assistant: turn.answer.slice(0, 4000),
+              })),
+            }
+          : {}),
       });
     const admin = adminDb();
     if (area === "overview") {
@@ -431,6 +451,24 @@ export async function POST(req: Request) {
           ...r,
           title: readableOverview(r.title, context.data),
           reason: readableOverview(r.reason, context.data),
+        }));
+      }
+      if (area === "tasks" || area === "onboarding") {
+        // El modelo nunca recibe nombres: cita identificadores autorizados y el servidor los sustituye.
+        const people = (context.data.employees ?? []).flatMap((e) => {
+          const person = (authorized.profiles ?? []).find(
+            (p) => p.id === e.profile_id,
+          );
+          return person?.full_name
+            ? [{ id: e.id, name: String(person.full_name) }]
+            : [];
+        });
+        const readableData = { ...context.data, people };
+        parsed.summary = readableOverview(parsed.summary, readableData);
+        parsed.recommendations = parsed.recommendations.map((r) => ({
+          ...r,
+          title: readableOverview(r.title, readableData),
+          reason: readableOverview(r.reason, readableData),
         }));
       }
       // Evita vínculos inventados o referencias a personas fuera del alcance autorizado.

@@ -127,6 +127,13 @@ export function OperationsPanel({
     area === "performance" && !canReviewTeamPerformance(data, profile);
   // Tareas e incorporación admiten preguntas libres del módulo; el servidor recorta los datos por rol.
   const moduleQuestion = area === "tasks" || area === "onboarding";
+  // Hilo de la vista actual; se envían los últimos intercambios para dar continuidad a la conversación.
+  // El hilo se guarda con su alcance: al cambiar filtros o rol se muestra vacío sin efectos adicionales.
+  const [turns, setTurns] = useState<{
+    scope: string;
+    items: Array<{ question: string; answer: string; generated: string }>;
+  }>({ scope: scopeKey, items: [] });
+  const thread = turns.scope === scopeKey ? turns.items : [];
   const [notificationKind, setNotificationKind] = useState("");
   const scoped = data,
     today = new Date().toISOString().slice(0, 10);
@@ -253,6 +260,8 @@ export function OperationsPanel({
       setAdvice(null);
       setAnalyticsMetrics([]);
     } else setSuggestion("");
+    const question = prompt.trim();
+    const conversational = moduleQuestion && mode === "analyze" && !!question;
     try {
       const r = await requestAnalysis(
         profile.id,
@@ -264,6 +273,14 @@ export function OperationsPanel({
           mode,
           force: mode === "analyze",
           automatic: mode === "analyze" && !prompt.trim(),
+          ...(conversational
+            ? {
+                history: thread.slice(-4).map((turn) => ({
+                  question: turn.question.slice(0, 2000),
+                  answer: turn.answer.slice(0, 4000),
+                })),
+              }
+            : {}),
         },
         {
           onWaiting: (value) => {
@@ -277,9 +294,20 @@ export function OperationsPanel({
         setSuggestion(r.prompt);
         return;
       }
-      setAdvice(requireSummary(r.result));
+      const result = requireSummary(r.result);
+      setAdvice(result);
       setAnalyticsMetrics(Array.isArray(r.metrics) ? r.metrics : []);
       setGenerated(r.generated_at);
+      if (conversational) {
+        setTurns((previous) => ({
+          scope: scopeKey,
+          items: [
+            ...(previous.scope === scopeKey ? previous.items : []),
+            { question, answer: result.summary, generated: r.generated_at },
+          ],
+        }));
+        setPrompt("");
+      }
     } catch (e) {
       if (execution.current === id)
         setError(e instanceof Error ? e.message : "No se pudo analizar.");
@@ -480,6 +508,46 @@ export function OperationsPanel({
           </p>
         </div>
       )}
+      {moduleQuestion && thread.length > 0 && resultScope === scopeKey && (
+        <section
+          className="task-chat-panel"
+          aria-label="Conversación con la IA del módulo"
+        >
+          <h3>Conversación</h3>
+          <div className="task-chat-messages" aria-live="polite">
+            {thread.map((turn, i) => (
+              <div key={i} style={{ display: "contents" }}>
+                <article className="task-chat-message" data-own="true">
+                  <small>Tú</small>
+                  <p>{turn.question}</p>
+                </article>
+                <article className="task-chat-message">
+                  <small>
+                    Nexo IA ·{" "}
+                    {new Date(turn.generated).toLocaleTimeString("es-MX", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </small>
+                  {turn.answer
+                    .split(/\n\s*\n/)
+                    .filter(Boolean)
+                    .map((paragraph, j) => (
+                      <p key={j}>
+                        <StatusText text={paragraph} />
+                      </p>
+                    ))}
+                </article>
+              </div>
+            ))}
+          </div>
+          <p className="muted">
+            Las respuestas usan solo los registros que tu rol puede ver con los
+            filtros actuales y requieren revisión humana. Puedes seguir
+            preguntando arriba; el hilo se reinicia al cambiar de filtros.
+          </p>
+        </section>
+      )}
       {advice && resultScope === scopeKey && (
         <div
           className="ai-result"
@@ -490,13 +558,22 @@ export function OperationsPanel({
           <h3>
             {area === "overview"
               ? "Resumen y próximos pasos"
-              : "Recomendaciones de IA"}
+              : thread.length > 0 &&
+                  thread[thread.length - 1].answer === advice.summary
+                ? "Recomendaciones relacionadas"
+                : "Recomendaciones de IA"}
           </h3>
           <small>
             Generadas: {new Date(generated).toLocaleString("es-MX")} · Revisión
             humana requerida
           </small>
-          <div className="ai-summary-text">
+          <div
+            className="ai-summary-text"
+            hidden={
+              thread.length > 0 &&
+              thread[thread.length - 1].answer === advice.summary
+            }
+          >
             {advice.summary
               .split(/\n\s*\n/)
               .filter(Boolean)

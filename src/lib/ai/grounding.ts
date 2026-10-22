@@ -214,6 +214,30 @@ export function groundingContext(
   // natural para no confundir el enum sugerido con un estado persistido en las fuentes.
   let proposedAnswer = result;
   let sources = context;
+  // El revisor compara hechos: recibe registros y agregados, no instrucciones, estilo ni historial,
+  // que confunden a modelos pequeños y provocan rechazos de respuestas correctas.
+  if (
+    context &&
+    typeof context === "object" &&
+    "data" in context &&
+    !("verified_metrics" in context)
+  ) {
+    const factualKeys = [
+      "role",
+      "area",
+      "today",
+      "period",
+      "notice",
+      "data",
+      "verified_activity_context",
+      "verified_facts",
+      "signals",
+      "user_request",
+    ];
+    sources = Object.fromEntries(
+      Object.entries(context).filter(([key]) => factualKeys.includes(key)),
+    );
+  }
   if (context && typeof context === "object" && "verified_metrics" in context) {
     sources = {
       verified_metrics: context.verified_metrics,

@@ -159,33 +159,33 @@ La API valida el cuerpo y las migraciones necesarias; SQL autoriza cada acción.
 
 Convenciones de esta tabla: `corto` = texto recortado de 1–150 caracteres; `texto` = 1–14000; `id` = UUID. Todos los campos son obligatorios salvo `?`.
 
-| `op`                   | `payload`                                                                                                                                                                           |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `department.save`      | `id?`, `name: corto`                                                                                                                                                                |
-| `department.delete`    | `id`                                                                                                                                                                                |
+| `op`                      | `payload`                                                                                                                                                                                                                        |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `department.save`         | `id?`, `name: corto`                                                                                                                                                                                                             |
+| `department.delete`       | `id`                                                                                                                                                                                                                             |
 | `department.manager.save` | `department_id`, `employee_id: UUID o cadena vacía` — solo `SUPERUSER`; asigna, cambia o quita al encargado del área Recursos Humanos. El destino debe ser un empleado activo y tener perfil activo con rol `RH_ADMIN` o `JEFE`. |
-| `position.save`        | `id?`, `name: corto`, `department_id: UUID`                                                                                                                                         |
-| `position.delete`      | `id`                                                                                                                                                                                |
-| `profile.admin`        | `id`, `role: uno de los cinco roles`, `active: boolean`                                                                                                                             |
-| `candidate.save`       | `phone: string hasta 40`, `skills: corto[] hasta 40`, `experience_years: number 0–80`                                                                                               |
-| `vacancy.save`         | `id?`, `position_id`, `title: corto`, `description: texto`, `requirements: texto`, `skills: corto[] hasta 40`, `experience_required: number 0–80`, `status: DRAFT/PUBLISHED/CLOSED` |
-| `vacancy.delete`       | `id`                                                                                                                                                                                |
-| `application.create`   | `vacancy_id: UUID`                                                                                                                                                                  |
-| `application.withdraw` | `id` de postulación                                                                                                                                                                 |
-| `application.status`   | `id`, `status: EN_REVISION/PRESELECCIONADO/RECHAZADO`                                                                                                                               |
-| `application.hire`     | `id`, `department_id?`, `position_id?`, `manager_id?: UUID o ""`                                                                                                                    |
-| `interview.save`       | `id?`, `application_id`, `scheduled_at: instante con zona`, `interviewer_id`, `notes: string hasta 4000`, `status: SCHEDULED/COMPLETED/CANCELLED`                                   |
-| `interview.cancel`     | `id`                                                                                                                                                                                |
-| `employee.enroll`      | `profile_id`, `position_id`, `manager_id: UUID o ""`                                                                                                                                |
-| `employee.save`        | `id`, `position_id`, `manager_id: UUID o ""`, `status: ACTIVE/INACTIVE`                                                                                                             |
-| `onboarding.complete`  | `id` de actividad                                                                                                                                                                   |
-| `course.save`          | `id?`, `title: corto`, `description: texto`, `content: texto`, `duration_minutes: entero 1–10000`, `required: boolean`, `department_id?: UUID o ""`, `position_id?: UUID o ""`      |
-| `course.delete`        | `id`                                                                                                                                                                                |
-| `course.assign`        | `id` del curso, `employee_id`, `due_date: fecha`                                                                                                                                    |
-| `course.progress`      | `id` de asignación, `progress: entero 0–100`                                                                                                                                        |
-| `course.review`        | `id` de asignación, `status: COMPLETED/IN_PROGRESS`, `comments: texto`                                                                                                              |
-| `task.save`            | `id?`, `title: corto`, `description: texto`, `employee_id`, `priority: LOW/MEDIUM/HIGH`, `due_date: fecha hábil`                                                                    |
-| `task.status`          | `id`, `status: IN_PROGRESS/APPROVED/REJECTED`, `comments?: string hasta 4000`                                                                                                       |
+| `position.save`           | `id?`, `name: corto`, `department_id: UUID`                                                                                                                                                                                      |
+| `position.delete`         | `id`                                                                                                                                                                                                                             |
+| `profile.admin`           | `id`, `role: uno de los cinco roles`, `active: boolean`                                                                                                                                                                          |
+| `candidate.save`          | `phone: string hasta 40`, `skills: corto[] hasta 40`, `experience_years: number 0–80`                                                                                                                                            |
+| `vacancy.save`            | `id?`, `position_id`, `title: corto`, `description: texto`, `requirements: texto`, `skills: corto[] hasta 40`, `experience_required: number 0–80`, `status: DRAFT/PUBLISHED/CLOSED`                                              |
+| `vacancy.delete`          | `id`                                                                                                                                                                                                                             |
+| `application.create`      | `vacancy_id: UUID`                                                                                                                                                                                                               |
+| `application.withdraw`    | `id` de postulación                                                                                                                                                                                                              |
+| `application.status`      | `id`, `status: EN_REVISION/PRESELECCIONADO/RECHAZADO`                                                                                                                                                                            |
+| `application.hire`        | `id`, `department_id?`, `position_id?`, `manager_id?: UUID o ""`                                                                                                                                                                 |
+| `interview.save`          | `id?`, `application_id`, `scheduled_at: instante con zona`, `interviewer_id`, `notes: string hasta 4000`, `status: SCHEDULED/COMPLETED/CANCELLED`                                                                                |
+| `interview.cancel`        | `id`                                                                                                                                                                                                                             |
+| `employee.enroll`         | `profile_id`, `position_id`, `manager_id: UUID o ""`                                                                                                                                                                             |
+| `employee.save`           | `id`, `position_id`, `manager_id: UUID o ""`, `status: ACTIVE/INACTIVE`                                                                                                                                                          |
+| `onboarding.complete`     | `id` de actividad                                                                                                                                                                                                                |
+| `course.save`             | `id?`, `title: corto`, `description: texto`, `content: texto`, `duration_minutes: entero 1–10000`, `required: boolean`, `department_id?: UUID o ""`, `position_id?: UUID o ""`                                                   |
+| `course.delete`           | `id`                                                                                                                                                                                                                             |
+| `course.assign`           | `id` del curso, `employee_id`, `due_date: fecha`                                                                                                                                                                                 |
+| `course.progress`         | `id` de asignación, `progress: entero 0–100`                                                                                                                                                                                     |
+| `course.review`           | `id` de asignación, `status: COMPLETED/IN_PROGRESS`, `comments: texto`                                                                                                                                                           |
+| `task.save`               | `id?`, `title: corto`, `description: texto`, `employee_id`, `priority: LOW/MEDIUM/HIGH`, `due_date: fecha hábil`                                                                                                                 |
+| `task.status`             | `id`, `status: IN_PROGRESS/APPROVED/REJECTED`, `comments?: string hasta 4000`                                                                                                                                                    |
 
 `candidate.save` actualiza el perfil de candidato asociado a la sesión; no admite un `id` arbitrario. Los `id` opcionales de guardado distinguen alta y edición, sujetos a SQL.
 
@@ -487,14 +487,15 @@ Multipart: `position_id`, `context` recortado de 10–6000 y `file?` PDF/TXT has
 
 `POST /api/ai/orchestrate` — internos; `area: "analytics"` solo RH. Fuente: [orchestrate/route.ts](../src/app/api/ai/orchestrate/route.ts) y [contratos de orquestación](../src/lib/ai/orchestration/contracts.ts).
 
-| Campo JSON   | Contrato                                                                               |
-| ------------ | -------------------------------------------------------------------------------------- |
-| `area`       | Obligatorio: `overview`, `tasks`, `onboarding`, `courses`, `performance`, `analytics`  |
-| `mode?`      | `analyze` predeterminado, o `prompt`                                                   |
-| `prompt?`    | Texto recortado hasta 8000; predeterminado `""`                                        |
-| `filters?`   | Objeto estricto; predeterminado `{}`                                                   |
-| `force?`     | Boolean, predeterminado `false`; omite reutilización del resumen cuando procede        |
-| `automatic?` | Boolean, predeterminado `false`; activa la modalidad automática prevista por el módulo |
+| Campo JSON   | Contrato                                                                                     |
+| ------------ | -------------------------------------------------------------------------------------------- |
+| `area`       | Obligatorio: `overview`, `tasks`, `onboarding`, `courses`, `performance`, `analytics`        |
+| `mode?`      | `analyze` predeterminado, o `prompt`                                                         |
+| `prompt?`    | Texto recortado hasta 8000; predeterminado `""`                                              |
+| `filters?`   | Objeto estricto; predeterminado `{}`                                                         |
+| `force?`     | Boolean, predeterminado `false`; omite reutilización del resumen cuando procede              |
+| `automatic?` | Boolean, predeterminado `false`; activa la modalidad automática prevista por el módulo       |
+| `history?`   | Hasta 4 `{ question, answer }` previos; solo `tasks` y `onboarding` lo usan como continuidad |
 
 Filtros admitidos, todos opcionales:
 
