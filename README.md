@@ -4,7 +4,7 @@ Aplicación web para reclutamiento, equipo y organigrama, incorporación, capaci
 
 Tecnologías: Node.js 24, Next.js 16, React 19, TypeScript, Supabase Auth, PostgreSQL, Storage privado y amCharts 5 para gráficas interactivas. La IA puede usar Ollama local o Gemini.
 
-Para el apoyo en el desarrollo de este sistema se utilizo chatGPT-Astra y Fable 5.1
+Para el apoyo en el desarrollo de este sistema se utilizo chatGPT-Astra y Fable 5.1 para la creacion de codigo, pruebas y apoyo en la documentacion del sistema.
 
 ## Índice de documentación
 
@@ -382,14 +382,6 @@ Para arrancar una compilación de producción en la misma máquina, detén `npm 
 - Al solicitar gráficas, indica proceso, desglose y periodo; por ejemplo: «Estados de tareas en cada área durante los últimos 7 días». Revisa la descripción, la fecha utilizada y las limitaciones de cada gráfica antes de tomar decisiones. Los indicadores se calculan sobre los datos autorizados cargados, con un máximo de 1000 registros por tabla; no representan por sí solos una evaluación integral de desempeño.
 
 Las evaluaciones de postulaciones son internas de RH/superusuario. Los análisis de encuestas se reservan a RH/superusuario y a la jefatura creadora; poder contestar una encuesta no concede acceso a su análisis. Estos controles requieren la migración de análisis privados indicada en el apartado 3.
-
-### LM-IA-01 · Rechazo intermitente de análisis: limitación aceptada del MVP
-
-**Estado:** aceptada para el alcance del MVP el **13 de octubre de 2026**, por solicitud expresa del responsable del proyecto en este chat. Esta aceptación cierra el pendiente de documentar y aceptar esta limitación concreta. La comprobación de registro, confirmación de correo y recuperación de contraseña conserva su seguimiento independiente.
-
-**Comportamiento observado.** Un análisis de evidencia ficticia con Ollama y `qwen2.5:3b` fue rechazado por la revisión factual: «La respuesta de IA no pudo respaldarse con los datos disponibles. No se guardó esa evaluación; revisa los registros o archivos e intenta nuevamente». Al repetir únicamente el mismo caso, sin desactivar la validación, se obtuvo una respuesta válida y la prueba pasó. La causa específica de la variación no quedó determinada de forma concluyente.
-
-**Evidencia del 13 de octubre de 2026.** La ejecución completa de IA real tuvo **23 pruebas aprobadas y 1 fallida de 24**. La repetición del caso fallido tuvo **1 aprobada y 0 fallidas**. El caso es `analiza la evidencia indicada con Ollama y valida su respuesta sin guardar cambios`, en [tests/evidence-live.test.ts](tests/evidence-live.test.ts). Los informes originales se conservan localmente en `.local/mvp-final-ai-complete-20261013.json` y `.local/mvp-final-evidence-recheck.json`; esos archivos no se distribuyen en Git. La repetición aprobada se registra por separado y no convierte retrospectivamente la ejecución completa en una suite sin fallos. Estos resultados tampoco establecen una tasa de fallo general ni garantizan el siguiente análisis.
 
 **Impacto aceptado.** Una consulta válida puede terminar sin análisis y requerir un nuevo intento o revisión manual de los archivos. Se acepta esa interrupción puntual para la demostración y uso supervisado del MVP. La aceptación no acredita la exactitud universal de las respuestas ni certifica disponibilidad para una operación empresarial continua.
 
