@@ -72,7 +72,7 @@ npm run seed
 
 Las migraciones están en `supabase/migrations/` y se ejecutan en orden. Incluyen auditoría, permisos, evidencias, encuestas, conversaciones y fotos de perfil. No ejecutes únicamente una migración de mejoras en una base vacía: depende de las anteriores.
 
-La migración `202610080001_private_ai_analyses.sql` separa las evaluaciones internas de las postulaciones y encuestas visibles a participantes. Conserva los análisis anteriores en tablas privadas y los permisos de RH/jefaturas. Aplícala antes de iniciar esta versión; un cambio de interfaz no sustituye la protección RLS. Los instaladores SQL agregados son históricos y no incluyen esta corrección: actualiza con las migraciones posteriores en orden y comprueba el resultado con `supabase/verificar-migraciones.sql`.
+La migración `202610080001_private_ai_analyses.sql` separa las evaluaciones internas de las postulaciones y encuestas visibles a participantes. Conserva los análisis anteriores en tablas privadas y los permisos de RH/jefaturas. Aplícala antes de iniciar esta versión; un cambio de interfaz no sustituye la protección RLS. `supabase/activar-mejoras-rh.sql` incluye esta corrección y las migraciones posteriores hasta `202610220003`, cada una con comprobación de instalado; tras ejecutarlo, comprueba el resultado con `supabase/verificar-migraciones.sql`.
 
 La migración `202610210001_hr_top_manager_only.sql` endurece la edición de datos laborales de RH: solo la persona RH más alta en la jerarquía puede modificar a otro integrante RH. En una instancia alojada, aplica esta y todas las migraciones posteriores en orden antes de utilizar esas operaciones.
 
