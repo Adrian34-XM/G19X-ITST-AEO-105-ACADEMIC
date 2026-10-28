@@ -10,7 +10,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Snapshot } from "./types";
-import { applicationAnalyses } from "@/lib/private-analyses";
+import { applicationAnalyses, interviewNotes } from "@/lib/private-analyses";
 export const tables = [
   "profiles",
   "departments",
@@ -46,7 +46,14 @@ export async function snapshot(
     tables.map(async (table) => {
       if (table === "audit_logs" && profile?.role !== "SUPERUSER")
         return [table, []] as const;
-      let query = client.from(table).select("*");
+      // Las notas de entrevista son internas: nunca se piden en la consulta general.
+      // Las filas se tratan como registros genéricos; la lista explícita solo omite columnas.
+      const columns = (
+        table === "interviews"
+          ? "id,application_id,scheduled_at,interviewer_id,status,created_by,created_at"
+          : "*"
+      ) as "*";
+      let query = client.from(table).select(columns);
       // Catálogos y relaciones permanecen para resolver permisos y áreas. Los movimientos
       // se filtran en SQL, antes de descargarlos; no se interpreta creación como finalización.
       if (
@@ -73,6 +80,11 @@ export async function snapshot(
         return [
           table,
           await applicationAnalyses(client, data ?? [], profile?.role ?? ""),
+        ] as const;
+      if (table === "interviews")
+        return [
+          table,
+          await interviewNotes(client, data ?? [], profile?.role ?? ""),
         ] as const;
       return [table, data] as const;
     }),

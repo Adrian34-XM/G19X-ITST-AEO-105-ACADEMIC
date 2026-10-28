@@ -54,6 +54,41 @@ export async function applicationAnalyses(
     : safe;
 }
 
+/** Notas internas de entrevista: solo RH las recibe, desde su tabla privada con RLS. */
+export async function interviewNotes(
+  client: SupabaseClient,
+  rows: RecordWithId[],
+  role: string,
+) {
+  // La columna antigua queda vacía, pero nunca se reenvía aunque la base esté desactualizada.
+  const safe = rows.map((row) => {
+    const safe = { ...row };
+    delete safe.notes;
+    return safe;
+  });
+  if (!["RH_ADMIN", "SUPERUSER"].includes(role) || !safe.length) return safe;
+  const notes = new Map<string, string>();
+  for (let start = 0; start < safe.length; start += 100) {
+    const { data, error } = await client
+      .from("interview_notes")
+      .select("interview_id,notes")
+      .in(
+        "interview_id",
+        safe.slice(start, start + 100).map((row) => row.id),
+      );
+    if (error) {
+      if (["42P01", "PGRST205"].includes(error.code))
+        throw new ApiError(
+          503,
+          "Aplica supabase/migrations/202610280001_private_interview_notes.sql para proteger las notas de entrevista.",
+        );
+      databaseError(error);
+    }
+    for (const note of data ?? []) notes.set(note.interview_id, note.notes);
+  }
+  return safe.map((row) => ({ ...row, notes: notes.get(row.id) ?? "" }));
+}
+
 export async function climateAnalyses(
   client: SupabaseClient,
   rows: RecordWithId[],

@@ -1,7 +1,7 @@
 -- Activación repetible. Ejecutar completo en SQL Editor del proyecto existente.
 -- Requiere las migraciones iniciales del 14 y 15 de septiembre (o instalar-proyecto.sql).
 -- Incluye, en orden y con comprobación de instalado, todas las migraciones hasta
--- 202610220003_hr_seed_guard.sql. Al agregar una migración nueva, añade su bloque al final.
+-- 202610280001_private_interview_notes.sql. Al agregar una migración nueva, añade su bloque al final.
 begin;
 
 -- Detiene la actualización antes de cualquier cambio si falta la instalación base.
@@ -1021,7 +1021,7 @@ end $activation$;
 commit;
 
 -- ============================================================================
--- Migraciones del 28 de septiembre al 22 de octubre. Cada bloque comprueba si ya
+-- Migraciones del 28 de septiembre al 28 de octubre. Cada bloque comprueba si ya
 -- está instalado y, si no, ejecuta la migración íntegra en su propia transacción.
 -- Mantener en orden: cada bloque depende de los anteriores.
 -- ============================================================================
@@ -1160,7 +1160,9 @@ do $$
 declare f record; source text; needle text := E'when ''position.save'' then\n if r<>''SUPERUSER'' then raise insufficient_privilege; end if;'; changed integer:=0;
 begin
  for f in select p.oid from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.prokind='f' loop
-  source:=pg_get_functiondef(f.oid);
+  -- Normaliza CRLF: al copiar el instalador desde Windows, las funciones conservan \r\n y el
+  -- fragmento buscado (con \n) no coincidiría.
+  source:=replace(pg_get_functiondef(f.oid),E'\r\n',E'\n');
   if position(needle in source)>0 then
    execute replace(source,needle,E'when ''position.save'' then\n if r not in (''SUPERUSER'',''RH_ADMIN'') then raise insufficient_privilege; end if;');
    changed:=changed+1;
@@ -2060,6 +2062,48 @@ $mejora$;
 end $activation$;
 commit;
 
+-- 202610280001_private_interview_notes.sql: Notas de entrevista privadas para RH
+begin;
+do $activation$ begin
+ if to_regclass('public.interview_notes') is null then
+ execute $mejora$
+-- Las notas de entrevista son internas de RH. El candidato lee sus entrevistas (fecha, estado),
+-- pero no las notas: se guardan en una tabla privada y la columna original queda vacía y falla cerrado.
+-- Las escrituras de command no cambian: un disparador traslada las notas al guardar.
+create table public.interview_notes (
+ interview_id uuid primary key references public.interviews(id) on delete cascade deferrable initially deferred,
+ notes text not null check (length(notes) between 1 and 4000),
+ updated_at timestamptz not null default now()
+);
+alter table public.interview_notes enable row level security;
+revoke all on public.interview_notes from public, anon, authenticated;
+grant select on public.interview_notes to authenticated;
+grant all on public.interview_notes to service_role;
+create policy interview_notes_read on public.interview_notes for select using (public.is_hr());
+insert into public.interview_notes(interview_id,notes)
+ select id,left(notes,4000) from public.interviews where btrim(notes)<>'';
+update public.interviews set notes='' where notes<>'';
+create or replace function public.store_interview_notes() returns trigger
+language plpgsql security definer set search_path='' as $$
+begin
+ if btrim(coalesce(new.notes,''))='' then
+  if tg_op='UPDATE' then delete from public.interview_notes where interview_id=new.id; end if;
+ else
+  insert into public.interview_notes(interview_id,notes) values(new.id,left(new.notes,4000))
+   on conflict(interview_id) do update set notes=excluded.notes,updated_at=now();
+ end if;
+ new.notes:='';
+ return new;
+end $$;
+revoke all on function public.store_interview_notes() from public, anon, authenticated;
+create trigger interview_notes_private before insert or update of notes on public.interviews
+ for each row execute function public.store_interview_notes();
+alter table public.interviews add constraint interview_notes_private check (notes='');
+$mejora$;
+ end if;
+end $activation$;
+commit;
+
 -- Resultado de la sincronización: todo debe ser true.
 select to_regclass('public.onboarding_learning') is not null as material_onboarding,
  to_regprocedure('public.save_department(uuid,text)') is not null as areas_rh,
@@ -2070,4 +2114,5 @@ select to_regclass('public.onboarding_learning') is not null as material_onboard
  to_regclass('public.application_assessments') is not null as analisis_ia_privados,
  to_regprocedure('public.save_department_manager(uuid,uuid)') is not null as encargado_rh,
  to_regprocedure('public.hr_area_legacy_command(text,jsonb)') is not null as jerarquia_area_rh,
- (select public.hr_hierarchy_version()) as version_jerarquia_rh;
+ (select public.hr_hierarchy_version()) as version_jerarquia_rh,
+ to_regclass('public.interview_notes') is not null as notas_entrevista_privadas;

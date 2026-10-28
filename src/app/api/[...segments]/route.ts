@@ -23,7 +23,7 @@ import { schemas, type Operation } from "@/modules/commands/schemas";
 import { performance } from "@/modules/performance/service";
 import { GET as getFile, POST as uploadFile } from "@/app/api/files/route";
 import { POST as ai } from "@/app/api/ai/[useCase]/route";
-import { applicationAnalyses } from "@/lib/private-analyses";
+import { applicationAnalyses, interviewNotes } from "@/lib/private-analyses";
 type Ctx = { params: Promise<{ segments: string[] }> };
 const resources: Record<string, string> = {
   vacancies: "vacancies",
@@ -164,7 +164,9 @@ export async function GET(req: Request, ctx: Ctx) {
       throw new ApiError(404, "Recurso no encontrado.");
     const records = table === "applications"
       ? await applicationAnalyses(client, data ?? [], profile.role)
-      : data;
+      : table === "interviews"
+        ? await interviewNotes(client, data ?? [], profile.role)
+        : data;
     return NextResponse.json(s[1] ? records![0] : { data: records, page, page_size: 50 }, {
       headers: { "Cache-Control": "no-store" },
     });

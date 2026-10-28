@@ -576,9 +576,9 @@ Entradas exportadas: `authEmailRedirect`, `recoveryMessage`, `registrationMessag
 
 ### [src/lib/private-analyses.ts](../src/lib/private-analyses.ts)
 
-Incorpora evaluaciones de postulaciones y encuestas mediante la sesión; las políticas RLS de las tablas privadas deciden qué filas pueden leerse.
+Incorpora evaluaciones de postulaciones y encuestas, y las notas internas de entrevista, mediante la sesión; las políticas RLS de las tablas privadas deciden qué filas pueden leerse. Las notas se quitan siempre a quien no es RH, aunque la columna antigua conservara texto.
 
-Entradas exportadas: `applicationAnalyses`, `climateAnalyses`.
+Entradas exportadas: `applicationAnalyses`, `climateAnalyses`, `interviewNotes`.
 
 ### [src/lib/storage/profile-photo.ts](../src/lib/storage/profile-photo.ts)
 
