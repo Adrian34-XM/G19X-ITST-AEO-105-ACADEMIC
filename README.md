@@ -385,6 +385,12 @@ Para arrancar una compilación de producción en la misma máquina, detén `npm 
 
 Las evaluaciones de postulaciones son internas de RH/superusuario. Los análisis de encuestas se reservan a RH/superusuario y a la jefatura creadora; poder contestar una encuesta no concede acceso a su análisis. Estos controles requieren la migración de análisis privados indicada en el apartado 3.
 
+### LM-IA-01 — Rechazo intermitente de análisis (limitación aceptada del MVP)
+
+En la evaluación automatizada de evidencias de tareas, el módulo de verificación factual (grounding.ts) presenta rechazos intermitentes (falsos positivos) en análisis legítimos, resolviéndose favorablemente al reintentar la operación. Luego de analizar el flujo de inferencia y los datos de entrada, no se detectó un patrón determinista.
+
+Se clasificó como limitación aceptada para el MVP debido a que el sistema opera bajo un principio estricto de contención: previene la persistencia de datos inventados y mantiene al usuario humano como único responsable de la aprobación final.
+
 **Impacto aceptado.** Una consulta válida puede terminar sin análisis y requerir un nuevo intento o revisión manual de los archivos. Se acepta esa interrupción puntual para la demostración y uso supervisado del MVP. La aceptación no acredita la exactitud universal de las respuestas ni certifica disponibilidad para una operación empresarial continua.
 
 **Tratamiento operativo y controles que se conservan:**
