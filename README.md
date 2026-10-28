@@ -244,6 +244,14 @@ El enlace puede solicitar la contraseña de PostgreSQL del proyecto; no es la co
 
 El comando con `--dry-run --skip-vault` permite revisar qué migraciones se aplicarían sin aplicarlas ni actualizar secretos de Vault. Lee ese resultado antes del `db push` real. Para actualizar una instalación alojada existente, respalda los datos y sigue el mismo flujo con su proyecto autorizado; aplica únicamente las migraciones pendientes, sin reset ni seed. Actualizar o subir el código a GitHub no actualiza la base de datos.
 
+**Alternativa sin CLI: SQL Editor.** Si no puedes enlazar la CLI, aplica el esquema desde **SQL Editor** del panel de Supabase, ejecutando cada archivo completo y en este orden:
+
+1. `supabase/instalar-proyecto.sql`, **solo en un proyecto vacío**: crea las migraciones base y los datos iniciales de `supabase/seed.sql`, así que en este camino no ejecutes `seed.sql` otra vez en el paso 6. Se detiene si la base ya contiene parte del sistema.
+2. `supabase/activar-mejoras-rh.sql`: aplica el resto de las migraciones hasta `202610280001`. Es repetible; cada bloque comprueba si ya está instalado. En un proyecto existente, empieza por este paso.
+3. `supabase/verificar-migraciones.sql`: solo consulta. Cada fila `PENDIENTE` indica un requisito ausente.
+
+Usa un único camino para cada proyecto: `db push` o SQL Editor. No los combines.
+
 4. En Supabase Auth configura la URL del sitio y permite `http://127.0.0.1:3000/auth/confirm` como URL de redirección. Si usas `localhost`, configura también esa variante y utiliza el mismo origen en `APP_URL`.
 5. Configura las plantillas de confirmación, invitación y recuperación tomando como referencia `supabase/templates/`. En un servicio alojado estas plantillas no se instalan automáticamente por ejecutar migraciones SQL. Configura el envío de correo y, para pruebas fuera de las restricciones del servicio predeterminado, un proveedor SMTP propio.
 6. Para cargar la demostración **solo en un proyecto de pruebas vacío**, ejecuta primero `supabase/seed.sql` en su SQL Editor. Después establece `DEMO_PASSWORD` y `ALLOW_REMOTE_DEMO=true` en `.env.local` y ejecuta `npm run seed`. Retira `ALLOW_REMOTE_DEMO` cuando termines. No ejecutes el seed de demostración sobre una instalación con datos reales.

@@ -1,6 +1,6 @@
 -- Instalación inicial en un proyecto vacío: solo las migraciones base del 14 y 15 de septiembre
 -- más los datos iniciales. Después ejecutar activar-mejoras-rh.sql, que aplica el resto de las
--- migraciones (hasta 202610220003) y deja el esquema equivalente a supabase/migrations/.
+-- migraciones (hasta 202610280001) y deja el esquema equivalente a supabase/migrations/.
 -- No usar para reparar instalaciones parciales ni bases existentes.
 begin;
 do $guard$ begin

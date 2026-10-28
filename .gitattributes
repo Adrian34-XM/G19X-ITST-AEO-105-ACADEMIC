@@ -1,1 +1,3 @@
 *.pdf binary
+# Las migraciones se parchean por texto (p. ej. position.save): sin LF fijo fallan en clones de Windows.
+*.sql text eol=lf
