@@ -289,7 +289,7 @@ for (let n = 1; n <= 5; n++) {
         application_id: application.id,
         interviewer_id: users.rh,
         created_by: users.rh,
-        scheduled_at: `2026-12-0${n}T16:00:00Z`,
+        scheduled_at: `2026-12-0${n - 1}T16:00:00Z`, // 3 y 4 de diciembre: jueves y viernes hábiles.
         notes: "Conversación sobre experiencia y expectativas.",
       }),
     );
