@@ -208,6 +208,15 @@ export async function POST(
       if (data.session) await client.auth.signOut();
       return reply({ message: registrationMessage, redirect: "/login" });
     }
+    // Un fallo del servicio (tiempo agotado, 5xx) no es un error de credenciales.
+    if (
+      error &&
+      ((error.status ?? 0) >= 500 || error.code === "request_timeout")
+    )
+      throw new ApiError(
+        503,
+        "El servicio de acceso no respondió. Intenta de nuevo en unos segundos.",
+      );
     if (error)
       throw new ApiError(
         400,

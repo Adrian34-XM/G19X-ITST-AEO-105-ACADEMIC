@@ -400,9 +400,10 @@ function WorkspaceContent({
     }
   }
   async function analyze(kind: string, id: string) {
+    // El análisis de una evidencia solo bloquea su propio botón: aprobar o pedir correcciones sigue disponible.
     if (kind === "evidence")
       setEvidenceAnalysis((current) => ({ ...current, [id]: { busy: true } }));
-    setBusy(true);
+    else setBusy(true);
     setNotice("Analizando la información autorizada…");
     try {
       const response = await request("/api/ai/" + kind, { id });
@@ -428,7 +429,7 @@ function WorkspaceContent({
           },
         }));
     } finally {
-      setBusy(false);
+      if (kind !== "evidence") setBusy(false);
     }
   }
   async function openFile(bucket: string, id: string) {
@@ -926,7 +927,7 @@ function WorkspaceContent({
                     {(hr || manager) && t.status === "SUBMITTED" && (
                       <button
                         className="ai-button"
-                        disabled={busy}
+                        disabled={busy || evidenceAnalysis[e.id]?.busy}
                         onClick={() => analyze("evidence", e.id)}
                       >
                         {evidenceAnalysis[e.id]?.busy
@@ -1330,8 +1331,8 @@ function WorkspaceContent({
               className="logout"
               onClick={async () => {
                 await request("/api/auth/logout", {});
-                router.push("/login");
-                router.refresh();
+                // Navegación completa: no vuelve a cargar el panel actual antes de ir al acceso.
+                window.location.assign("/login");
               }}
             >
               <LogOut size={17} /> Cerrar sesión
