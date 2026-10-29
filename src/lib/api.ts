@@ -164,14 +164,16 @@ export function failure(error: unknown) {
   if (error instanceof ZodError)
     return NextResponse.json(
       {
-        error: error.issues.some(
-          (i) =>
-            i.code === "custom" &&
-            i.message ===
-              "Selecciona un día hábil de México (lunes a viernes, sin descansos obligatorios).",
-        )
-          ? "Selecciona un día hábil de México (lunes a viernes, sin descansos obligatorios)."
-          : "Datos inválidos.",
+        // Los mensajes de las reglas de fecha límite se muestran tal cual; el resto es genérico.
+        error:
+          error.issues.find(
+            (i) =>
+              i.code === "custom" &&
+              [
+                "Selecciona un día hábil de México (lunes a viernes, sin descansos obligatorios).",
+                "La fecha límite no puede estar en el pasado.",
+              ].includes(i.message),
+          )?.message ?? "Datos inválidos.",
         fields: error.issues.map((i) => ({
           path: i.path.join("."),
           message: i.message,
@@ -245,6 +247,11 @@ export async function readFormData(req: Request) {
   }
 }
 /** Lee hasta 100000 bytes; distingue exceso de tamaño (413) de JSON mal formado (400). */
+/** Lee un formulario clásico (application/x-www-form-urlencoded) con el mismo límite que el JSON. */
+export async function readForm(req: Request) {
+  const text = new TextDecoder().decode(await readLimitedBody(req, 100000));
+  return Object.fromEntries(new URLSearchParams(text));
+}
 export async function readJson(req: Request) {
   const text = new TextDecoder().decode(await readLimitedBody(req, 100000));
   try {

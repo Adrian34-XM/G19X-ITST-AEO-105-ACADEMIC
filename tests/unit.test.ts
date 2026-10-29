@@ -25,6 +25,11 @@ describe("permisos y validaciones", () => {
     );
     expect(applicationTransitions.CONTRATADO).toEqual([]);
   });
+  it("la etapa de entrevista solo se alcanza agendando una entrevista", () => {
+    expect(Object.values(applicationTransitions).flat()).not.toContain(
+      "ENTREVISTA",
+    );
+  });
   it("rechaza mass assignment y UUID manipulados", () => {
     expect(
       schemas["candidate.save"].safeParse({

@@ -3,7 +3,7 @@
  * antes de invocar SQL; la validación de estructura no sustituye la autorización de filas.
  * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
  */
-import { nonWorkingDay } from "@/lib/working-days";
+import { mexicoDate, nonWorkingDay } from "@/lib/working-days";
 /**
  * Esquemas Zod de las operaciones permitidas. Rechaza campos inesperados y valida identificadores, estados y límites antes de ejecutar la función SQL command.
  */
@@ -121,10 +121,15 @@ export const schemas = {
       description: text,
       employee_id: id,
       priority: z.enum(["LOW", "MEDIUM", "HIGH"]),
-      due_date: date.refine(
-        (v) => !nonWorkingDay(v),
-        "Selecciona un día hábil de México (lunes a viernes, sin descansos obligatorios).",
-      ),
+      due_date: date
+        .refine(
+          (v) => !nonWorkingDay(v),
+          "Selecciona un día hábil de México (lunes a viernes, sin descansos obligatorios).",
+        )
+        .refine(
+          (v) => v >= mexicoDate(new Date().toISOString()),
+          "La fecha límite no puede estar en el pasado.",
+        ),
     })
     .strict(),
   "task.status": z

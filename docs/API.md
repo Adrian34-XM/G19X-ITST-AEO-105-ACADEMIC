@@ -120,7 +120,7 @@ Las rutas dedicadas tienen prioridad sobre la familia genérica. No se debe inte
 
 ## 3. Autenticación
 
-Fuente: [auth/{action}/route.ts](../src/app/api/auth/[action]/route.ts). Todos los cuerpos siguientes son JSON. Estas acciones gestionan cookies a través de Auth; no devuelven la contraseña ni un par de tokens como contrato de login.
+Fuente: [auth/{action}/route.ts](../src/app/api/auth/[action]/route.ts). Todos los cuerpos siguientes son JSON; `login` y `register` aceptan además un envío clásico de formulario (`application/x-www-form-urlencoded`, por si el formulario se envía antes de hidratarse) y en ese caso responden con una redirección 303 (`?aviso=error|registro|confirmar` en la página de acceso) en lugar de JSON. Estas acciones gestionan cookies a través de Auth; no devuelven la contraseña ni un par de tokens como contrato de login.
 
 | POST a               | Cuerpo                                                   | Éxito                                                                                                    |
 | -------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |

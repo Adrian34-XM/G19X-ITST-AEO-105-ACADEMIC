@@ -36,6 +36,20 @@ it("explica al usuario por qué no puede asignar una tarea en sábado", async ()
       "día hábil de México",
     );
 });
+it("rechaza asignar una tarea con fecha límite en el pasado", async () => {
+  const parsed = schemas["task.save"].safeParse({
+    title: "Entrega",
+    description: "Criterio",
+    employee_id: "10000000-0000-4000-8000-000000000001",
+    priority: "HIGH",
+    due_date: "2024-10-02",
+  });
+  expect(parsed.success).toBe(false);
+  if (!parsed.success)
+    expect((await failure(parsed.error).json()).error).toBe(
+      "La fecha límite no puede estar en el pasado.",
+    );
+});
 vi.mock("@/lib/supabase/server", () => ({
   db: vi.fn(async () => ({ auth: { getUser } })),
 }));

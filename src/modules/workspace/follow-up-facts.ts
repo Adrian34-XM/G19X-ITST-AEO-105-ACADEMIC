@@ -5,6 +5,7 @@
  * @see docs/CODIGO.md para los flujos y docs/MAPA_CODIGO.md para el índice.
  */
 import { type Row, type Snapshot, value } from "./types";
+import { labels } from "./labels";
 
 const DAY = 86400000;
 function daysBetween(from: string, to: string) {
@@ -170,7 +171,10 @@ export function emptyEvidenceAnswer(
 
 /** Títulos entrecomillados en la respuesta que no coinciden con ningún registro autorizado. */
 export function inventedTitles(text: string, knownTitles: string[]) {
-  const known = knownTitles.map(normalize).filter(Boolean);
+  // Las etiquetas de estado («En revisión», «Pendiente») se citan a menudo y no son registros.
+  const known = [...knownTitles, ...Object.values(labels)]
+    .map(normalize)
+    .filter(Boolean);
   const quoted = [...text.matchAll(/[«"“']([^»"”']{8,160})[»"”']/g)].map(
     (m) => m[1],
   );

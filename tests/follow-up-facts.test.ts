@@ -155,4 +155,13 @@ describe("detección de preguntas y de títulos inventados", () => {
       ),
     ).toEqual(["Migrar la base de datos"]);
   });
+  it("no confunde una etiqueta de estado entrecomillada con un título inventado", () => {
+    const known = data.tasks.map((t) => t.title);
+    expect(
+      inventedTitles(
+        "Dos tareas siguen «En revisión» y una está «En progreso».",
+        known,
+      ),
+    ).toEqual([]);
+  });
 });

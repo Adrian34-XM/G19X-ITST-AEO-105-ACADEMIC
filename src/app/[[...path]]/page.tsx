@@ -19,14 +19,20 @@ import { AuthForm } from "@/components/auth-form";
 export const dynamic = "force-dynamic";
 export default async function Page({
   params,
+  searchParams,
 }: {
   params: Promise<{ path?: string[] }>;
+  searchParams: Promise<{ aviso?: string }>;
 }) {
   const { path = [] } = await params;
   const pathname = "/" + path.join("/");
   if (path[0] === "login" || path[0] === "register")
     return (
-      <AuthForm register={path[0] === "register"} configured={configured()} />
+      <AuthForm
+        register={path[0] === "register"}
+        configured={configured()}
+        notice={(await searchParams).aviso}
+      />
     );
   if (!configured())
     return (
@@ -101,7 +107,8 @@ export default async function Page({
     redirect("/login");
   }
   if (!mayEnter(auth.profile.role, pathname)) redirect(home[auth.profile.role]);
-  if (path[1] === "recommendations") redirect(`${home[auth.profile.role]}/applications`);
+  if (path[1] === "recommendations")
+    redirect(`${home[auth.profile.role]}/applications`);
   const data = await snapshot(auth.client);
   if (path[1] === "profile")
     data.own_manager_names = await ownManagerName(auth.client);

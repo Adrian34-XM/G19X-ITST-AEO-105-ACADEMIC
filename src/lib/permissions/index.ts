@@ -36,7 +36,8 @@ export function mayEnter(role: Role, path: string) {
 export const applicationTransitions: Record<string, string[]> = {
   POSTULADO: ["EN_REVISION", "RECHAZADO"],
   EN_REVISION: ["PRESELECCIONADO", "RECHAZADO"],
-  PRESELECCIONADO: ["ENTREVISTA", "RECHAZADO"],
+  // ENTREVISTA se alcanza al agendar la entrevista, no como cambio de estado directo.
+  PRESELECCIONADO: ["RECHAZADO"],
   ENTREVISTA: ["RECHAZADO"],
   CONTRATADO: [],
   RECHAZADO: [],

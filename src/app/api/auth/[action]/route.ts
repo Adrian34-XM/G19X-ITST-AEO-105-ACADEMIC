@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/supabase/server";
-import { checkOrigin, failure, readJson } from "@/lib/api";
+import { checkOrigin, failure, readForm, readJson } from "@/lib/api";
 import { home, type Role } from "@/lib/permissions";
 import { ApiError } from "@/lib/auth";
 import {
@@ -21,6 +21,7 @@ export async function POST(
   req: Request,
   ctx: { params: Promise<{ action: string }> },
 ) {
+  let formPage = "";
   try {
     checkOrigin(req);
     const client = await db();
@@ -159,6 +160,9 @@ export async function POST(
     }
     if (!["login", "register"].includes(action))
       throw new ApiError(404, "Ruta no encontrada.");
+    // Si el formulario se envía antes de hidratarse, llega como formulario clásico:
+    // se acepta por POST (nunca con la contraseña en la URL) y se responde con una redirección.
+    formPage = action === "register" ? "/register" : "/login";
     const input = z
       .object({
         email: z.email().max(254),
@@ -166,7 +170,21 @@ export async function POST(
         full_name: z.string().trim().min(1).max(150).optional(),
       })
       .strict()
-      .parse(await readJson(req));
+      .parse(formRequest(req) ? await readForm(req) : await readJson(req));
+    const reply = (result: { redirect: string; message?: string }) =>
+      formRequest(req)
+        ? NextResponse.redirect(
+            new URL(
+              result.message
+                ? `${result.redirect}?aviso=${
+                    action === "register" ? "registro" : "confirmar"
+                  }`
+                : result.redirect,
+              browserOrigin(req),
+            ),
+            303,
+          )
+        : NextResponse.json(result);
     const { data, error } =
       action === "register"
         ? await client.auth.signUp({
@@ -188,10 +206,7 @@ export async function POST(
     ) {
       // Auth puede ocultar duplicados devolviendo una identidad ficticia: no enumerar correos.
       if (data.session) await client.auth.signOut();
-      return NextResponse.json({
-        message: registrationMessage,
-        redirect: "/login",
-      });
+      return reply({ message: registrationMessage, redirect: "/login" });
     }
     if (error)
       throw new ApiError(
@@ -201,7 +216,7 @@ export async function POST(
           : "Correo o contraseña incorrectos.",
       );
     if (!data.session)
-      return NextResponse.json({
+      return reply({
         message: "Revisa tu correo para confirmar tu cuenta.",
         redirect: "/login",
       });
@@ -218,8 +233,23 @@ export async function POST(
       op: "audit.access",
       payload: { id: data.user!.id, resource: "login" },
     });
-    return NextResponse.json({ redirect: home[p.role as Role] });
+    return reply({ redirect: home[p.role as Role] });
   } catch (e) {
+    if (formPage && formRequest(req))
+      return NextResponse.redirect(
+        new URL(`${formPage}?aviso=error`, browserOrigin(req)),
+        303,
+      );
     return failure(e);
   }
+}
+/** Un envío clásico de formulario (sin JavaScript hidratado) llega codificado como formulario. */
+function formRequest(req: Request) {
+  return (req.headers.get("content-type") ?? "").includes(
+    "application/x-www-form-urlencoded",
+  );
+}
+/** Origen que ve el navegador (ya validado por checkOrigin); req.url puede traer el host de escucha. */
+function browserOrigin(req: Request) {
+  return req.headers.get("origin") ?? req.url;
 }

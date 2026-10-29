@@ -11,14 +11,25 @@ import Link from "next/link";
 import { useState } from "react";
 import { LoginBackdrop } from "./login-backdrop";
 import { PasswordInput } from "./password-input";
+/** Avisos que llegan por la URL cuando el formulario se envió sin JavaScript hidratado. */
+const notices: Record<string, string> = {
+  error:
+    "No se pudo completar la operación. Revisa los datos e intenta de nuevo.",
+  registro:
+    "Si tu correo puede registrarse, recibirás un enlace de confirmación. Si ya tienes cuenta, inicia sesión o recupera tu contraseña.",
+  confirmar: "Revisa tu correo para confirmar tu cuenta.",
+};
 export function AuthForm({
   register,
   configured,
+  notice = "",
 }: {
   register: boolean;
   configured: boolean;
+  notice?: string;
 }) {
-  const [error, setError] = useState("");
+  const endpoint = "/api/auth/" + (register ? "register" : "login");
+  const [error, setError] = useState(notices[notice] ?? "");
   const [busy, setBusy] = useState(false);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -26,14 +37,11 @@ export function AuthForm({
     setError("");
     const form = new FormData(event.currentTarget);
     try {
-      const response = await fetch(
-        "/api/auth/" + (register ? "register" : "login"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(Object.fromEntries(form)),
-        },
-      );
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(Object.fromEntries(form)),
+      });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
       if (result.message) setError(result.message);
@@ -79,7 +87,8 @@ export function AuthForm({
               ? "Crea tu cuenta de candidato."
               : "Ingresa para continuar con tu espacio de trabajo."}
           </p>
-          <form onSubmit={submit}>
+          {/* method y action garantizan que un envío previo a la hidratación viaje por POST, nunca con la contraseña en la URL. */}
+          <form method="post" action={endpoint} onSubmit={submit}>
             {register && (
               <label>
                 Nombre completo
